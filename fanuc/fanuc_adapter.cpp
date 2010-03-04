@@ -185,6 +185,8 @@ void FanucAdapter::configAxesNames()
       strcpy(cp, "load");
       mAxisLoad[i] = new Sample(name); 
       addDatum(*mAxisLoad[i]);
+
+	  mAxisDivisor[i] = 1.0;
     }
   }
   else
@@ -193,11 +195,11 @@ void FanucAdapter::configAxesNames()
     exit(999);
   }
 
-  short count, inprec[MAX_AXIS], outprec[MAX_AXIS];;
+  short count, inprec[MAX_AXIS], outprec[MAX_AXIS];
   ret = cnc_getfigure(mFlibhndl, 0, &count, inprec, outprec);
   if (ret == EW_OK)
   {
-    for (int i = 0; i < mAxisCount; i++)
+    for (int i = 0; i < count; i++)
       mAxisDivisor[i] = pow((long double) 10.0, (long double) inprec[i]);
   }
   else
