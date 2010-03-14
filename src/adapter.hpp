@@ -68,6 +68,7 @@ protected:
   virtual void sendInitialData(Client *aClient);
   virtual void sendChangedData();
   virtual void flush();
+  virtual void unavailable();
   
 public:
   Adapter(int aPort, int aScanDelay = 100);

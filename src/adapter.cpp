@@ -190,3 +190,13 @@ void Adapter::clientsDisconnected()
   printf("All clients have disconnected\n");
 }
 
+void Adapter::unavailable()
+{
+  for (int i = 0; i < mNumDeviceData; i++)
+  {
+    DeviceDatum *value = mDeviceData[i];
+    value->unavailable();
+  }
+  flush();
+}
+

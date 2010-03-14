@@ -37,43 +37,43 @@
 
 FanucAdapter::FanucAdapter(int aPort, const char *aDeviceIP, int aDevicePort) : 
   Adapter(aPort), 
-  mPower("power"), mExecution("execution"), mLine("line"),
+  mAvail("avail"), mExecution("execution"), mLine("line"),
   mPathFeedrate("path_feedrate"), 
   mProgram("program"), mBlock("block"), mProgramInfo("program_info"),
-  mMode("mode"), mMessage("alarm"),
-  mEstop("alarm", Alarm::eESTOP, "EMerGency", Alarm::eCRITICAL, "EMerGency Status Set"),
-  mOvertravel("alarm", Alarm::eOVERLOAD, "Overtravel", Alarm::eCRITICAL, "Overtravel alarm"),
-  mOverheat("alarm", Alarm::eOVERLOAD, "Overheat", Alarm::eCRITICAL, "Overheat alarm"),
-  mServo("alarm", Alarm::eFAULT, "Servo", Alarm::eCRITICAL, "Servo alarm"),
-  mSpindleAlarm("alarm", Alarm::eFAULT, "Spindle", Alarm::eCRITICAL, "Spindle alarm"),
-  mMacroAlarm("alarm", Alarm::eOTHER, "Macro", Alarm::eINFO, "Macro alarm"),
-  mDataIo("alarm", Alarm::eOTHER, "DataIO", Alarm::eERROR, "DataIO error"), mAlarm("alarm")
+  mMode("mode"), mMessage("message"),
+  mEstop("estop"), mPathPosition("path_pos"),
+  mServo("servo"), mComms("comms"), mLogic("logic"),
+  mMotion("motion"), mSystem("system"), mSpindle("spindle")
 {
   /* Alarms */
   addDatum(mMessage);
   addDatum(mEstop);
-  addDatum(mOvertravel);
-  addDatum(mOverheat);
   addDatum(mServo);
-  addDatum(mSpindleAlarm);
-  addDatum(mMacroAlarm);
-  addDatum(mDataIo);
-  addDatum(mAlarm);
+  addDatum(mComms);
+  addDatum(mLogic);
+  addDatum(mMotion);
+  addDatum(mSystem);
+  addDatum(mSpindle);
 
   /* Controller */
   addDatum(mProgramInfo);
   addDatum(mProgram);
-  addDatum(mPower);
+  addDatum(mAvail);
   addDatum(mExecution);
   addDatum(mLine);
   addDatum(mPathFeedrate);
   addDatum(mMode);
   addDatum(mBlock);
 
+  addDatum(mPathPosition);
+
   mDevicePort = aDevicePort;
   mDeviceIP = aDeviceIP;
   mConfigured = mConnected = false;
-  mAxisCount = mSpindleCount = mMacroCount = mPMCCount = 0;
+  mAxisCount = mSpindleCount = mMacroSampleCount = mPMCCount =
+	       mMacroPathCount = 0;
+  mXPathIndex = mYPathIndex = mZPathIndex = -1;
+  mAvail.unavailable();
 }
 
 FanucAdapter::~FanucAdapter()
@@ -84,6 +84,9 @@ FanucAdapter::~FanucAdapter()
     delete mAxisAct[i];
     delete mAxisCom[i];
     delete mAxisLoad[i];
+    delete mAxisTravel[i];
+    delete mAxisOverheat[i];
+    delete mAxisServo[i];
   }
 
   for (i = 0; i < mSpindleCount; i++)
@@ -91,7 +94,7 @@ FanucAdapter::~FanucAdapter()
     delete mSpindleSpeed[i];
     delete mSpindleLoad[i];
   }
-          
+  
   disconnect();
 }
 
@@ -106,7 +109,6 @@ void FanucAdapter::gatherDeviceData()
     getSpindleLoad();
     getStatus();
     getMessages();
-    getAlarms();
     getMacros();
     getPMC();
   }
@@ -117,9 +119,9 @@ void FanucAdapter::disconnect()
   if (mConnected)
   {
     printf("Machine has disconnected. Releasing Resources\n");
-    mPower.setValue(Power::eOFF);
     cnc_freelibhndl(mFlibhndl);  
     mConnected = false;
+    unavailable();
   }
 }
 
@@ -175,6 +177,13 @@ void FanucAdapter::configAxesNames()
         name[j++] =  axes[i].suff;
       name[j] = '\0';
 
+      if (axes[i].name == 'X' && (axes[i].suff == 0 || mXPathIndex == -1))
+	mXPathIndex = i;
+      else if (axes[i].name == 'Y' && (axes[i].suff == 0 || mYPathIndex == -1))
+	mYPathIndex = i;
+      else if (axes[i].name == 'Z' && (axes[i].suff == 0 || mZPathIndex == -1))
+	mZPathIndex = i;
+
       char *cp = name + j;
       strcpy(cp, "act");
       mAxisAct[i] = new Sample(name);
@@ -185,8 +194,19 @@ void FanucAdapter::configAxesNames()
       strcpy(cp, "load");
       mAxisLoad[i] = new Sample(name); 
       addDatum(*mAxisLoad[i]);
+      strcpy(cp, "travel");
+      
+      mAxisTravel[i] = new Condition(name);
+      addDatum(*mAxisTravel[i]);
+      strcpy(cp, "overtemp");
+      mAxisOverheat[i] = new Condition(name);
+      addDatum(*mAxisOverheat[i]);
+      strcpy(cp, "servo");
+      mAxisServo[i] = new Condition(name);
+      addDatum(*mAxisServo[i]);
 
-	  mAxisDivisor[i] = 1.0;
+      mAxisDivisor[i] = 1.0;
+
     }
   }
   else
@@ -216,6 +236,7 @@ void FanucAdapter::configMacrosAndPMC()
   // PMC registers
   char name[100];
   int idx;
+  const static char *sDigits = "0123456789";
 
   mMacroMin = 99999;
   mMacroMax = 0;
@@ -226,18 +247,56 @@ void FanucAdapter::configMacrosAndPMC()
              idx < MAX_MACROS;
        idx++)
   {
-    long v = ini_getl("macros", name, 0, ini_file);
-    mMacro[idx] = new IntEvent(name);
-    mMacroNumber[idx] = v;
-    addDatum(*mMacro[idx]);
+    char numbers[256];
+    ini_gets("macros", name, "", numbers, 256, ini_file);
+    if (numbers[0] == '[')
+    {
+      // We have a path macro.
+      int x, y, z;
+      char *cp = numbers + 1, *n;
+      x = strtol(cp, &n, 10);
+      if (cp == n)
+	continue;
+      cp = n;
+      y = strtol(cp, &n, 10);
+      if (cp == n)
+	continue;
+      cp = n;
+      z = strtol(cp, &n, 10);
+      if (cp == n)
+	continue;
+      
+      int i = mMacroPathCount++;
+      mMacroPath[i] = new MacroPathPosition(name, x, y, z);
+      addDatum(*mMacroPath[i]);
 
-    printf("Adding macro '%s' at location %d\n", name, v);
+      printf("Adding path macro '%s' at location %d %d %d\n", name, x, y, z);
+
+      if (x > mMacroMax) mMacroMax = x;
+      if (x < mMacroMin) mMacroMin = x;
+      if (y > mMacroMax) mMacroMax = y;
+      if (y < mMacroMin) mMacroMin = y;
+      if (z > mMacroMax) mMacroMax = z;
+      if (z < mMacroMin) mMacroMin = z;
+    }
+    else
+    {
+      char *cp = numbers, *n;
+      long v = strtol(cp, &n, 10);
+      if (cp == n)
+	continue;
+      int i = mMacroSampleCount++;
+      mMacroSample[i] = new MacroSample(name, v);
+      addDatum(*mMacroSample[i]);
+
+      printf("Adding sample macro '%s' at location %d\n", name, v);
+      
+      if (v > mMacroMax) mMacroMax = v;
+      if (v < mMacroMin) mMacroMin = v;
+    }
     
-    if (v > mMacroMax) mMacroMax = v;
-    if (v < mMacroMin) mMacroMin = v;
     
   }
-  mMacroCount = idx;
 
   for (idx = 0;
        ini_getkey("pmc", idx, name, sizeof(name), ini_file) > 0 &&
@@ -282,14 +341,30 @@ void FanucAdapter::connect()
   if (ret == EW_OK) 
   {
     mConnected = true;
-    mPower.setValue(Power::eON);
-
     if (!mConfigured) configure();
+    
+    mAvail.available();
+
+    // Set all conditions to normal
+    mServo.setValue(Condition::eNORMAL);
+    mComms.setValue(Condition::eNORMAL);
+    mLogic.setValue(Condition::eNORMAL);
+    mMotion.setValue(Condition::eNORMAL);
+    mSystem.setValue(Condition::eNORMAL);
+    mSpindle.setValue(Condition::eNORMAL);
+
+    for (int i = 0; i < mAxisCount; i++)
+    {
+      mAxisTravel[i]->setValue(Condition::eNORMAL);
+      mAxisOverheat[i]->setValue(Condition::eNORMAL);
+      mAxisServo[i]->setValue(Condition::eNORMAL);
+    }
+    
   }
   else
   {
-    mPower.setValue(Power::eOFF);
     mConnected = false;
+    unavailable();
     Sleep(5000);
   }  
 }
@@ -310,13 +385,17 @@ void FanucAdapter::getPositions()
   if (!mConnected)
     return;
 
-  ODBDY dyn;
-  short ret = cnc_rddynamic(mFlibhndl, -1, 24 + 16 * mInfo.max_axis, &dyn);
+  ODBDY2 dyn;
+  short ret = cnc_rddynamic2(mFlibhndl, -1, sizeof(dyn), &dyn);
   if (ret == EW_OK)
   {
     for (int i = 0; i < mAxisCount; i++)
-      mAxisAct[i]->setValue(dyn.pos.faxis.absolute[i] / mAxisDivisor[i]);
-            
+      mAxisAct[i]->setValue(dyn.pos.faxis.machine[i] / mAxisDivisor[i]);
+    
+    mPathPosition.setValue(dyn.pos.faxis.absolute[mXPathIndex] / mAxisDivisor[mXPathIndex],
+			   dyn.pos.faxis.absolute[mYPathIndex] / mAxisDivisor[mYPathIndex],
+			   dyn.pos.faxis.absolute[mZPathIndex] / mAxisDivisor[mZPathIndex]);
+    
     char buf[32];
     mProgramNum = dyn.prgnum;
     sprintf(buf, "%d.%d", dyn.prgmnum, dyn.prgnum);
@@ -336,11 +415,25 @@ void FanucAdapter::getPositions()
        mAxisCom[i]->setValue(ModalData.modal.raux2[i].aux_data / mAxisDivisor[i]);
        }
     */
+
+    
+    getCondition(dyn.alarm);
   }
   else
   {
     disconnect();
   }
+
+  /* Only works on 15i... 
+  ODB3DHDL tooltip[2] ;
+  ret = cnc_rd3dtooltip(mFlibhndl, tooltip);
+  if (ret == EW_OK)
+  {
+    // Set Path position
+    printf("%d %d %d : %d %d %d\n", tooltip[0].axes[0], tooltip[0].axes[1],
+	   tooltip[0].axes[2], tooltip[0].data[0], tooltip[0].data[1], tooltip[0].data[2]);
+  }
+  */
 }
 
 void FanucAdapter::getStatus()
@@ -371,9 +464,9 @@ void FanucAdapter::getStatus()
         mExecution.setValue(Execution::eREADY);
     }
     if (status.emergency == 1)
-      mEstop.active();
+	  mEstop.setValue(EmergencyStop::eACTIVE);
     else
-      mEstop.cleared();
+	  mEstop.setValue(EmergencyStop::eRESET);
 
     char buf[1024];
     unsigned short len = sizeof(buf);
@@ -403,24 +496,42 @@ void FanucAdapter::getStatus()
 
 void FanucAdapter::getMacros()
 {
-  if (mMacroCount == 0)
+  if (mMacroSampleCount == 0 && mMacroPathCount == 0)
     return;
   
   // For now we assume they are close in range. If this proves to not
   // be true, we will have to get more creative.
-  IODBMR macros;
+  IODBMR *macros = new IODBMR[mMacroMax - mMacroMin];
   short ret = cnc_rdmacror(mFlibhndl, mMacroMin, mMacroMax, 
-                           8 + 8 * (mMacroMax - mMacroMin + 1),
-                           &macros);
+                           sizeof(IODBMR) * (mMacroMax - mMacroMin + 1),
+                           macros);
   
   if (ret == EW_OK) {
-    for (int i = 0; i < mMacroCount; i++)
+    for (int i = 0; i < mMacroSampleCount; i++)
     {
-      int off = mMacroNumber[i] - mMacroMin;
-      if (macros.data[off].mcr_val != 0 || macros.data[off].dec_val != -1)
+      int off = mMacroSample[i]->getNumber() - mMacroMin;
+      if (macros->data[off].mcr_val != 0 || macros->data[off].dec_val != -1)
       {
-        mMacro[i]->setValue((int) ((double) macros.data[off].mcr_val) /
-                            pow(10.0, macros.data[off].dec_val));
+        mMacroSample[i]->setValue(((double) macros->data[off].mcr_val) /
+                            pow(10.0, macros->data[off].dec_val));
+      }
+    }
+    for (int i = 0; i < mMacroPathCount; i++)
+    {
+      int x = mMacroPath[i]->getX() - mMacroMin;
+      int y = mMacroPath[i]->getY() - mMacroMin;
+      int z = mMacroPath[i]->getZ() - mMacroMin;
+      
+      if ((macros->data[x].mcr_val != 0 || macros->data[x].dec_val != -1) &&
+	  (macros->data[y].mcr_val != 0 || macros->data[y].dec_val != -1) &&
+	  (macros->data[z].mcr_val != 0 || macros->data[z].dec_val != -1))
+      {
+	mMacroPath[i]->setValue(((double) macros->data[x].mcr_val) /
+				  pow(10.0, macros->data[x].dec_val),
+				((double) macros->data[y].mcr_val) /
+				  pow(10.0, macros->data[y].dec_val),
+				((double) macros->data[z].mcr_val) /
+				  pow(10.0, macros->data[z].dec_val));
       }
     }
   }
@@ -428,6 +539,8 @@ void FanucAdapter::getMacros()
   {
     printf("Could not read macro variables: %d\n", ret);
   }
+
+  delete[] macros;
 }
 
 void FanucAdapter::getPMC()
@@ -464,30 +577,96 @@ void FanucAdapter::getMessages()
   {
     char buf[32];
     sprintf(buf, "%04", messages->datano);
-    mMessage.setValue(Alarm::eMESSAGE, buf, Alarm::eINFO, Alarm::eINSTANT, messages->data);
+    mMessage.setValue(messages->data, buf);
   }
 }
 
-void FanucAdapter::setAlarm(StatefullAlarm &aAlarm, int data, int bit_mask)
+Condition *FanucAdapter::translateAlarmNo(long aNum, int aAxis)
 {
-  if (data & bit_mask)
-    aAlarm.active();
-  else
-    aAlarm.cleared();
+  switch(aNum) 
+  {
+  case 0: // Parameter Switch Off
+    return &mLogic;
+
+  case 2: // I/O
+  case 7: // Data I/O
+    return &mComms;
+
+  case 4: // Overtravel
+    if (aAxis > 0)
+      return mAxisTravel[aAxis - 1];
+    else
+      return &mSystem;
+
+  case 5: // Overheat
+    if (aAxis > 0)
+      return mAxisOverheat[aAxis - 1];
+    else
+      return &mSystem;
+
+  case 6: // Servo
+    if (aAxis > 0)
+      return mAxisServo[aAxis - 1];
+    else
+      return &mServo;
+
+  case 12: // Background P/S
+  case 3: // Forground P/S
+  case 8: // Macro
+    return &mMotion;
+
+  case 9: // Spindle
+    return &mSpindle;
+    
+  case 19: // PMC
+    return &mLogic;
+    
+  default: // 10, 11, 13, 15.
+    return &mSystem;
+  }
+
+  return NULL;
 }
 
-void FanucAdapter::getAlarms()
+void FanucAdapter::getCondition(long aAlarm)
 {
-  ODBALM buf ;
-  cnc_alarm(mFlibhndl, &buf ) ;
+  if (aAlarm != 0) 
+  {
+    for (int i = 0; i < 31; i++) 
+    {
+      if (aAlarm & (0x1 << i))
+      {
+	ODBALMMSG2 alarms[MAX_AXIS];
+	short num = MAX_AXIS;
+	
+	short ret = cnc_rdalmmsg2(mFlibhndl, i, &num, alarms);
+	if (ret != EW_OK)
+	  continue;
 
-  int data = buf.data;
-  setAlarm(mDataIo, data, (0x1 << 2) | (0x1 << 7));
-  setAlarm(mServo, data, 0x1 << 6);
-  setAlarm(mMacroAlarm, data, 0x1 << 8);
-  setAlarm(mOverheat, data, 0x1 << 5);
-  setAlarm(mOvertravel, data, 0x1 << 4);
-  setAlarm(mSpindleAlarm, data, 0x1 << 9); 
+	for (int j = 0; j < num; j++) 
+	{
+	  ODBALMMSG2 &alarm = alarms[j];
+	  char num[16];
+	  
+	  Condition *cond = translateAlarmNo(i, alarm.axis);
+	  if (cond == NULL)
+	    continue;
+
+	  sprintf(num, "%d", alarm.alm_no);
+	  if (cond->setValue(Condition::eFAULT, alarm.alm_msg, num))
+		mActiveConditions.add(cond);
+	}
+      }
+    }       
+  } else {
+    ConditionList::Iterator it = mActiveConditions.begin();
+    while(!it.end())
+    {
+      Condition *cond = it;
+      cond->setValue(Condition::eNORMAL);
+      it.remove();
+    }
+  }
 }
 
 void FanucAdapter::getAxisLoad()

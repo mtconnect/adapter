@@ -183,6 +183,10 @@
 				>
 			</File>
 			<File
+				RelativePath="..\src\condition_list.cpp"
+				>
+			</File>
+			<File
 				RelativePath="..\src\device_datum.cpp"
 				>
 			</File>
