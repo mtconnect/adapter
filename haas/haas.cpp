@@ -39,6 +39,13 @@
 int main(int aArgc, char *aArgv[])
 {
   int port = 7878;
+
+  if (aArgc < 2)
+  {
+    printf("Usage: %s <Serial_COM>\n", aArgv[0]);
+    exit(1);
+  }
+
   if (aArgc > 2)
     port = atoi(aArgv[2]);
     
