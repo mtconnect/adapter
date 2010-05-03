@@ -60,7 +60,7 @@ int Serial::readUntil(const char *aUntil, char *aBuffer, int aLength)
     if (ret == 0)
     {
       usleep(10 * 1000); // 10 msec
-      if (count++ > 100)
+      if (count++ > 10)
       {
 	printf("Read timed out\n");
 	return -1;

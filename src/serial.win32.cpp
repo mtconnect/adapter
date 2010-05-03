@@ -128,10 +128,10 @@ bool Serial::connect()
   dcb.fInX = dcb.fOutX = 0;
 		 
   memset(&cto, 0, sizeof(cto));
-  cto.ReadIntervalTimeout = 100;
-  cto.ReadTotalTimeoutMultiplier = 1;
-  cto.ReadTotalTimeoutConstant = 1000;
-  cto.WriteTotalTimeoutMultiplier = cto.ReadIntervalTimeout;
+  cto.ReadIntervalTimeout = (20000 / speed) ? (20000 / speed) : 1;
+  cto.ReadTotalTimeoutMultiplier = 0;
+  cto.ReadTotalTimeoutConstant = 100;
+  cto.WriteTotalTimeoutMultiplier = (20000 / speed) ? (20000 / speed) : 1;
   cto.WriteTotalTimeoutConstant = 1000;	 
 
   if(!SetCommTimeouts(mFd, &cto)){
