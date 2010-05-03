@@ -242,8 +242,8 @@ class EmergencyStop : public DeviceDatum
 public:
   enum EValues {
     eUNAVAILABLE,
-    eACTIVE,
-    eRESET
+    eTRIGGERED,
+    eARMED
   };
   
 protected:

@@ -350,8 +350,8 @@ char *EmergencyStop::toString(char *aBuffer, int aMaxLen)
   switch(mValue)
   {
   case eUNAVAILABLE: text = sUnavailable; break;
-  case eACTIVE: text = "ACTIVE"; break;
-  case eRESET: text = "RESET"; break;
+  case eTRIGGERED: text = "TRIGGERED"; break;
+  case eARMED: text = "ARMED"; break;
   default: ""; break;
   }
   snprintf(aBuffer, aMaxLen, "|%s|%s", mName, text);
