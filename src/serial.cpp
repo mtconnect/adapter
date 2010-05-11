@@ -20,7 +20,6 @@ Serial::Serial(const char *aDevice,
   mDataBit = aDataBit;
   mStopBit = aStopBit;
   mDebug = aDebug;
-  mDebug = true;
 
 #ifdef WIN32
   mFd = INVALID_HANDLE_VALUE;
