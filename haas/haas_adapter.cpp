@@ -36,7 +36,7 @@
 
 using namespace std;
 
-HaasAdapter::HaasAdapter(int aPort, HaasSerial *aSerial)
+HaasAdapter::HaasAdapter(int aPort, HaasSerial *aSerial, bool aPositions)
   : Adapter(aPort, 1000), 
     mAlarm("alarm"), mZeroRet("alarm"), mMessage("alarm"), mPower("power"), mExecution("execution"),
     mLine("line"), mXact("Xact"), mYact("Yact"), mZact("Zact"), 
@@ -44,7 +44,8 @@ HaasAdapter::HaasAdapter(int aPort, HaasSerial *aSerial)
     mSpindleSpeed("spindle_speed"), mPathFeedrate("path_feedrate"),
     mProgram("program"), mMode("mode"), mBlock("block"),
     mPathFeedrateOverride("feed_ovr"), mSpindleSpeedOverride("SspeedOvr"),
-    mLineMax("line_max"), mPartCount("PartCount"), mEstop("alarm")
+    mLineMax("line_max"), mPartCount("PartCount"), mEstop("alarm"),
+    mPositions(aPositions)
 {
   addDatum(mAlarm);
   addDatum(mMessage);
@@ -233,7 +234,8 @@ void HaasAdapter::gatherDeviceData()
       {
 	mBuffer.timestamp();
 	mPower.setValue(Power::eON);
-	actual();
+	if (mPositions)
+	  actual();
 	commanded();
 	spindle();
 	execution();

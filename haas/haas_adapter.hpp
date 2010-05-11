@@ -82,6 +82,8 @@ protected:
   /* Path Feedrate */
   Sample mPathFeedrate;
   Sample mPathFeedrateOverride;
+
+  bool mPositions;
   
 protected:
   char mErrorString[LINELEN];
@@ -98,7 +100,7 @@ protected:
   void execution();
   
 public:
-  HaasAdapter(int aPort, HaasSerial *aSerial);
+  HaasAdapter(int aPort, HaasSerial *aSerial, bool aPositions = false);
   ~HaasAdapter();
   
   virtual void gatherDeviceData();
