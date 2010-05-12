@@ -39,11 +39,12 @@
 const int READ_BUFFER_LEN = 8092;
 
 /* Create the server and bind to the port */
-Server::Server(int aPort)
+Server::Server(int aPort, int aHeartbeatFreq)
 {
 
   mNumClients = 0;
   mPort = aPort;
+  mTimeout = aHeartbeatFreq * 2;
   
   SOCKADDR_IN t;
   
@@ -82,6 +83,9 @@ Server::Server(int aPort)
     delete this;
     exit(1);
   }
+
+  // Default to a 10 second heartbeat
+  sprintf(mPong, "* PONG %d\n", aHeartbeatFreq);
   
   printf("Server started, waiting on port %d\n", aPort);
 }
@@ -136,10 +140,37 @@ void Server::readFromClients()
       if (FD_ISSET(client->socket(), &rset))
       {
         len = client->read(buffer, READ_BUFFER_LEN);
-        if (len > 0)
-          printf("Received: %s\n", buffer);
+        if (len > 0) 
+	{
+	  // Check for heartbeat
+	  if (strncmp(buffer, "* PING", 6) == 0)
+	  {
+	    if (!client->mHeartbeats)
+	      client->mHeartbeats = true;
+	    client->mLastHeartbeat = getTimestamp();
+	    client->write(mPong);
+	  }
+	  else
+	    printf("Received: %s\n", buffer);
+	}
         else 
           removeClient(client);
+      }
+    }
+  }
+
+  // Check heartbeats
+  for (int i = mNumClients - 1; i >= 0; i--)
+  {
+    Client *client = mClients[i];
+    unsigned int now = getTimestamp();
+    if (client->mHeartbeats)
+    {
+      if (deltaTimestamp(now, client->mLastHeartbeat) > mTimeout)
+      {
+	printf("Client has not sent heartbeat in over %d ms, disconnecting\n",
+	       mTimeout);
+	removeClient(client);
       }
     }
   }
@@ -242,5 +273,34 @@ void Server::addClient(Client *aClient)
   {
     delete aClient;
   }
+}
+
+unsigned int Server::getTimestamp()
+{
+#ifdef WIN32
+  return GetTickCount();
+#else
+  timeval curtime;
+  gettimeofday(&curtime, 0);
+  
+  unsigned long ts = (unsigned long) curtime.tv_sec;
+  // Allow to truncate
+  ts *= 1000;
+  ts += curtime.tv_usec / 1000;
+  
+  return ts;
+#endif
+}
+
+unsigned int Server::deltaTimestamp(unsigned int a, unsigned int b)
+{
+  // Assume we are doing a - b where a should be larger, if it is not
+  // we have a wrap-around
+  unsigned int res;
+  if ( a >= b )
+    res = a - b;
+  else // b > a, Compute the distance from the end:
+    res = a + (0xFFFFFFFF - b);
+  return res;
 }
 

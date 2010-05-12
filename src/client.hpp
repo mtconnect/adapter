@@ -46,6 +46,8 @@ protected:
 
   /* class methods */
 public:
+  bool mHeartbeats;
+  unsigned int mLastHeartbeat;
 
   /* Instance methods */
 public:

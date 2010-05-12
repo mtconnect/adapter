@@ -39,6 +39,7 @@
 Client::Client(SOCKET aSocket)
 {
   mSocket = aSocket;
+  mHeartbeats = false;
 }
 
 Client::~Client()
