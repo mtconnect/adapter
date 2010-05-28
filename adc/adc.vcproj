@@ -2,10 +2,9 @@
 <VisualStudioProject
 	ProjectType="Visual C++"
 	Version="9.00"
-	Name="fanuc"
-	ProjectGUID="{E8B3DF32-37B5-4FDB-9C95-B5F978E61D43}"
-	RootNamespace="fanuc"
-	Keyword="Win32Proj"
+	Name="adc"
+	ProjectGUID="{A22C959F-B482-4D5F-A6DF-1F262D7281C5}"
+	RootNamespace="adc"
 	TargetFrameworkVersion="196613"
 	>
 	<Platforms>
@@ -21,7 +20,7 @@
 			OutputDirectory="$(SolutionDir)$(ConfigurationName)"
 			IntermediateDirectory="$(ConfigurationName)"
 			ConfigurationType="1"
-			CharacterSet="1"
+			CharacterSet="2"
 			>
 			<Tool
 				Name="VCPreBuildEventTool"
@@ -41,12 +40,11 @@
 			<Tool
 				Name="VCCLCompilerTool"
 				Optimization="0"
-				AdditionalIncludeDirectories="..\src;..\Fwlib;..\Fwlib\e1;..\minIni_07"
-				PreprocessorDefinitions="INI_ANSIONLY;DEBUG;FS30D;WIN32;$(NOINHERIT)"
+				AdditionalIncludeDirectories="..\src"
+				PreprocessorDefinitions="WIN32"
 				MinimalRebuild="true"
 				BasicRuntimeChecks="3"
 				RuntimeLibrary="3"
-				UsePrecompiledHeader="0"
 				WarningLevel="3"
 				DebugInformationFormat="4"
 			/>
@@ -61,10 +59,8 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
-				AdditionalDependencies="..\Fwlib\Fwlib32.lib wsock32.lib"
-				LinkIncremental="2"
+				AdditionalDependencies="wsock32.lib"
 				GenerateDebugInformation="true"
-				SubSystem="1"
 				TargetMachine="1"
 			/>
 			<Tool
@@ -94,7 +90,7 @@
 			OutputDirectory="$(SolutionDir)$(ConfigurationName)"
 			IntermediateDirectory="$(ConfigurationName)"
 			ConfigurationType="1"
-			CharacterSet="1"
+			CharacterSet="2"
 			WholeProgramOptimization="1"
 			>
 			<Tool
@@ -116,11 +112,8 @@
 				Name="VCCLCompilerTool"
 				Optimization="2"
 				EnableIntrinsicFunctions="true"
-				AdditionalIncludeDirectories="..\src;..\Fwlib;..\Fwlib\30i;..\minIni_07"
-				PreprocessorDefinitions="FS30D;WIN32;INI_ANSIONLY;$(NOINHERIT)"
 				RuntimeLibrary="2"
 				EnableFunctionLevelLinking="true"
-				UsePrecompiledHeader="0"
 				WarningLevel="3"
 				DebugInformationFormat="3"
 			/>
@@ -135,10 +128,7 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
-				AdditionalDependencies="..\Fwlib\Fwlib32.lib wsock32.lib"
-				LinkIncremental="1"
 				GenerateDebugInformation="true"
-				SubSystem="1"
 				OptimizeReferences="2"
 				EnableCOMDATFolding="2"
 				TargetMachine="1"
@@ -179,6 +169,18 @@
 				>
 			</File>
 			<File
+				RelativePath=".\adc.cpp"
+				>
+			</File>
+			<File
+				RelativePath=".\adc_adapter.cpp"
+				>
+			</File>
+			<File
+				RelativePath=".\adc_serial.cpp"
+				>
+			</File>
+			<File
 				RelativePath="..\src\client.cpp"
 				>
 			</File>
@@ -191,15 +193,7 @@
 				>
 			</File>
 			<File
-				RelativePath=".\fanuc_adapter.cpp"
-				>
-			</File>
-			<File
-				RelativePath=".\FanucAdapter.cpp"
-				>
-			</File>
-			<File
-				RelativePath="..\minIni_07\minIni.c"
+				RelativePath=".\serial.cpp"
 				>
 			</File>
 			<File
@@ -225,7 +219,19 @@
 				>
 			</File>
 			<File
+				RelativePath=".\adc_adapter.hpp"
+				>
+			</File>
+			<File
+				RelativePath=".\adc_serial.hpp"
+				>
+			</File>
+			<File
 				RelativePath="..\src\client.hpp"
+				>
+			</File>
+			<File
+				RelativePath="..\src\condition_list.hpp"
 				>
 			</File>
 			<File
@@ -233,11 +239,11 @@
 				>
 			</File>
 			<File
-				RelativePath=".\fanuc_adapter.hpp"
+				RelativePath="..\src\internal.hpp"
 				>
 			</File>
 			<File
-				RelativePath="..\src\internal.hpp"
+				RelativePath=".\serial.hpp"
 				>
 			</File>
 			<File
@@ -259,10 +265,6 @@
 			UniqueIdentifier="{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}"
 			>
 		</Filter>
-		<File
-			RelativePath=".\ReadMe.txt"
-			>
-		</File>
 	</Files>
 	<Globals>
 	</Globals>

@@ -47,13 +47,17 @@ protected:
   Client *mClients[MAX_CLIENTS + 1];
   int mNumClients;
   int mPort;
+  char mPong[32];
+  int mTimeout;
   
 protected:
   void removeClient(Client *aClient);
   void addClient(Client *aClient);
+  unsigned int getTimestamp();
+  unsigned int deltaTimestamp(unsigned int, unsigned int);
   
 public:
-  Server(int aPort);
+  Server(int aPort, int aHeartbeatFreq);
   ~Server();
 
   // Returns the list of new clients.

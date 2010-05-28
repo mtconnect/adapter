@@ -35,6 +35,8 @@
 #include "device_datum.hpp"
 #include "string_buffer.hpp"
 
+static const char *sUnavailable = "UNAVAILABLE";
+
 /*
  * Data value methods.
  */
@@ -68,6 +70,21 @@ bool DeviceDatum::requiresFlush()
   return false;
 }
 
+void DeviceDatum::appendText(char *aBuffer, char *aValue, int aMaxLen)
+{
+  size_t len = strlen(aBuffer);
+  size_t max = aMaxLen - len;
+  char *cp = aValue, *dp = aBuffer + len;
+  for (size_t i = len; i < aMaxLen && *cp != '\0'; i++)
+  {
+	if (*cp == '\n' || *cp == '\r')
+		*dp = ' ';
+	else
+		*dp = *cp;
+	dp++; cp++;
+  }
+  *dp = '\0';
+}
 
 /*
  * Event methods
@@ -93,19 +110,13 @@ bool Event::setValue(const char *aValue)
 char *Event::toString(char *aBuffer, int aMaxLen)
 {
   snprintf(aBuffer, aMaxLen, "|%s|", mName);
-  size_t len = strlen(aBuffer);
-  size_t max = aMaxLen - len;
-  char *cp = mValue, *dp = aBuffer + len;
-  for (size_t i = len; i < aMaxLen && *cp != '\0'; i++)
-  {
-	if (*cp == '\n' || *cp == '\r')
-		*dp = ' ';
-	else
-		*dp = *cp;
-	dp++; cp++;
-  }
-  *dp = '\0';
+  appendText(aBuffer, mValue, aMaxLen);
   return aBuffer;
+}
+
+bool Event::unavailable()
+{
+  return setValue(sUnavailable);
 }
 
 /*
@@ -115,23 +126,41 @@ IntEvent::IntEvent(const char *aName)
   : DeviceDatum(aName)
 {
   mValue = 0;
+  mUnavailable = false;
 }
 
 bool IntEvent::setValue(int aValue)
 {
-  if (aValue !=  mValue || !mHasValue)
+  if (aValue !=  mValue || !mHasValue || mUnavailable)
   {
     mChanged = true;
     mValue = aValue;
     mHasValue = true;
+    mUnavailable = false;
   }
+  
   return mChanged;
 }
 
 char *IntEvent::toString(char *aBuffer, int aMaxLen)
 {
-  snprintf(aBuffer, aMaxLen, "|%s|%d", mName, mValue);
+  if (mUnavailable)
+    snprintf(aBuffer, aMaxLen, "|%s|UNAVAILABLE", mName);
+  else
+    snprintf(aBuffer, aMaxLen, "|%s|%d", mName, mValue);
+
   return aBuffer;
+}
+
+bool IntEvent::unavailable()
+{
+  if (!mUnavailable)
+  {
+    mChanged = true;
+    mUnavailable = true;
+  }
+  
+  return mChanged;
 }
 
 /*
@@ -141,179 +170,73 @@ Sample::Sample(const char *aName)
   : DeviceDatum(aName)
 {
   mValue = 0.0;
+  mUnavailable = false;
 }
  
 bool Sample::setValue(double aValue)
 {
-  if (fabs(aValue - mValue) > 0.000001 || !mHasValue)
+  if (fabs(aValue - mValue) > 0.000001 || !mHasValue ||
+      mUnavailable)
   {
       mChanged = true;
       mValue = aValue;
       mHasValue = true;
+      mUnavailable = false;
   }
   return mChanged;
 }
 
 char *Sample::toString(char *aBuffer, int aMaxLen)
 {
-  snprintf(aBuffer, aMaxLen, "|%s|%.10f", mName, mValue);
+  if (mUnavailable)
+    snprintf(aBuffer, aMaxLen, "|%s|UNAVAILABLE", mName);
+  else
+    snprintf(aBuffer, aMaxLen, "|%s|%.10f", mName, mValue);
   return aBuffer;
 }
 
-/*
- * Alarm methods
- */
-Alarm::Alarm(const char *aName) :
-  DeviceDatum(aName), mCode(eOTHER), mState(eCLEARED),
-  mSeverity(eWARNING)
+bool Sample::unavailable()
 {
+  if (!mUnavailable)
+  {
+    mChanged = true;
+    mUnavailable = true;
+  }
   
-  mNativeCode[0] = 0;
-  mDescription[0] = 0;
-}
-
-const char *Alarm::getCodeText()
-{
-  switch (mCode)
-  {
-  case eFAILURE: return "FAILURE";
-  case eFAULT: return "FAULT";
-  case eCRASH: return "CRASH";
-  case eJAM: return "JAM";
-  case eOVERLOAD: return "OVERLOAD";
-  case eESTOP: return "ESTOP";
-  case eMATERIAL: return "MATERIAL";
-  case eMESSAGE: return "MESSAGE";
-  case eOTHER: return "OTHER";
-  }
-  return "";
-}
-
-const char *Alarm::getSeverityText()
-{
-  switch (mSeverity)
-  {
-    case eCRITICAL: return "CRITICAL";
-    case eERROR: return "ERROR";
-    case eWARNING: return "WARNING";
-    case eINFO: return "INFO";
-  }
-  return "";
-}
-
-const char *Alarm::getStateText()
-{
-  switch (mState)
-  {
-    case eINSTANT: return "INSTANT";
-    case eACTIVE: return "ACTIVE";
-    case eCLEARED: return "CLEARED";
-  }
-  return "";
-}
-
-bool Alarm::setValue(enum ECode aCode, const char *aNativeCode, enum ESeverity aSeverity,
-	                  enum EState aState, const char *aDescription)
-{
-  if (mCode != aCode || strcmp(mNativeCode, aNativeCode) != 0 ||
-      mSeverity != aSeverity || strcmp(mDescription, aDescription) != 0 ||
-      mState != aState || !mHasValue)
-  {
-    mCode = aCode;
-    mSeverity = aSeverity;
-    mState = aState;
-
-    strncpy(mNativeCode, aNativeCode, NATIVE_CODE_LEN);
-    mNativeCode[NATIVE_CODE_LEN - 1] = '\0';
-
-    strncpy(mDescription, aDescription, DESCRIPTION_LEN);
-    mDescription[DESCRIPTION_LEN - 1] = '\0';
-    for (size_t i = 0; i < strlen(mDescription); i++)
-    {
-      if (mDescription[i] == '\n' || mDescription[i] == '\r')
-	mDescription[i] = ' ';
-    }
-
-    mChanged = true;
-    mHasValue = true;
-  }
-   
   return mChanged;
 }
-
-char *Alarm::toString(char *aBuffer, int aMaxLen)
-{
-  snprintf(aBuffer, aMaxLen, "|%s|%s|%s|%s|%s|%s", mName, getCodeText(), mNativeCode, 
-            getSeverityText(), getStateText(), mDescription);
-  return aBuffer;
-}
-
-bool Alarm::hasInitialValue()
-{
-  return mState == eACTIVE && mHasValue;
-}
-
-/* Alarms require since they need to be on their own line */
-bool Alarm::requiresFlush()
-{
-  return true;
-}
-
-/* StatefullAlarm */
-StatefullAlarm::StatefullAlarm(const char *aName, enum ECode aCode, const char *aNativeCode,
-			       enum ESeverity aSeverity, const char *aDescription)
-  : Alarm(aName)
-{
-  mCode = aCode;
-  strcpy(mNativeCode, aNativeCode);
-  mSeverity = aSeverity;
-  strcpy(mDescription, aDescription);
-}
-
-bool StatefullAlarm::setState(enum EState aState)
-{
-  if (mState != aState || !mHasValue)
-  {
-    mState = aState;
-
-    mChanged = true;
-    mHasValue = true;
-  }
-   
-  return mChanged;
-}
-
-bool StatefullAlarm::hasInitialValue()
-{
-  return mHasValue;
-}
-
 
 
 /* Power */
 
-bool Power::setValue(enum EPowerStatus aStatus)
+bool PowerState::setValue(enum EPowerState aState)
 {
-  if (mStatus != aStatus || !mHasValue)
+  if (mState != aState || !mHasValue)
   {
-    mStatus = aStatus;
+    mState = aState;
     mChanged = true;
     mHasValue = true;
   }
   return mChanged;
 }
 
-char *Power::toString(char *aBuffer, int aMaxLen)
+char *PowerState::toString(char *aBuffer, int aMaxLen)
 {
   const char *text;
-  switch(mStatus)
+  switch(mState)
   {
+  case eUNAVAILABLE: text = sUnavailable; break;
   case eON: text = "ON"; break;
   case eOFF: text = "OFF"; break;
   default: text = ""; break;
   }
   snprintf(aBuffer, aMaxLen, "|%s|%s", mName, text);
   return aBuffer;
+}
+
+bool PowerState::unavailable()
+{
+  return setValue(eUNAVAILABLE);
 }
 
 /* Execution */
@@ -335,6 +258,7 @@ char *Execution::toString(char *aBuffer, int aMaxLen)
   const char *text;
   switch(mState)
   {
+  case eUNAVAILABLE: text = sUnavailable; break;
   case eACTIVE: text = "ACTIVE"; break;
   case eREADY: text = "READY"; break;
   case eINTERRUPTED: text = "INTERRUPTED"; break;
@@ -345,6 +269,11 @@ char *Execution::toString(char *aBuffer, int aMaxLen)
   return aBuffer;
 }
 
+bool Execution::unavailable()
+{
+  return setValue(eUNAVAILABLE);
+}
+
 /* ControllerMode */
 
 char *ControllerMode::toString(char *aBuffer, int aMaxLen)
@@ -352,6 +281,8 @@ char *ControllerMode::toString(char *aBuffer, int aMaxLen)
   const char *text;
   switch(mMode)
   {
+  case eUNAVAILABLE: text = sUnavailable; break;
+  case eSEMI_AUTOMATIC: text = "SEMI_AUTOMATIC"; break;
   case eAUTOMATIC: text = "AUTOMATIC"; break;
   case eMANUAL: text = "MANUAL"; break;
   case eMANUAL_DATA_INPUT: text = "MANUAL_DATA_INPUT"; break;
@@ -369,7 +300,13 @@ bool ControllerMode::setValue(enum EMode aMode)
     mChanged = true;
     mHasValue = true;
   }
-  return false;
+
+  return mChanged;
+}
+
+bool ControllerMode::unavailable()
+{
+  return setValue(eUNAVAILABLE);
 }
 
 /* Direction */
@@ -379,6 +316,7 @@ char *Direction::toString(char *aBuffer, int aMaxLen)
   const char *text;
   switch(mDirection)
   {
+  case eUNAVAILABLE: text = sUnavailable; break;
   case eCLOCKWISE: text = "CLOCKWISE"; break;
   case eCOUNTER_CLOCKWISE: text = "COUNTER_CLOCKWISE"; break;
   default: ""; break;
@@ -395,8 +333,376 @@ bool Direction::setValue(enum ERotationDirection aDirection)
     mChanged = true;
     mHasValue = true;
   }
-  return false;
+
+  return mChanged;
 }
 
+bool Direction::unavailable()
+{
+  return setValue(eUNAVAILABLE);
+}
 
+/* Emergency Stop */
+
+char *EmergencyStop::toString(char *aBuffer, int aMaxLen)
+{
+  const char *text;
+  switch(mValue)
+  {
+  case eUNAVAILABLE: text = sUnavailable; break;
+  case eTRIGGERED: text = "TRIGGERED"; break;
+  case eARMED: text = "ARMED"; break;
+  default: ""; break;
+  }
+  snprintf(aBuffer, aMaxLen, "|%s|%s", mName, text);
+  return aBuffer;
+}
+
+bool EmergencyStop::setValue(enum EValues aValue)
+{
+  if (mValue != aValue || !mHasValue)
+  {
+    mValue = aValue;
+    mChanged = true;
+    mHasValue = true;
+  }
+
+  return mChanged;
+}
+
+bool EmergencyStop::unavailable()
+{
+  return setValue(eUNAVAILABLE);
+}
+
+/* Axis Coupling */
+
+char *AxisCoupling::toString(char *aBuffer, int aMaxLen)
+{
+  const char *text;
+  switch(mValue)
+  {
+  case eUNAVAILABLE: text = sUnavailable; break;
+  case eTANDEM: text = "TANDEM"; break;
+  case eSYNCHRONOUS: text = "SYNCHRONOUS"; break;
+  case eMASTER: text = "MASTER"; break;
+  case eSLAVE: text = "SLAVE"; break;
+  default: ""; break;
+  }
+  snprintf(aBuffer, aMaxLen, "|%s|%s", mName, text);
+  return aBuffer;
+}
+
+bool AxisCoupling::setValue(enum EValues aValue)
+{
+  if (mValue != aValue || !mHasValue)
+  {
+    mValue = aValue;
+    mChanged = true;
+    mHasValue = true;
+  }
+  return mChanged;
+}
+
+bool AxisCoupling::unavailable()
+{
+  return setValue(eUNAVAILABLE);
+}
+
+/* Door State */
+
+char *DoorState::toString(char *aBuffer, int aMaxLen)
+{
+  const char *text;
+  switch(mValue)
+  {
+  case eUNAVAILABLE: text = sUnavailable; break;
+  case eOPEN: text = "CLOSED"; break;
+  case eCLOSED: text = "OPEN"; break;
+  default: ""; break;
+  }
+  snprintf(aBuffer, aMaxLen, "|%s|%s", mName, text);
+  return aBuffer;
+}
+
+bool DoorState::setValue(enum EValues aValue)
+{
+  if (mValue != aValue || !mHasValue)
+  {
+    mValue = aValue;
+    mChanged = true;
+    mHasValue = true;
+  }
+  return mChanged;
+}
+
+bool DoorState::unavailable()
+{
+  return setValue(eUNAVAILABLE);
+}
+
+// Path Mode
+
+char *PathMode::toString(char *aBuffer, int aMaxLen)
+{
+  const char *text;
+  switch(mValue)
+  {
+  case eUNAVAILABLE: text = sUnavailable; break;
+  case eINDEPENDENT: text = "INDEPENDENT"; break;
+  case eSYNCHRONOUS: text = "SYNCHRONOUS"; break;
+  case eMIRROR: text = "MIRROR"; break;
+  default: ""; break;
+  }
+  snprintf(aBuffer, aMaxLen, "|%s|%s", mName, text);
+  return aBuffer;
+}
+
+bool PathMode::setValue(enum EValues aValue)
+{
+  if (mValue != aValue || !mHasValue)
+  {
+    mValue = aValue;
+    mChanged = true;
+    mHasValue = true;
+  }
+  return mChanged;
+}
+
+bool PathMode::unavailable()
+{
+  return setValue(eUNAVAILABLE);
+}
+
+// Rotary Mode
+
+char *RotaryMode::toString(char *aBuffer, int aMaxLen)
+{
+  const char *text;
+  switch(mValue)
+  {
+  case eUNAVAILABLE: text = sUnavailable; break;
+  case eSPINDLE: text = "SPINDLE"; break;
+  case eINDEX: text = "INDEX"; break;
+  case eCONTOUR: text = "CONTOUR"; break;
+  default: ""; break;
+  }
+  snprintf(aBuffer, aMaxLen, "|%s|%s", mName, text);
+  return aBuffer;
+}
+
+bool RotaryMode::setValue(enum EValues aValue)
+{
+  if (mValue != aValue || !mHasValue)
+  {
+    mValue = aValue;
+    mChanged = true;
+    mHasValue = true;
+  }
+  return mChanged;
+}
+
+bool RotaryMode::unavailable()
+{
+  return setValue(eUNAVAILABLE);
+}
+
+// Condition
+
+Condition::Condition(const char *aName) :
+  DeviceDatum(aName), mLevel(eUNAVAILABLE)
+{
+  mNativeCode[0] = mNativeSeverity[0] = mText[0] =
+   mQualifier[0] = 0;
+}
+
+char *Condition::toString(char *aBuffer, int aMaxLen)
+{
+  const char *text;
+  switch(mLevel)
+  {
+  case eUNAVAILABLE: text = sUnavailable; break;
+  case eNORMAL: text = "NORMAL"; break;
+  case eWARNING: text = "WARNING"; break;
+  case eFAULT: text = "FAULT"; break;
+  default: ""; break;
+  }
+  snprintf(aBuffer, aMaxLen, "|%s|%s|%s|%s|%s|", mName, text, mNativeCode, mNativeSeverity,
+	        mQualifier);
+  appendText(aBuffer, mText, aMaxLen);
+  return aBuffer;
+}
+
+ bool Condition::setValue(ELevels aLevel, const char *aText, const char *aCode,
+			  const char *aQualifier, const char *aSeverity)
+{
+  if (!mHasValue ||
+      mLevel != aLevel ||
+      strncmp(aCode, mNativeCode, EVENT_VALUE_LEN) != 0 ||
+      strncmp(aQualifier, mQualifier, EVENT_VALUE_LEN) != 0 ||
+      strncmp(aSeverity, mNativeSeverity, EVENT_VALUE_LEN) != 0 ||
+      strncmp(aText, mText, EVENT_VALUE_LEN) != 0)
+    
+  {
+    mLevel = aLevel;
+    
+    strncpy(mNativeCode, aCode, EVENT_VALUE_LEN);
+    mNativeCode[EVENT_VALUE_LEN - 1] = '\0';
+    
+    strncpy(mQualifier, aQualifier, EVENT_VALUE_LEN);
+    mQualifier[EVENT_VALUE_LEN - 1] = '\0';
+
+    strncpy(mNativeSeverity, aSeverity, EVENT_VALUE_LEN);
+    mNativeSeverity[EVENT_VALUE_LEN - 1] = '\0';
+
+    strncpy(mText, aText, EVENT_VALUE_LEN);
+    mText[EVENT_VALUE_LEN - 1] = '\0';
+    
+    mChanged = true;
+    mHasValue = true;
+  }
   
+  return mChanged;
+}
+
+bool Condition::requiresFlush()
+{
+  return true;
+}
+
+bool Condition::unavailable()
+{
+  return setValue(eUNAVAILABLE);
+}
+
+// Message
+
+Message::Message(const char *aName) :
+  DeviceDatum(aName)
+{
+  mNativeCode[0] = 0;
+}
+
+char *Message::toString(char *aBuffer, int aMaxLen)
+{
+  snprintf(aBuffer, aMaxLen, "|%s|%s|", mName, mNativeCode);
+  appendText(aBuffer, mText, aMaxLen);
+  return aBuffer;
+}
+
+ bool Message::setValue(const char *aText, const char *aCode)
+{
+  if (!mHasValue ||
+      strncmp(aCode, mNativeCode, EVENT_VALUE_LEN) != 0 ||
+      strncmp(aText, mText, EVENT_VALUE_LEN) != 0)
+    
+  {
+    strncpy(mNativeCode, aCode, EVENT_VALUE_LEN);
+    mNativeCode[EVENT_VALUE_LEN - 1] = '\0';
+    
+    strncpy(mText, aText, EVENT_VALUE_LEN);
+    mText[EVENT_VALUE_LEN - 1] = '\0';
+    
+    mChanged = true;
+    mHasValue = true;
+  }
+  
+  return mChanged;
+}
+
+bool Message::requiresFlush()
+{
+  return true;
+}
+
+bool Message::unavailable()
+{
+  return setValue(sUnavailable);
+}
+
+/*
+ * PathPosition methods
+ */
+PathPosition::PathPosition(const char *aName)
+  : DeviceDatum(aName)
+{
+  mX = mY = mZ = 0.0;
+  mUnavailable = false;
+}
+ 
+bool PathPosition::setValue(double aX, double aY, double aZ)
+{
+  if (!mHasValue ||
+      fabs(aX - mX) > 0.000001 ||
+      fabs(aY - mY) > 0.000001 ||
+      fabs(aZ - mZ) > 0.000001 ||
+      mUnavailable)
+  {
+      mChanged = true;
+      mX = aX; mY = aY; mZ = aZ;
+      mHasValue = true;
+      mUnavailable = false;
+  }
+  return mChanged;
+}
+
+char *PathPosition::toString(char *aBuffer, int aMaxLen)
+{
+  if (mUnavailable)
+    snprintf(aBuffer, aMaxLen, "|%s|UNAVAILABLE", mName);
+  else
+    snprintf(aBuffer, aMaxLen, "|%s|%.10f %0.10f %0.10f", mName, mX, mY, mZ);
+  return aBuffer;
+}
+
+bool PathPosition::unavailable()
+{
+  if (!mUnavailable)
+  {
+    mChanged = true;
+    mUnavailable = true;
+  }
+  
+  return mChanged;
+}
+
+/*
+ *  Availability methods
+ */
+
+Availability::Availability(const char *aName)
+  : DeviceDatum(aName)
+{
+  mUnavailable = false;
+}
+ 
+char *Availability::toString(char *aBuffer, int aMaxLen)
+{
+  if (mUnavailable)
+    snprintf(aBuffer, aMaxLen, "|%s|UNAVAILABLE", mName);
+  else
+    snprintf(aBuffer, aMaxLen, "|%s|AVAILABLE", mName);
+  return aBuffer;
+}
+
+bool Availability::unavailable()
+{
+  if (!mUnavailable)
+  {
+    mChanged = true;
+    mUnavailable = true;
+  }
+  
+  return mChanged;
+}
+
+bool Availability::available()
+{
+  if (mUnavailable)
+  {
+    mChanged = true;
+    mUnavailable = false;
+  }
+  
+  return mChanged;
+}

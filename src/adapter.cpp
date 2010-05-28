@@ -41,6 +41,7 @@ Adapter::Adapter(int aPort, int aScanDelay)
   mScanDelay = aScanDelay;
   mServer = 0;
   mPort = aPort;
+  mHeartbeatFrequency = 10000;
 }
 
 Adapter::~Adapter()
@@ -84,7 +85,7 @@ void Adapter::sleepMs(int aMs)
  */
 void Adapter::startServer()
 {  
-  mServer = new Server(mPort);
+  mServer = new Server(mPort, mHeartbeatFrequency);
   bool hasClients = false;
   
   /* Process forever... */
@@ -103,7 +104,7 @@ void Adapter::startServer()
       }
     }
     
-    /* Read and discard all data from the clients */
+    /* Read and all data from the clients */
     mServer->readFromClients();
     
     /* Don't bother getting data if we don't have anyone to read it */
@@ -188,5 +189,15 @@ void Adapter::clientsDisconnected()
 {
   /* Do nothing for now ... */
   printf("All clients have disconnected\n");
+}
+
+void Adapter::unavailable()
+{
+  for (int i = 0; i < mNumDeviceData; i++)
+  {
+    DeviceDatum *value = mDeviceData[i];
+    value->unavailable();
+  }
+  flush();
 }
 

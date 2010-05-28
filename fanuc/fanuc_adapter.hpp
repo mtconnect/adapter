@@ -36,11 +36,38 @@
 
 #include "adapter.hpp"
 #include "device_datum.hpp"
+#include "condition_list.hpp"
 #include "Fwlib32.h"
 
 #define MAX_MACROS 32
 #define MAX_PMC 32
 
+class MacroSample : public Sample 
+{
+protected:
+  int mNumber;
+
+public:
+  MacroSample(const char *aName, int aNum) :
+    Sample(aName), mNumber(aNum) {}
+  int getNumber() { return mNumber; }
+};
+
+class MacroPathPosition : public PathPosition 
+{
+protected:
+  int mX;
+  int mY;
+  int mZ;
+
+public:
+  MacroPathPosition(const char *aName, int aX, int aY, int aZ) :
+    PathPosition(aName), mX(aX), mY(aY), mZ(aZ) {}
+  int getX() { return mX; }
+  int getY() { return mY; }
+  int getZ() { return mZ; }
+};
+  
 /* 
  * Provides a connection to the data available from the FANUC Focus library.
  */
@@ -48,19 +75,20 @@ class FanucAdapter : public Adapter
 {
 protected:
   /* Define all the data values here */
+
+  /* Conditions */
+  Condition mServo;
+  Condition mComms;
+  Condition mLogic;
+  Condition mMotion;
+  Condition mSystem;
+  Condition mSpindle;
   
   /* Events */
-  StatefullAlarm mOvertravel;
-  StatefullAlarm mOverheat;
-  StatefullAlarm mServo;
-  StatefullAlarm mDataIo;
-  StatefullAlarm mMacroAlarm;
-  StatefullAlarm mSpindleAlarm;
-  StatefullAlarm mEstop;
-  Alarm mMessage;
-  Alarm mAlarm;
+  EmergencyStop mEstop;
+  Message mMessage;
   
-  Power mPower;
+  Availability mAvail;
   Execution mExecution;
   IntEvent mLine; 
   ControllerMode mMode;
@@ -69,12 +97,13 @@ protected:
   Event mBlock;
 
   /* Macro variables */
-  IntEvent *mMacro[MAX_MACROS];
-  int       mMacroNumber[MAX_MACROS];
+  MacroSample         *mMacroSample[MAX_MACROS];
+  MacroPathPosition   *mMacroPath[MAX_MACROS];
   int       mMacroMin;
   int       mMacroMax;
-  int       mMacroCount;
-  
+  int       mMacroSampleCount;
+  int       mMacroPathCount;
+    
   /* Macro variables */
   IntEvent *mPMCVariable[MAX_PMC];
   int       mPMCAddress[MAX_PMC];
@@ -85,6 +114,10 @@ protected:
   Sample *mAxisAct[MAX_AXIS];
   Sample *mAxisCom[MAX_AXIS];
   Sample *mAxisLoad[MAX_AXIS];
+  Condition *mAxisTravel[MAX_AXIS];
+  Condition *mAxisOverheat[MAX_AXIS];
+  Condition *mAxisServo[MAX_AXIS];
+  int mXPathIndex, mYPathIndex, mZPathIndex;
 
   /* Spindle */
   Sample *mSpindleSpeed[MAX_SPINDLE];
@@ -92,6 +125,7 @@ protected:
   
   /* Path Feedrate */
   Sample mPathFeedrate;
+  PathPosition mPathPosition;
   
   unsigned short mFlibhndl;
   bool mConnected, mConfigured;
@@ -102,6 +136,7 @@ protected:
   double mAxisDivisor[MAX_AXIS];
 
   short mAxisCount, mSpindleCount;
+  ConditionList mActiveConditions;
 
 protected:
   void connect();
@@ -116,8 +151,8 @@ protected:
   void getLine();
   void getStatus();
   void getMessages();
-  void getAlarms();
-  void setAlarm(StatefullAlarm &aAlarm, int data, int bit_mask);
+  Condition *translateAlarmNo(long aNum, int aAxis);
+  void getCondition(long aAlarm);
   void getAxisLoad();
   void getSpindleLoad();
   void getHeader();

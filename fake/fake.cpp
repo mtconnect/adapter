@@ -31,31 +31,21 @@
 * SUCH PARTY HAD ADVANCE NOTICE OF THE POSSIBILITY OF SUCH DAMAGES.
 */
 
-#ifndef CLIENT_HPP
-#define CLIENT_HPP
+#include "internal.hpp"
+#include "fake_adapter.hpp"
+#include "server.hpp"
+#include "string_buffer.hpp"
 
-/*
- * A wrapper around a client socket. An adapter is capable of managing
- * multiple sockets. 
- */
-class Client
+int main(int aArgc, char *aArgv[])
 {
-  /* Instance Variables */
-protected:
-  SOCKET mSocket;
+  int port = 7878;
+  if (aArgc > 1)
+    port = atoi(aArgv[1]);
+    
+  /* Construct the adapter and start the server */
+  FakeAdapter adapter(port);
+  adapter.startServer();
+  
+  return 0;
+}
 
-  /* class methods */
-public:
-  bool mHeartbeats;
-  unsigned int mLastHeartbeat;
-
-  /* Instance methods */
-public:
-  Client(SOCKET aSocket);
-  ~Client();
-  int write(const char *aString);
-  int read(char *aBuffer, int aLen);
-  SOCKET socket() { return mSocket; }
-};
-
-#endif

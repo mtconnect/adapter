@@ -62,6 +62,9 @@ protected:
   /* Has this data value been initialized? */
   bool mHasValue;
 
+protected:
+  void appendText(char *aBuffer, char *aValue, int aMaxLen);
+
 public:
   DeviceDatum(const char *aName);
   virtual ~DeviceDatum();
@@ -74,6 +77,8 @@ public:
   virtual bool append(StringBuffer &aBuffer);
   virtual bool hasInitialValue();
   virtual bool requiresFlush();
+
+  virtual bool unavailable() = 0;
 };
 
 /*
@@ -89,6 +94,8 @@ public:
   bool setValue(const char *aValue);
   const char *getValue() { return mValue; }
   virtual char *toString(char *aBuffer, int aMaxLen);
+
+  virtual bool unavailable();
 };
 
 /*
@@ -99,116 +106,57 @@ class IntEvent : public DeviceDatum
 {
 protected:
   int mValue;
+  bool mUnavailable;
 
 public:
   IntEvent(const char *aName);
   bool setValue(int aValue);
   int getValue() { return mValue; }
   virtual char *toString(char *aBuffer, int aMaxLen);
+  
+  virtual bool unavailable();
 };
 
 /*
  * A sample event is used for floating point samples.
  */
+
 class Sample : public DeviceDatum 
 {
 protected:
   double mValue;
+  bool mUnavailable;
 
 public:
   Sample(const char *aName);
   bool setValue(double aValue);
   double getValue() { return mValue; }
   virtual char *toString(char *aBuffer, int aMaxLen);
-};
 
-/*
- * An alarm event.
- */
-class Alarm : public DeviceDatum
-{
-public:
-  enum ESeverity {
-    eCRITICAL,
-    eERROR,
-    eWARNING,
-    eINFO
-  };
-  
-  enum EState {
-    eINSTANT,
-    eACTIVE,
-    eCLEARED
-  };
-  
-  enum ECode {
-    eFAILURE,
-    eFAULT,
-    eCRASH,
-    eJAM,
-    eOVERLOAD,
-    eESTOP,
-    eMATERIAL,
-    eMESSAGE,
-    eOTHER
-  };
-  
-protected:
-  char mNativeCode[NATIVE_CODE_LEN];
-  char mDescription[DESCRIPTION_LEN];
-  
-  ECode     mCode;
-  EState    mState;
-  ESeverity mSeverity;
-  
-protected:
-  const char *getCodeText();
-  const char *getSeverityText();
-  const char *getStateText();
-
-public:
-  Alarm(const char *aName);
-  bool setValue(enum ECode aCode, const char *aNativeCode, enum ESeverity aSeverity,
-		            enum EState aState, const char *aDescription);
-  ECode getCode() { return mCode; }
-  EState getState() { return mState; }
-  ESeverity getSeverity() { return mSeverity; }
-  const char *getNativeCode() { return mNativeCode; }
-  const char *getDescription() { return mDescription; }
-  virtual char *toString(char *aBuffer, int aMaxLen);
-  virtual bool hasInitialValue();
-  virtual bool requiresFlush();
-};
-
-class StatefullAlarm : public Alarm
-{
-public:
-  StatefullAlarm(const char *aName, enum ECode aCode, const char *aNativeCode,
-		 enum ESeverity aSeverity, const char *aDescription);
-  bool setState(enum EState aState);
-  bool active() { return setState(Alarm::eACTIVE); }
-  bool cleared() { return setState(Alarm::eCLEARED); }
-  virtual bool hasInitialValue();
+  virtual bool unavailable();
 };
 
 /* Power status data value */
 
-class Power : public DeviceDatum 
+class PowerState : public DeviceDatum 
 {
 public:
-  enum EPowerStatus {
+  enum EPowerState {
+    eUNAVAILABLE,
     eON,
-    eOFF
+    eOFF,
   };
   
 protected:
-  EPowerStatus mStatus;
+  EPowerState mState;
   
 public:
-  Power(const char *aName) : DeviceDatum(aName) { }
-  bool setValue(enum EPowerStatus aStatus);
-  EPowerStatus getValue() { return mStatus; }
+  PowerState(const char *aName) : DeviceDatum(aName) { }
+  bool setValue(enum EPowerState aState);
+  EPowerState getValue() { return mState; }
   virtual char *toString(char *aBuffer, int aMaxLen);
+  
+  virtual bool unavailable();
 };
 
 /* Executaion state */
@@ -217,6 +165,7 @@ class Execution : public DeviceDatum
 {
 public:
   enum EExecutionState {
+    eUNAVAILABLE,
     eREADY,
     eINTERRUPTED,
     eSTOPPED,
@@ -231,6 +180,8 @@ public:
   bool setValue(enum EExecutionState aState);
   EExecutionState getValue() { return mState; }
   virtual char *toString(char *aBuffer, int aMaxLen);
+  
+  virtual bool unavailable();
 };
 
 /* ControllerMode  */
@@ -239,9 +190,11 @@ class ControllerMode : public DeviceDatum
 {
 public:
   enum EMode {
+    eUNAVAILABLE,
     eAUTOMATIC,
     eMANUAL,
-    eMANUAL_DATA_INPUT
+    eMANUAL_DATA_INPUT,
+    eSEMI_AUTOMATIC
   };
   
 protected:
@@ -252,15 +205,18 @@ public:
   bool setValue(enum EMode aState);
   EMode getValue() { return mMode; }
   virtual char *toString(char *aBuffer, int aMaxLen);
+
+  virtual bool unavailable();
 };
 
 
-/* ControllerMode  */
+/* Direction  */
 
 class Direction : public DeviceDatum
 {
 public:
   enum ERotationDirection {
+    eUNAVAILABLE,
     eCLOCKWISE,
     eCOUNTER_CLOCKWISE
   };
@@ -273,6 +229,199 @@ public:
   bool setValue(enum ERotationDirection aDirection);
   ERotationDirection getValue() { return mDirection; }
   virtual char *toString(char *aBuffer, int aMaxLen);
+
+  virtual bool unavailable();
 };
 
+// Version 1.1
+
+/* Emergency Stop */
+
+class EmergencyStop : public DeviceDatum
+{
+public:
+  enum EValues {
+    eUNAVAILABLE,
+    eTRIGGERED,
+    eARMED
+  };
+  
+protected:
+  EValues mValue;
+  
+public:
+  EmergencyStop(const char *aName) : DeviceDatum(aName) { }
+  bool setValue(enum EValues aValue);
+  EValues getValue() { return mValue; }
+  virtual char *toString(char *aBuffer, int aMaxLen);
+
+  virtual bool unavailable();
+};
+
+
+class AxisCoupling : public DeviceDatum
+{
+public:
+  enum EValues {
+    eUNAVAILABLE,
+    eTANDEM,
+    eSYNCHRONOUS,
+    eMASTER,
+    eSLAVE
+  };
+  
+protected:
+  EValues mValue;
+  
+public:
+  AxisCoupling(const char *aName) : DeviceDatum(aName) { }
+  bool setValue(enum EValues aValue);
+  EValues getValue() { return mValue; }
+  virtual char *toString(char *aBuffer, int aMaxLen);
+
+  virtual bool unavailable();
+};
+
+class DoorState : public DeviceDatum
+{
+public:
+  enum EValues {
+    eUNAVAILABLE,
+    eOPEN,
+    eCLOSED
+  };
+  
+protected:
+  EValues mValue;
+  
+public:
+  DoorState(const char *aName) : DeviceDatum(aName) { }
+  bool setValue(enum EValues aValue);
+  EValues getValue() { return mValue; }
+  virtual char *toString(char *aBuffer, int aMaxLen);
+
+  virtual bool unavailable();
+};
+
+class PathMode : public DeviceDatum
+{
+public:
+  enum EValues {
+    eUNAVAILABLE,
+    eINDEPENDENT,
+    eSYNCHRONOUS,
+    eMIRROR
+  };
+  
+protected:
+  EValues mValue;
+  
+public:
+  PathMode(const char *aName) : DeviceDatum(aName) { }
+  bool setValue(enum EValues aValue);
+  EValues getValue() { return mValue; }
+  virtual char *toString(char *aBuffer, int aMaxLen);
+
+  virtual bool unavailable();
+};
+
+class RotaryMode : public DeviceDatum
+{
+public:
+  enum EValues {
+    eUNAVAILABLE,
+    eSPINDLE,
+    eINDEX,
+    eCONTOUR
+  };
+  
+protected:
+  EValues mValue;
+  
+public:
+  RotaryMode(const char *aName) : DeviceDatum(aName) { }
+  bool setValue(enum EValues aValue);
+  EValues getValue() { return mValue; }
+  virtual char *toString(char *aBuffer, int aMaxLen);
+
+  virtual bool unavailable();
+};
+
+// The conditon items
+
+class Condition : public DeviceDatum 
+{
+public:
+  enum ELevels {
+    eUNAVAILABLE,
+    eNORMAL,
+    eWARNING,
+    eFAULT
+  };
+
+protected:
+  ELevels mLevel;
+  char mText[EVENT_VALUE_LEN];
+  char mNativeCode[EVENT_VALUE_LEN];
+  char mNativeSeverity[EVENT_VALUE_LEN];
+  char mQualifier[EVENT_VALUE_LEN];
+
+public:
+  Condition(const char *aName);
+  bool setValue(ELevels aLevel, const char *aText = "", const char *aCode = "",
+		const char *aQualifier = "", const char *aSeverity = ""); 
+  virtual char *toString(char *aBuffer, int aMaxLen);
+
+  ELevels getLevel() { return mLevel; }
+  const char *getText() { return mText; }
+  const char *getNativeCode() { return mNativeCode; }
+  const char *getNativeSeverity() { return mNativeSeverity; }
+  const char *getQualifier() { return mQualifier; }
+
+  virtual bool requiresFlush();
+  virtual bool unavailable();
+};
+
+class Message : public DeviceDatum {
+  char mText[EVENT_VALUE_LEN];
+  char mNativeCode[EVENT_VALUE_LEN];
+
+public:
+  Message(const char *aName);
+  bool setValue(const char *aText, const char *aCode = ""); 
+  virtual char *toString(char *aBuffer, int aMaxLen);
+  const char *getNativeCode() { return mNativeCode; }
+  
+  virtual bool requiresFlush();  
+  virtual bool unavailable();
+};
+  
+class PathPosition : public DeviceDatum {
+protected:
+  double mX, mY, mZ;
+  bool mUnavailable;
+
+public:
+  PathPosition(const char *aName);
+  bool setValue(double aX, double aY, double aZ);
+  double getX() { return mX; }
+  double getY() { return mY; }
+  double getZ() { return mZ; }
+  virtual char *toString(char *aBuffer, int aMaxLen);
+
+  virtual bool unavailable();  
+};
+
+class Availability : public DeviceDatum 
+{
+protected:
+  bool mUnavailable;
+
+public:
+  Availability(const char *aName);
+  virtual char *toString(char *aBuffer, int aMaxLen);
+  bool available();
+  virtual bool unavailable();  
+};
+  
 #endif

@@ -31,31 +31,44 @@
 * SUCH PARTY HAD ADVANCE NOTICE OF THE POSSIBILITY OF SUCH DAMAGES.
 */
 
-#ifndef CLIENT_HPP
-#define CLIENT_HPP
+#ifndef ADC_ADAPTER_HPP
+#define ADC_ADAPTER_HPP
 
-/*
- * A wrapper around a client socket. An adapter is capable of managing
- * multiple sockets. 
- */
-class Client
+#include "adapter.hpp"
+#include "device_datum.hpp"
+#include "string_array.hpp"
+#include "adc_adapter.hpp"
+#include "adc_serial.hpp"
+
+#define LINELEN 1024
+
+class AdcSerial;
+
+class AdcAdapter : public Adapter 
 {
-  /* Instance Variables */
 protected:
-  SOCKET mSocket;
-
-  /* class methods */
+  /* Define all the data values here */
+  
+  /* Define all the data values here */
+  
+  /* Samples */
+  /* Linear Axis */
+  Sample mValue1;
+  
+protected:
+  char mErrorString[LINELEN];
+  AdcSerial *mSerial;
+  
+protected:
+  bool connect();
+  void disconnect();
+  
 public:
-  bool mHeartbeats;
-  unsigned int mLastHeartbeat;
-
-  /* Instance methods */
-public:
-  Client(SOCKET aSocket);
-  ~Client();
-  int write(const char *aString);
-  int read(char *aBuffer, int aLen);
-  SOCKET socket() { return mSocket; }
+  AdcAdapter(int aPort, AdcSerial *aSerial);
+  ~AdcAdapter();
+  
+  virtual void gatherDeviceData();
 };
 
 #endif
+

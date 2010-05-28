@@ -31,31 +31,75 @@
 * SUCH PARTY HAD ADVANCE NOTICE OF THE POSSIBILITY OF SUCH DAMAGES.
 */
 
-#ifndef CLIENT_HPP
-#define CLIENT_HPP
+#include "internal.hpp"
+#include "adc_adapter.hpp"
 
-/*
- * A wrapper around a client socket. An adapter is capable of managing
- * multiple sockets. 
- */
-class Client
+using namespace std;
+
+AdcAdapter::AdcAdapter(int aPort, AdcSerial *aSerial)
+  : Adapter(aPort, 1000), 
+    mValue1("value")
 {
-  /* Instance Variables */
-protected:
-  SOCKET mSocket;
+  addDatum(mValue1);
+  
+  mSerial = aSerial;
+}
 
-  /* class methods */
-public:
-  bool mHeartbeats;
-  unsigned int mLastHeartbeat;
+bool AdcAdapter::connect()
+{
+  bool ret = mSerial->connect();
+  if (ret)
+  {
+    mSerial->flushInput();
+  }
+  
+  return ret;    
+}
 
-  /* Instance methods */
-public:
-  Client(SOCKET aSocket);
-  ~Client();
-  int write(const char *aString);
-  int read(char *aBuffer, int aLen);
-  SOCKET socket() { return mSocket; }
-};
+void AdcAdapter::disconnect()
+{
+  mSerial->disconnect();
+}
 
-#endif
+AdcAdapter::~AdcAdapter()
+{
+  disconnect();
+}
+
+void AdcAdapter::gatherDeviceData()
+{
+  try
+  {
+    if (!mSerial->connected())
+    {
+      if (!connect())
+	sleep(5);
+    }
+    else
+    {
+      mSerial->flushInput();
+
+      // Test connection and make sure we're synched before we start
+      string res = mSerial->sendCommand("Q1");
+      if (!res.empty() && res.length() == 6)
+      {
+	int value = strtoul(res.substr(2,3).c_str(), 0, 16);
+	mValue1.setValue(value);
+	cout << res;
+      }
+      else
+      {
+	mValue1.unavailable();
+	disconnect();
+	sleep(1);
+      }
+    }
+  }
+  
+  catch (Serial::SerialError &e)
+  {
+    printf("SerialError: %s\n", e.message());
+    disconnect();
+  }
+}
+

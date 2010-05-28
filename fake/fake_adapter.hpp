@@ -31,31 +31,26 @@
 * SUCH PARTY HAD ADVANCE NOTICE OF THE POSSIBILITY OF SUCH DAMAGES.
 */
 
-#ifndef CLIENT_HPP
-#define CLIENT_HPP
+#ifndef FAKE_ADAPTER_HPP
+#define FAKE_ADAPTER_HPP
 
-/*
- * A wrapper around a client socket. An adapter is capable of managing
- * multiple sockets. 
- */
-class Client
+#include "adapter.hpp"
+#include "device_datum.hpp"
+
+class FakeAdapter : public Adapter 
 {
-  /* Instance Variables */
 protected:
-  SOCKET mSocket;
-
-  /* class methods */
+  /* Define all the data values here */
+  
+  /* Events */
+  PowerState mPower;  
+  
 public:
-  bool mHeartbeats;
-  unsigned int mLastHeartbeat;
-
-  /* Instance methods */
-public:
-  Client(SOCKET aSocket);
-  ~Client();
-  int write(const char *aString);
-  int read(char *aBuffer, int aLen);
-  SOCKET socket() { return mSocket; }
+  FakeAdapter(int aPort);
+  ~FakeAdapter();
+  
+  virtual void gatherDeviceData();
 };
 
 #endif
+
