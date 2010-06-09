@@ -464,9 +464,9 @@ void FanucAdapter::getStatus()
         mExecution.setValue(Execution::eREADY);
     }
     if (status.emergency == 1)
-	  mEstop.setValue(EmergencyStop::eACTIVE);
+	  mEstop.setValue(EmergencyStop::eTRIGGERED);
     else
-	  mEstop.setValue(EmergencyStop::eRESET);
+	  mEstop.setValue(EmergencyStop::eARMED);
 
     char buf[1024];
     unsigned short len = sizeof(buf);
