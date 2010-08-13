@@ -31,60 +31,26 @@
 * SUCH PARTY HAD ADVANCE NOTICE OF THE POSSIBILITY OF SUCH DAMAGES.
 */
 
-#ifndef ADAPTER_HPP
-#define ADAPTER_HPP
+#ifndef FAKE_ADAPTER_HPP
+#define FAKE_ADAPTER_HPP
 
-#include "server.hpp"
-#include "string_buffer.hpp"
+#include "adapter.hpp"
+#include "device_datum.hpp"
 
-class DeviceDatum;
-
-const int MAX_DEVICE_DATA = 128;
-/*
- * Abstract adapter that manages all the data values and writing them
- * to the clients.
- *
- * Subclasses of this class will add the data values and interact with the
- * vendor specifc API. This class provides all the common functionality.
- */
-class Adapter
+class FakeAdapter : public Adapter 
 {
 protected:
-  Server *mServer;         /* The socket server */
-  StringBuffer mBuffer;    /* A string buffer to hold the string we write to the streams */
-  DeviceDatum *mDeviceData[MAX_DEVICE_DATA]; /* A 0 terminated array of data value objects */
-  int mScanDelay;          /* How long to sleep (in ms) between scans */
-  int mNumDeviceData;     /* The number of data values */
-  int mPort;              /* The server port we bind to */
-  bool mDisableFlush;     /* Used for initial data collection */
-  int mHeartbeatFrequency; /* The frequency (ms) to heartbeat
-			    * server. Responds to Ping. Default 10 sec */
+  /* Define all the data values here */
   
-protected:
-  void addDatum(DeviceDatum &aValue);
-  void sleepMs(int aMs);
-
-  /* Internal buffer sending methods */
-  void sendBuffer();
-  void sendDatum(DeviceDatum *aValue);
-  virtual void sendInitialData(Client *aClient);
-  virtual void sendChangedData();
-  virtual void flush();
+  /* Events */
+  Power mPower;  
   
 public:
-  Adapter(int aPort, int aScanDelay = 100);
-  ~Adapter();
+  FakeAdapter(int aPort);
+  ~FakeAdapter();
   
-
-  /* Start the server and never return */
-  void startServer();
-
-  /* Pure virtual method to get the data from the device. */
-  virtual void gatherDeviceData() = 0;
-
-  /* Overload this method to handle situation when all clients disconnect */
-  virtual void clientsDisconnected();
+  virtual void gatherDeviceData();
 };
-  
+
 #endif
 
