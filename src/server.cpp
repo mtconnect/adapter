@@ -34,6 +34,7 @@
 #include "internal.hpp"
 #include "server.hpp"
 #include "client.hpp"
+#include "logger.hpp"
 
 /* Constants */
 const int READ_BUFFER_LEN = 8092;
@@ -45,49 +46,49 @@ Server::Server(int aPort, int aHeartbeatFreq)
   mNumClients = 0;
   mPort = aPort;
   mTimeout = aHeartbeatFreq * 2;
-  
+
   SOCKADDR_IN t;
-  
+
 #ifndef WIN32
   signal(SIGPIPE, SIG_IGN);
 #else
   WSADATA w;
   int iResult = WSAStartup(MAKEWORD(2, 2), &w);
-  
+
   if (iResult != NO_ERROR) {
-    fputs("Error at WSAStartup()\n", stderr);
+    gLogger->error("Error at WSAStartup()\n");
     exit(1);
   }
 #endif
-  
+
   mSocket = ::socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
-  
+
   if (mSocket == INVALID_SOCKET) {
-    fputs("Error at socket().\n", stderr);
+    gLogger->error("Error at socket().", stderr);
     delete this;
     exit(1);
   }
-  
+
   t.sin_family = AF_INET;
   t.sin_port = htons(aPort);
   t.sin_addr.s_addr = htonl(INADDR_ANY);
-  
+
   if (::bind(mSocket, (SOCKADDR *)&t, sizeof(t)) == SOCKET_ERROR) {
-    fprintf(stderr, "Failed to bind on port %d\n",  aPort);
+    gLogger->error("Failed to bind on port %d",  aPort);
     delete this;
     exit(1);
   }
-  
+
   if (listen(mSocket, 4) == SOCKET_ERROR) {
-    fputs("Error listening.\n", stderr);
+    gLogger->error("Error listening.");
     delete this;
     exit(1);
   }
 
   // Default to a 10 second heartbeat
   sprintf(mPong, "* PONG %d\n", aHeartbeatFreq);
-  
-  printf("Server started, waiting on port %d\n", aPort);
+
+  gLogger->info("Server started, waiting on port %d", aPort);
 }
 
 Server::~Server()
@@ -99,7 +100,7 @@ Server::~Server()
   }
 
   ::shutdown(mSocket, SHUT_RDWR);
-  
+
 #ifdef WINDOWS
   WSACleanup();
 #endif
@@ -132,7 +133,7 @@ void Server::readFromClients()
   {
     char buffer[READ_BUFFER_LEN];
     int len;
-    
+
     /* Since clients can be removed, we need to iterate backwards */
     for (int i = mNumClients - 1; i >= 0; i--)
     {
@@ -141,18 +142,18 @@ void Server::readFromClients()
       {
         len = client->read(buffer, READ_BUFFER_LEN);
         if (len > 0) 
-	{
-	  // Check for heartbeat
-	  if (strncmp(buffer, "* PING", 6) == 0)
-	  {
-	    if (!client->mHeartbeats)
-	      client->mHeartbeats = true;
-	    client->mLastHeartbeat = getTimestamp();
-	    client->write(mPong);
-	  }
-	  else
-	    printf("Received: %s\n", buffer);
-	}
+        {
+          // Check for heartbeat
+          if (strncmp(buffer, "* PING", 6) == 0)
+          {
+            if (!client->mHeartbeats)
+              client->mHeartbeats = true;
+            client->mLastHeartbeat = getTimestamp();
+            client->write(mPong);
+          }
+          else
+            printf("Received: %s", buffer);
+        }
         else 
           removeClient(client);
       }
@@ -168,9 +169,9 @@ void Server::readFromClients()
     {
       if (deltaTimestamp(now, client->mLastHeartbeat) > mTimeout)
       {
-	printf("Client has not sent heartbeat in over %d ms, disconnecting\n",
-	       mTimeout);
-	removeClient(client);
+        gLogger->warning("Client has not sent heartbeat in over %d ms, disconnecting",
+          mTimeout);
+        removeClient(client);
       }
     }
   }
@@ -190,63 +191,63 @@ void Server::sendToClients(const char *aString)
 
 Client **Server::connectToClients()
 {
-    fd_set rset;
-    FD_ZERO(&rset);
-    FD_SET(mSocket, &rset);
+  fd_set rset;
+  FD_ZERO(&rset);
+  FD_SET(mSocket, &rset);
 #ifdef WIN32
-	int nfds = 1;
+  int nfds = 1;
 #else
-    int nfds = mSocket + 1;
+  int nfds = mSocket + 1;
 #endif
 
-    struct timeval timeout;
-    ::memset(&timeout, 0, sizeof(timeout));
-    
-    Client **clients = mClients + mNumClients;
-    clients[0] = 0;
-    bool added = false;
+  struct timeval timeout;
+  ::memset(&timeout, 0, sizeof(timeout));
 
-    if (::select(nfds, &rset, 0, 0, &timeout) > 0)
-    {
-      SOCKADDR_IN addr;
-      socklen_t len = sizeof(addr);
-      memset(&addr, 0, sizeof(addr));
-      
-      SOCKET socket = ::accept(mSocket, (SOCKADDR*) &addr, &len);
-      if (socket == INVALID_SOCKET) {
-  	    fputs("Error at accept().\n", stderr);
-        return 0;
-      }
-  	  printf("Connected to: %s on port %d\n", inet_ntoa(addr.sin_addr), ntohs(addr.sin_port));
-      
-      Client *client = new Client(socket);
-      addClient(client);
-      added = true;
+  Client **clients = mClients + mNumClients;
+  clients[0] = 0;
+  bool added = false;
+
+  if (::select(nfds, &rset, 0, 0, &timeout) > 0)
+  {
+    SOCKADDR_IN addr;
+    socklen_t len = sizeof(addr);
+    memset(&addr, 0, sizeof(addr));
+
+    SOCKET socket = ::accept(mSocket, (SOCKADDR*) &addr, &len);
+    if (socket == INVALID_SOCKET) {
+      gLogger->error("Error at accept().");
+      return 0;
     }
+    gLogger->info("Connected to: %s on port %d", inet_ntoa(addr.sin_addr), ntohs(addr.sin_port));
 
-    if (added)
-      mClients[mNumClients] = 0;
-    else
-      clients = 0;
-    
-    return clients;
+    Client *client = new Client(socket);
+    addClient(client);
+    added = true;
+  }
+
+  if (added)
+    mClients[mNumClients] = 0;
+  else
+    clients = 0;
+
+  return clients;
 }
 
 
 /* Removes a client from the client list.
- * Because the client can be removed during list iteration, lists
- * should always be iterated from last to first. 
- */
+* Because the client can be removed during list iteration, lists
+* should always be iterated from last to first. 
+*/
 void Server::removeClient(Client *aClient)
 {
   int pos = 0;
-  
+
   for (pos = 0; pos < mNumClients; pos++)
   {
     if (mClients[pos] == aClient)
       break;
   }
-    
+
   if (pos < mNumClients)
   {
     mNumClients--;
@@ -254,8 +255,8 @@ void Server::removeClient(Client *aClient)
     {
       /* Shift the array left to remove the item */
       memmove(mClients + pos,
-              mClients + (pos + 1),
-              (mNumClients - pos) * sizeof(Client*));
+        mClients + (pos + 1),
+        (mNumClients - pos) * sizeof(Client*));
     }
     delete aClient;
     mClients[mNumClients + 1] = 0;
@@ -282,12 +283,12 @@ unsigned int Server::getTimestamp()
 #else
   timeval curtime;
   gettimeofday(&curtime, 0);
-  
+
   unsigned long ts = (unsigned long) curtime.tv_sec;
   // Allow to truncate
   ts *= 1000;
   ts += curtime.tv_usec / 1000;
-  
+
   return ts;
 #endif
 }
@@ -300,7 +301,7 @@ unsigned int Server::deltaTimestamp(unsigned int a, unsigned int b)
   if ( a >= b )
     res = a - b;
   else // b > a, Compute the distance from the end:
-    res = a + (0xFFFFFFFF - b);
+  res = a + (0xFFFFFFFF - b);
   return res;
 }
 

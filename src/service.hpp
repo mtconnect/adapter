@@ -1,0 +1,39 @@
+#ifndef SERVICE_HPP
+#define SERVICE_HPP
+
+#include "logger.hpp"
+
+#define NAME_LEN 80
+
+class MTConnectService {
+public:
+  MTConnectService();
+  virtual int main(int aArgc, const char *aArgv[]);
+  virtual void initialize(int aArgc, const char *aArgv[]) = 0;
+
+  void setName(const char *aName);
+  virtual void stop() = 0;
+  virtual void start() = 0;
+  const char *name() { return mName; }
+  
+protected:
+  char mName[80];
+  bool mIsService;
+  
+  void install(int argc, const char *argv[]);
+
+};
+
+#ifdef WIN32
+class ServiceLogger : public Logger {
+public:
+  virtual void error(const char *aFormat, ...);
+  virtual void warning(const char *aFormat, ...);
+  virtual void info(const char *aFormat, ...);  
+
+protected:
+};
+#else
+class ServiceLogger : public Logger {};
+#endif
+#endif

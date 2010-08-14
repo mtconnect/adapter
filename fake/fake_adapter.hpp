@@ -36,19 +36,23 @@
 
 #include "adapter.hpp"
 #include "device_datum.hpp"
+#include "service.hpp"
 
-class FakeAdapter : public Adapter 
+class FakeAdapter : public Adapter, public MTConnectService
 {
 protected:
   /* Define all the data values here */
   
   /* Events */
-  PowerState mPower;  
+  Availability mAvailability;  
   
 public:
   FakeAdapter(int aPort);
   ~FakeAdapter();
   
+  virtual void initialize(int aArgc, const char *aArgv[]);
+  virtual void start();
+  virtual void stop();
   virtual void gatherDeviceData();
 };
 

@@ -59,6 +59,8 @@ protected:
   bool mDisableFlush;     /* Used for initial data collection */
   int mHeartbeatFrequency; /* The frequency (ms) to heartbeat
 			    * server. Responds to Ping. Default 10 sec */
+  bool mRunning;
+
   
 protected:
   void addDatum(DeviceDatum &aValue);
@@ -71,6 +73,7 @@ protected:
   virtual void sendChangedData();
   virtual void flush();
   virtual void unavailable();
+  virtual void stopServer();
   
 public:
   Adapter(int aPort, int aScanDelay = 100);
@@ -79,6 +82,8 @@ public:
 
   /* Start the server and never return */
   void startServer();
+  
+  /* Stop server */
 
   /* Pure virtual method to get the data from the device. */
   virtual void gatherDeviceData() = 0;

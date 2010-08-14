@@ -34,6 +34,7 @@
 #include "internal.hpp"
 #include "adapter.hpp"
 #include "device_datum.hpp"
+#include "logger.hpp"
 
 Adapter::Adapter(int aPort, int aScanDelay)
  : mNumDeviceData(0)
@@ -42,10 +43,12 @@ Adapter::Adapter(int aPort, int aScanDelay)
   mServer = 0;
   mPort = aPort;
   mHeartbeatFrequency = 10000;
+  mRunning = false;
 }
 
 Adapter::~Adapter()
 {
+  mRunning = false;
   if (mServer)
     delete mServer;
 }
@@ -85,11 +88,15 @@ void Adapter::sleepMs(int aMs)
  */
 void Adapter::startServer()
 {  
+  if (gLogger == NULL) gLogger = new Logger();
+  
   mServer = new Server(mPort, mHeartbeatFrequency);
   bool hasClients = false;
   
-  /* Process forever... */
-  while (1) 
+  mRunning = true;
+  
+  /* Process untill stopped */
+  while (mRunning) 
   {
     /* Check if we have any new clients */
     Client **clients = mServer->connectToClients();
@@ -123,6 +130,14 @@ void Adapter::startServer()
     
     sleepMs(mScanDelay);
   }
+  
+  delete mServer;
+  mServer = NULL;
+}
+
+void Adapter::stopServer()
+{    
+    mRunning = false;
 }
 
 /* Send a single value to the buffer. */

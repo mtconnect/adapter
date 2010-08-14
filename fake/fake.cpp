@@ -36,16 +36,11 @@
 #include "server.hpp"
 #include "string_buffer.hpp"
 
-int main(int aArgc, char *aArgv[])
-{
-  int port = 7878;
-  if (aArgc > 1)
-    port = atoi(aArgv[1]);
-    
+int main(int aArgc, const char *aArgv[])
+{    
   /* Construct the adapter and start the server */
-  FakeAdapter adapter(port);
-  adapter.startServer();
-  
-  return 0;
+  FakeAdapter *adapter = new FakeAdapter(7878);
+  adapter->setName("Fake MTConnect Adapter");
+  return adapter->main(aArgc, aArgv);
 }
 

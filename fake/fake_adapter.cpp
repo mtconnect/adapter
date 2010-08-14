@@ -36,19 +36,37 @@
 
 FakeAdapter::FakeAdapter(int aPort)
   : Adapter(aPort), 
-    mPower("power")
+    mAvailability("avail")
 {
-  addDatum(mPower);
+  addDatum(mAvailability);
 }
 
 FakeAdapter::~FakeAdapter()
 {
 }
 
+void FakeAdapter::initialize(int aArgc, const char *aArgv[])
+{
+  MTConnectService::initialize(aArgc, aArgv);
+  if (aArgc > 0) {
+    mPort = atoi(aArgv[0]);
+  }
+}
+
+void FakeAdapter::start()
+{
+  startServer();
+}
+
+void FakeAdapter::stop()
+{
+  stopServer();
+}
+
 void FakeAdapter::gatherDeviceData()
 {
-  if (!mPower.setValue(PowerState::eON))
-    mPower.setValue(PowerState::eOFF);
+  if (!mAvailability.available())
+    mAvailability.unavailable();
   sleep(5);
 }
 

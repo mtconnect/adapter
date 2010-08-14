@@ -43,6 +43,8 @@
 typedef int socklen_t;
 #define snprintf _snprintf
 #define strdup _strdup
+#define stricmp _stricmp
+#define strdup _strdup
 
 /* Internal types */
 typedef unsigned char uint8_t;
@@ -83,3 +85,4 @@ typedef struct sockaddr SOCKADDR;
 #include <string.h>
 #include <signal.h>
 #include <math.h>
+
