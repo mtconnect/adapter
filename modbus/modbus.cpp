@@ -31,31 +31,16 @@
 * SUCH PARTY HAD ADVANCE NOTICE OF THE POSSIBILITY OF SUCH DAMAGES.
 */
 
-#ifndef FAKE_ADAPTER_HPP
-#define FAKE_ADAPTER_HPP
+#include "internal.hpp"
+#include "modbus_adapter.hpp"
+#include "server.hpp"
+#include "string_buffer.hpp"
 
-#include "adapter.hpp"
-#include "device_datum.hpp"
-#include "service.hpp"
-
-class FakeAdapter : public Adapter, public MTConnectService
-{
-protected:
-  /* Define all the data values here */
-  
-  /* Events */
-  Availability mAvailability; 
-  Condition mSystem; 
-  
-public:
-  FakeAdapter(int aPort);
-  ~FakeAdapter();
-  
-  virtual void initialize(int aArgc, const char *aArgv[]);
-  virtual void start();
-  virtual void stop();
-  virtual void gatherDeviceData();
-};
-
-#endif
+int main(int aArgc, const char *aArgv[])
+{    
+  /* Construct the adapter and start the server */
+  ModbusAdapter *adapter = new ModbusAdapter(7878);
+  adapter->setName("MTConnect Modbus Adapter");
+  return adapter->main(aArgc, aArgv);
+}
 

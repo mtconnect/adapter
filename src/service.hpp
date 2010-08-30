@@ -3,7 +3,7 @@
 
 #include "logger.hpp"
 
-#define NAME_LEN 80
+#define SERVICE_NAME_LEN 80
 
 class MTConnectService {
 public:
@@ -17,7 +17,7 @@ public:
   const char *name() { return mName; }
   
 protected:
-  char mName[80];
+  char mName[SERVICE_NAME_LEN];
   bool mIsService;
   
   void install(int argc, const char *argv[]);

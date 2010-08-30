@@ -35,10 +35,11 @@
 #include "fake_adapter.hpp"
 
 FakeAdapter::FakeAdapter(int aPort)
-  : Adapter(aPort), 
-    mAvailability("avail")
+  : Adapter(aPort, 1000), 
+    mAvailability("avail"), mSystem("system")
 {
   addDatum(mAvailability);
+  addDatum(mSystem);
 }
 
 FakeAdapter::~FakeAdapter()
@@ -63,10 +64,17 @@ void FakeAdapter::stop()
   stopServer();
 }
 
+static int count = 0;
 void FakeAdapter::gatherDeviceData()
 {
   if (!mAvailability.available())
     mAvailability.unavailable();
-  sleep(5);
+
+  if (count % 10) {
+    mSystem.setValue(Condition::eFAULT);
+  } else {
+    mSystem.setValue(Condition::eNORMAL);
+  }
+  count++;
 }
 

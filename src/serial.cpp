@@ -122,8 +122,8 @@ bool Serial::flushInput()
 }
 
 #ifdef WIN32
-#include "serial.win32.cpp"
+#include "serial.win32.inc"
 #else
-#include "serial.unix.cpp"
+#include "serial.unix.inc"
 #endif
 
