@@ -1,20 +1,20 @@
 communications:
   type: serial
-  port: /dev/cu.SerialPort-1
+  port: "COM1:"
   baud: 19200
-  dataBits: 7
+  dataBits: 8
   stopBits: 1
   parity: none
 data:
   - type: double
-    address: 1208
-    scalingAddress: 1608
+    address: 2
+    scalingAddress: 10
     names: [power_sum, power_a, power_b, power_c, volt_avg, vola_a, volt_b, volt_b]
   - type: double
-    address: 1208
+    address: 3
     scaler: 10
     names: [frequency]
   - type: double
-    address: 1350
+    address: 5
     names: [current_a, current_b, current_c]
   
