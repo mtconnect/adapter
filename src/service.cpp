@@ -240,6 +240,19 @@ int MTConnectService::main(int argc, const char *argv[])
   VOID WINAPI SvcMain( DWORD dwArgc, LPTSTR *lpszArgv )
   {
     // Register the handler function for the service
+    char path[MAX_PATH];
+    if( !GetModuleFileName(NULL, path, MAX_PATH ) )
+    {
+      printf("Cannot get path of executable (%d)\n", GetLastError());
+      return;
+    }
+
+    char *cp = strrchr(path, '\\');
+    if (cp != NULL)
+    {
+      *cp = '\0';
+      SetCurrentDirectory(path);
+    }
 
     gSvcStatusHandle = RegisterServiceCtrlHandler( 
       gService->name(), 

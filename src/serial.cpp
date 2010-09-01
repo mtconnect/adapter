@@ -118,6 +118,12 @@ bool Serial::flushInput()
       throw SerialError("Couldn't read");
   } while (ret > 0);
 
+#ifdef WIN32
+  DWORD errors;
+  COMSTAT stat;
+  ClearCommError(mFd, &errors, &stat);
+#endif
+
   return true;
 }
 

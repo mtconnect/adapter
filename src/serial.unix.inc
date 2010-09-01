@@ -290,3 +290,8 @@ int Serial::write(const char *aBuffer, int aLen)
   return ::write(mFd, aBuffer, aLen);
 }
 
+bool Serial::flush()
+{
+  return true;
+}
+

@@ -204,3 +204,7 @@ int Serial::write(const char *aBuffer, int aLen)
   return ret;
 }
 
+bool Serial::flush()
+{
+  return FlushFileBuffers(mFd) != 0;
+}

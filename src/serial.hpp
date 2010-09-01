@@ -13,8 +13,6 @@ public:
     SerialError(const char *aMessage);
     const char *message() const { return mMessage; }
   };
-private:
-
   
 protected:
   /* Descriptor (tty or socket) */
@@ -80,12 +78,27 @@ public:
 
   bool debug() { return mDebug; }
   bool connected() { return mConnected; }
+  bool available() { return mConnected; }
 
   bool connect();
   bool disconnect();
   int  readUntil(const char *aUntil, char *aBuffer, int aLength);
   int  write(char *aBuffer);
+  int print(char c) { char b[2]; b[0] = c; return write(b, 1); }
+  int read(char &c) { 
+    char buffer[2]; 
+    int ret = read(buffer, 1); 
+    c = buffer[0]; 
+    return ret;
+  }
+  int read(unsigned char &b) {
+    char c;
+    int ret = read(c);
+    b = (unsigned char) c;
+    return ret;
+  }
   bool flushInput();
+  bool flush();
 };
 
 #endif
