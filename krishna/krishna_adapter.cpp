@@ -80,6 +80,7 @@ KrishnaAdapter::KrishnaAdapter(int aPort)
     }
     XBeeAddress64 xbAddr(msb, lsb);
     KrishnaMeter *m = new KrishnaMeter(device, xbAddr);
+    meter["prefix"] >> m->mPrefix;
     mMeters.push_back(m);
 
     // Get the data to pull from each node
@@ -102,8 +103,12 @@ KrishnaAdapter::KrishnaAdapter(int aPort)
 	int offset;
 	item["offset"] >> offset;
         
-	string itemName(m->mName);
-	itemName = itemName + ":" + name;
+
+	string itemName;
+	if (m->mPrefix)
+	  itemName = m->mName + ":" + name;
+	else
+	  itemName = name;
 	KrishnaSample *sample = new KrishnaSample(itemName.c_str(), offset, scaler);
 	kdata->addSample(sample);
 	addDatum(*sample);

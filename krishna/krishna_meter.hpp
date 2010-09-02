@@ -13,6 +13,7 @@ public:
   bool mAvailable;
   XBeeAddress64 mAddress;
   std::string   mName;
+  bool          mPrefix;
   
   std::vector<KrishnaData*> mData;
 };

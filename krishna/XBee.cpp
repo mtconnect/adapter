@@ -749,7 +749,7 @@ void XBee::readPacket() {
       Sleep(500);
       continue;
     }
-    printf("Read byte [0x%X]\n", b);
+    // printf("Read byte [0x%X]\n", b);
 
     if (_pos > 0 && b == START_BYTE && ATAP == 2) {
       // new packet start before previous packeted completed -- discard previous packet and start over
@@ -1356,7 +1356,7 @@ void XBee::sendByte(uint8_t b, bool escape) {
     mSerial->print(ESCAPE);
     mSerial->print(b ^ 0x20);
   } else {
-    printf("Sending byte [0x%X]\n", b);
+    // printf("Sending byte [0x%X]\n", b);
     mSerial->print(b);
   }
 }
