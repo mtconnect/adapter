@@ -81,41 +81,35 @@ KrishnaAdapter::KrishnaAdapter(int aPort)
     XBeeAddress64 xbAddr(msb, lsb);
     KrishnaMeter *m = new KrishnaMeter(device, xbAddr);
     mMeters.push_back(m);
-  }
 
-  // Get the data to pull from each node
-  const YAML::Node &data = doc["data"];  
-  for(unsigned i = 0; i < data.size(); i++) {
-    const YAML::Node &node = data[i];
-    int address;
-    node["address"] >> address;
-    
-    for (size_t k = 0; k < mMeters.size(); k++) {
-      KrishnaData *data = new KrishnaData(address);
-      mMeters[k]->mData.push_back(data);
-    }
-    
-    const YAML::Node &items = node["items"];
-    for(unsigned j = 0; j < items.size(); j++) {
-      const YAML::Node &item = items[j];
-      string name;
-      item["name"] >> name;
-      double scaler;
-      item["scaler"] >> scaler;
-      int offset;
-      item["offset"] >> offset;
+    // Get the data to pull from each node
+    const YAML::Node &data = meter["data"];  
+    for(unsigned i = 0; i < data.size(); i++) {
+      const YAML::Node &node = data[i];
+      int address;
+      node["address"] >> address;
       
-      for (size_t k = 0; k < mMeters.size(); k++) {
-        KrishnaMeter *m = mMeters[k];
-        string itemName(m->mName);
-        itemName = itemName + ":" + name;
-        KrishnaSample *sample = new KrishnaSample(itemName.c_str(), offset, scaler);
-        m->mData[i]->addSample(sample);
-        addDatum(*sample);
-      }      
-    }
-    for (size_t k = 0; k < mMeters.size(); k++) {
-      mMeters[k]->mData[i]->createData();
+      KrishnaData *kdata = new KrishnaData(address);
+      m->mData.push_back(kdata);
+      
+      const YAML::Node &items = node["items"];
+      for(unsigned j = 0; j < items.size(); j++) {
+	const YAML::Node &item = items[j];
+	string name;
+	item["name"] >> name;
+	double scaler;
+	item["scaler"] >> scaler;
+	int offset;
+	item["offset"] >> offset;
+        
+	string itemName(m->mName);
+	itemName = itemName + ":" + name;
+	KrishnaSample *sample = new KrishnaSample(itemName.c_str(), offset, scaler);
+	kdata->addSample(sample);
+	addDatum(*sample);
+      }
+
+      kdata->createData();
     }
   }
 
