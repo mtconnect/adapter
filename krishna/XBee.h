@@ -672,6 +672,8 @@ public:
   XBee();
   // for eclipse dev only
   void setSerial(Serial *serial);
+
+  void setCanEscape(bool aFlag) { _canEscape = aFlag; }
   /**
    * Reads all available serial bytes until a packet is parsed, an error occurs, or the buffer is empty.
    * You may call <i>xbee</i>.getResponse().isAvailable() after calling this method to determine if
@@ -721,6 +723,7 @@ private:
   void resetResponse();
   XBeeResponse _response;
   bool _escape;
+  bool _canEscape;
   // current packet position for response.  just a state variable for packet parsing and has no relevance for the response otherwise
   uint8_t _pos;
   // last byte read

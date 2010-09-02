@@ -661,6 +661,7 @@ XBee::XBee(): _response(XBeeResponse()) {
   _escape = false;
   _checksumTotal = 0;
   _nextFrameId = 0;
+  _canEscape = true;
 
   _response.init();
   _response.setFrameData(_responseFrameData);
@@ -740,7 +741,7 @@ void XBee::readPacket() {
   int count = 0;
   while (mSerial->available()) {
     if (mSerial->read(b) < 1) {
-      if (++count >= 4) {
+      if (++count >= 10) {
         printf("Timed out waiting for responsen\n");
         _response.setErrorCode(AT_NO_RESPONSE);
         return;
@@ -1347,7 +1348,7 @@ void XBee::send(XBeeRequest &request) {
 }
 
 void XBee::sendByte(uint8_t b, bool escape) {
-  escape = false;
+  escape = escape && _canEscape;
   if (escape && (b == START_BYTE || b == ESCAPE || b == XON || b == XOFF)) {
     //std::cout << "escaping byte [" << toHexString(b) << "] " <<
     //std::endl;

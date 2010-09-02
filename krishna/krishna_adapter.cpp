@@ -45,6 +45,7 @@ KrishnaAdapter::KrishnaAdapter(int aPort)
   : Adapter(aPort, 1000)
 {
   mConnected = 0;
+  mXBee.setCanEscape(false);
 
   ifstream fin("krishna.yaml");
   YAML::Parser parser(fin);
@@ -158,9 +159,24 @@ void KrishnaAdapter::initializeMeter(KrishnaMeter *aMeter)
     if (!response.isOk()) {
       cerr << "Could not set remote ATAP 2 for " << aMeter->mName << endl;
       aMeter->mAvailable = false;
+      return;
     } else {
       aMeter->mAvailable = true;
     }
+    
+    command[1] = 'C';
+    RemoteAtCommandRequest atac(aMeter->mAddress, command);
+    mXBee.send(atac);
+    mXBee.readPacket();
+    mXBee.getResponse(response);
+    if (!response.isOk()) {
+      cerr << "Could not set remote ATAC for " << aMeter->mName << endl;
+      aMeter->mAvailable = false;
+      return;
+    } else {
+      aMeter->mAvailable = true;
+    }
+
   }
 }
 
@@ -233,6 +249,18 @@ void KrishnaAdapter::gatherDeviceData()
         mSerial->disconnect();
         fprintf(stderr, "Cannot change ATAP local settings\n");
         mConnected = false;
+      } else {
+	command[1] = 'C';
+	AtCommandRequest atac(command);
+	mXBee.send(atac);
+	mXBee.readPacket();
+	AtCommandResponse response;
+	mXBee.getResponse(response);
+	if (!response.isOk()) {
+	  mSerial->disconnect();
+	  fprintf(stderr, "Cannot change ATAC local settings\n");
+	  mConnected = false;
+	}
       }
     }
     else
