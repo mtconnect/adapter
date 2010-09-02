@@ -208,3 +208,18 @@ bool Serial::flush()
 {
   return FlushFileBuffers(mFd) != 0;
 }
+
+
+void Serial::printCommStatus()
+{
+  DWORD errors;
+  COMSTAT status;
+  ClearCommError(mFd,&errors,&status);
+  printf("Cts: %d, Dsr: %d, Rls: %d, \n" 
+         "XoffRec: %d, XoffSent: %d, Eof: %d, In: %d, Out: %d\n"
+         "Errors: %d\n", 
+         status.fCtsHold, status.fDsrHold, status.fRlsdHold,
+         status.fXoffHold, status.fXoffSent, status.fEof,
+         status.cbInQue, status.cbOutQue,
+         errors);
+}

@@ -57,6 +57,7 @@ KrishnaAdapter::KrishnaAdapter(int aPort)
   comms["dataBits"] >> mDataBits;
   comms["stopBits"] >> mStopBits;
   comms["parity"] >> mParity;
+  comms["timeout"] >> mTimeout;
 
   mSerial = new Serial(mSerialPort.c_str(), mBaud, mParity.c_str(),
                        mDataBits, mStopBits, true);
@@ -95,23 +96,23 @@ KrishnaAdapter::KrishnaAdapter(int aPort)
       
       const YAML::Node &items = node["items"];
       for(unsigned j = 0; j < items.size(); j++) {
-	const YAML::Node &item = items[j];
-	string name;
-	item["name"] >> name;
-	double scaler;
-	item["scaler"] >> scaler;
-	int offset;
-	item["offset"] >> offset;
+        const YAML::Node &item = items[j];
+        string name;
+        item["name"] >> name;
+        double scaler;
+        item["scaler"] >> scaler;
+        int offset;
+        item["offset"] >> offset;
         
 
-	string itemName;
-	if (m->mPrefix)
-	  itemName = m->mName + ":" + name;
-	else
-	  itemName = name;
-	KrishnaSample *sample = new KrishnaSample(itemName.c_str(), offset, scaler);
-	kdata->addSample(sample);
-	addDatum(*sample);
+        string itemName;
+        if (m->mPrefix)
+          itemName = m->mName + ":" + name;
+        else
+          itemName = name;
+        KrishnaSample *sample = new KrishnaSample(itemName.c_str(), offset, scaler);
+        kdata->addSample(sample);
+        addDatum(*sample);
       }
 
       kdata->createData();
@@ -128,7 +129,6 @@ KrishnaAdapter::~KrishnaAdapter()
 
 void KrishnaAdapter::initialize(int aArgc, const char *aArgv[])
 {
-  
   MTConnectService::initialize(aArgc, aArgv);
   if (aArgc > 1) {
     mPort = atoi(aArgv[0]);
@@ -152,40 +152,29 @@ void KrishnaAdapter::initializeMeter(KrishnaMeter *aMeter)
     uint8_t value[] = { 0x1 };
     RemoteAtCommandRequest atap2(aMeter->mAddress, command, value, sizeof(value));
     mXBee.send(atap2);
-    mXBee.readPacket();
-    RemoteAtCommandResponse response;
-    mXBee.getResponse(response);
-    if (!response.isOk()) {
-      cerr << "Could not set remote ATAP 2 for " << aMeter->mName << endl;
+    bool success = false;
+    if (mXBee.readPacket(mTimeout)) {
+      RemoteAtCommandResponse response;
+      mXBee.getResponse(response);
+      success = response.isOk();
+    }
+    if (!success)
+    {
+      cerr << "Could not set remote ATAP 1 for " << aMeter->mName << endl;
       aMeter->mAvailable = false;
-      return;
     } else {
       aMeter->mAvailable = true;
     }
-    
-    command[1] = 'C';
-    RemoteAtCommandRequest atac(aMeter->mAddress, command);
-    mXBee.send(atac);
-    mXBee.readPacket();
-    mXBee.getResponse(response);
-    if (!response.isOk()) {
-      cerr << "Could not set remote ATAC for " << aMeter->mName << endl;
-      aMeter->mAvailable = false;
-      return;
-    } else {
-      aMeter->mAvailable = true;
-    }
-
   }
 }
 
 void KrishnaAdapter::requestData(KrishnaMeter *aMeter)
 {
   if (!aMeter->mAvailable) return;
-  
+  printf("\n-------------- %s ----------------\n", aMeter->mName.c_str());
   std::vector<KrishnaData*>::iterator iter;
   for (size_t i = 0; i < aMeter->mData.size(); i++) {
-    bool success = false;
+    bool success = true;
     KrishnaData *data = aMeter->mData[i];
     
     uint8_t payload[] = { 0x01, 0x03, 0x00, 0x00, 0x00, 0x00 };
@@ -196,26 +185,34 @@ void KrishnaAdapter::requestData(KrishnaMeter *aMeter)
         
     ZBTxRequest request(aMeter->mAddress, payload, sizeof(payload));
     mXBee.send(request);
-
     KrishnaResponse response;
-    mXBee.readPacket();
-    if (mXBee.getResponse().getApiId() == ZB_TX_STATUS_RESPONSE) {
+    while (success == true && mXBee.readPacket(mTimeout) && 
+           !mXBee.getResponse().isError() && 
+           mXBee.getResponse().getApiId() == ZB_TX_STATUS_RESPONSE) {
       ZBTxStatusResponse status;
       mXBee.getResponse(status);
-      if (status.isSuccess()) {
-        mXBee.readPacket();
-        if (mXBee.getResponse().getApiId() == ZB_RX_RESPONSE) {
-          flush();
-          mXBee.getResponse(response);
-          success = response.getDataLength() == data->getDataLength();
-        }
-      } else {
+      if (!status.isSuccess()) {
+	success = false;
         aMeter->mAvailable = false;
         if (status.getDeliveryStatus() == ADDRESS_NOT_FOUND)
           printf("Could not find address: 0x%X\n", status.getDeliveryStatus());
         else
           printf("Delivery error: 0x%X\n", status.getDeliveryStatus());
+      } else {
+	printf("Retry count: %d, discovery: %d\n",
+	  status.getTxRetryCount(), status.getDiscoveryStatus());
       }
+    }
+    if (success && !mXBee.getResponse().isError() &&
+        mXBee.getResponse().getApiId() == ZB_RX_RESPONSE) {
+      flush();
+      mXBee.getResponse(response);
+      success = response.getDataLength() == data->getDataLength();
+      if (!success)
+	printf("Length error: resp: %d != expected: %d\n", 
+	        response.getDataLength(), data->getDataLength());
+    } else {
+      success = false;
     }
 
     if (success) {
@@ -248,18 +245,6 @@ void KrishnaAdapter::gatherDeviceData()
         mSerial->disconnect();
         fprintf(stderr, "Cannot change ATAP local settings\n");
         mConnected = false;
-      } else {
-	command[1] = 'C';
-	AtCommandRequest atac(command);
-	mXBee.send(atac);
-	mXBee.readPacket();
-	AtCommandResponse response;
-	mXBee.getResponse(response);
-	if (!response.isOk()) {
-	  mSerial->disconnect();
-	  fprintf(stderr, "Cannot change ATAC local settings\n");
-	  mConnected = false;
-	}
       }
     }
     else
@@ -272,6 +257,7 @@ void KrishnaAdapter::gatherDeviceData()
   for (size_t i = 0; i < mMeters.size(); i++) {
     KrishnaMeter *meter = mMeters[i];
     initializeMeter(meter);
-    requestData(meter);
+    if (meter->mAvailable)
+      requestData(meter);
   }
 }

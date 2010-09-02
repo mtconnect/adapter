@@ -4,6 +4,7 @@ communications:
   baud: 19200
   dataBits: 8
   stopBits: 1
+  timeout: 1000
   parity: none
 meters:
   - device: VMC-3Axis

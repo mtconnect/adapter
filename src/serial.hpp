@@ -99,6 +99,7 @@ public:
   }
   bool flushInput();
   bool flush();
+  void printCommStatus();
 };
 
 #endif

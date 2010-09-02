@@ -705,29 +705,33 @@ void XBee::readPacketUntilAvailable() {
   }
 }
 
+unsigned long deltaTics(unsigned long start, unsigned long now)
+{
+  // time can't go backwards, but tics can
+  if (now >= start)
+    return now - start;
+  else // wrap
+    return (0xFFFFFFFF - start) + now;
+ }
+
 bool XBee::readPacket(int timeout) {
 
-  /*
   if (timeout < 0) {
     return false;
   }
 
-  unsigned long start = millis();
-
-  while (int((millis() - start)) < timeout) {
-  */
-
-  readPacket();
+  unsigned long start = GetTickCount();
+  while (int(deltaTics(start, GetTickCount())) < timeout) {
+    readPacket();
   
-  if (getResponse().isAvailable()) {
-    return true;
-  } else if (getResponse().isError()) {
-    return false;
+    if (getResponse().isAvailable()) {
+      return true;
+    } else if (getResponse().isError()) {
+      return false;
+    }
   }
-  
-    //}
 
-  // timed out
+  mSerial->printCommStatus();
   return false;
 }
 
@@ -738,45 +742,40 @@ void XBee::readPacket() {
     resetResponse();
   }
 
-  int count = 0;
   while (mSerial->available()) {
     if (mSerial->read(b) < 1) {
-      if (++count >= 10) {
-        printf("Timed out waiting for responsen\n");
-        _response.setErrorCode(AT_NO_RESPONSE);
-        return;
-      }
-      Sleep(500);
-      continue;
+      return;
     }
     // printf("Read byte [0x%X]\n", b);
 
-    if (_pos > 0 && b == START_BYTE && ATAP == 2) {
+    if (_canEscape && _pos > 0 && b == START_BYTE && ATAP == 2) {
       // new packet start before previous packeted completed -- discard previous packet and start over
       _response.setErrorCode(UNEXPECTED_START_BYTE);
       return;
     }
 
-    if (_pos > 0 && b == ESCAPE) {
-      if (mSerial->available()) {
-        if (mSerial->read(b) < 1) {
-          printf("Timed out waiting for responsen\n");
-          _response.setErrorCode(AT_NO_RESPONSE);
-          return;
+    if (_canEscape) {
+      if (_pos > 0 && b == ESCAPE) {
+        if (mSerial->available()) {
+          if (mSerial->read(b) < 1) {
+            printf("Timed out waiting for responsen\n");
+            _response.setErrorCode(AT_NO_RESPONSE);
+            return;
+          }
+          b = 0x20 ^ b;
+        } else {
+          // escape byte.  next byte will be
+          _escape = true;
+          continue;
         }
+      }
+
+      if (_escape == true) {
         b = 0x20 ^ b;
-      } else {
-        // escape byte.  next byte will be
-        _escape = true;
-        continue;
+        _escape = false;
       }
     }
-
-    if (_escape == true) {
-      b = 0x20 ^ b;
-      _escape = false;
-    }
-
+    
     // checksum includes all bytes starting with api id
     if (_pos >= API_ID_INDEX) {
       _checksumTotal+= b;
@@ -786,6 +785,8 @@ void XBee::readPacket() {
     case 0:
       if (b == START_BYTE) {
         _pos++;
+      } else {
+	printf("Skipping byte before 0x7E: [0x%X]\n", b);
       }
 
       break;

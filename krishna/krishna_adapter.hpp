@@ -46,18 +46,6 @@
 
 class KrishnaAdapter : public Adapter, public MTConnectService
 {
-protected:
-  /* Events */
-  std::vector<KrishnaMeter*> mMeters; 
-  
-  int mConnected;
-  std::string mSerialPort;
-  std::string mParity;
-  int mBaud, mDataBits, mStopBits;
-
-  Serial *mSerial;
-  XBee   mXBee;
-  
 public:
   KrishnaAdapter(int aPort);
   ~KrishnaAdapter();
@@ -69,6 +57,19 @@ public:
   void initializeMeter(KrishnaMeter *aMeter);
   void requestData(KrishnaMeter *aMeter);
   virtual void gatherDeviceData();
+  
+protected:
+  /* Events */
+  std::vector<KrishnaMeter*> mMeters; 
+
+  int mConnected;
+  std::string mSerialPort;
+  std::string mParity;
+  int mBaud, mDataBits, mStopBits;
+  int mTimeout;
+
+  Serial *mSerial;
+  XBee   mXBee;  
 };
 
 #endif
