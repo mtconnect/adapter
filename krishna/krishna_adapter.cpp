@@ -42,7 +42,7 @@ using namespace std;
 //
 
 KrishnaAdapter::KrishnaAdapter(int aPort)
-  : Adapter(aPort, 1000)
+  : Adapter(aPort, 500)
 {
   mConnected = 0;
   mXBee.setCanEscape(false);
@@ -54,13 +54,18 @@ KrishnaAdapter::KrishnaAdapter(int aPort)
   const YAML::Node &comms = doc["communications"];
   comms["port"] >> mSerialPort;
   comms["baud"] >> mBaud;
-  comms["dataBits"] >> mDataBits;
+  if (comms.FindValue("dataBits") != NULL)
+    comms["dataBits"] >> mDataBits;
+  else
+    mDataBits = 8;
   comms["stopBits"] >> mStopBits;
   comms["parity"] >> mParity;
   comms["timeout"] >> mTimeout;
+  if (comms.FindValue("scanDelay") != NULL)
+    comms["scanDelay"] >> mScanDelay;
 
   mSerial = new Serial(mSerialPort.c_str(), mBaud, mParity.c_str(),
-                       mDataBits, mStopBits, true);
+                       mDataBits, mStopBits);
   mXBee.setSerial(mSerial);
 
   // Get the meters to poll.
@@ -104,13 +109,16 @@ KrishnaAdapter::KrishnaAdapter(int aPort)
         int offset;
         item["offset"] >> offset;
         
+        bool nonZero = false;
+        if (item.FindValue("nonZero") != NULL)
+          item["nonZero"] >> nonZero;
 
         string itemName;
         if (m->mPrefix)
           itemName = m->mName + ":" + name;
         else
           itemName = name;
-        KrishnaSample *sample = new KrishnaSample(itemName.c_str(), offset, scaler);
+        KrishnaSample *sample = new KrishnaSample(itemName.c_str(), offset, scaler, nonZero);
         kdata->addSample(sample);
         addDatum(*sample);
       }
@@ -160,7 +168,7 @@ void KrishnaAdapter::initializeMeter(KrishnaMeter *aMeter)
     }
     if (!success)
     {
-      cerr << "Could not set remote ATAP 1 for " << aMeter->mName << endl;
+      gLogger->warning("Could not set remote ATAP 1 for %s", aMeter->mName.c_str());
       aMeter->mAvailable = false;
     } else {
       aMeter->mAvailable = true;
@@ -171,19 +179,12 @@ void KrishnaAdapter::initializeMeter(KrishnaMeter *aMeter)
 void KrishnaAdapter::requestData(KrishnaMeter *aMeter)
 {
   if (!aMeter->mAvailable) return;
-  printf("\n-------------- %s ----------------\n", aMeter->mName.c_str());
+  gLogger->debug("\n-------------- %s ----------------", aMeter->mName.c_str());
   std::vector<KrishnaData*>::iterator iter;
   for (size_t i = 0; i < aMeter->mData.size(); i++) {
     bool success = true;
-    KrishnaData *data = aMeter->mData[i];
-    
-    uint8_t payload[] = { 0x01, 0x03, 0x00, 0x00, 0x00, 0x00 };
-    payload[2] = (data->getAddress() >> 8) & 0xFF;
-    payload[3] = data->getAddress() & 0xFF;
-    payload[4] = (data->getRequestCount() >> 8) & 0xFF;
-    payload[5] = data->getRequestCount() & 0xFF;
-        
-    ZBTxRequest request(aMeter->mAddress, payload, sizeof(payload));
+    KrishnaData *data = aMeter->mData[i];        
+    KrishnaRequest request(aMeter->mAddress, data->getAddress(), data->getRequestCount() + 1);
     mXBee.send(request);
     KrishnaResponse response;
     while (success == true && mXBee.readPacket(mTimeout) && 
@@ -192,16 +193,17 @@ void KrishnaAdapter::requestData(KrishnaMeter *aMeter)
       ZBTxStatusResponse status;
       mXBee.getResponse(status);
       if (!status.isSuccess()) {
-	success = false;
+        success = false;
         aMeter->mAvailable = false;
         if (status.getDeliveryStatus() == ADDRESS_NOT_FOUND)
-          printf("Could not find address: 0x%X\n", status.getDeliveryStatus());
+          gLogger->warning("Could not find address: 0x%X", status.getDeliveryStatus());
         else
-          printf("Delivery error: 0x%X\n", status.getDeliveryStatus());
+          gLogger->warning("Delivery error: 0x%X", status.getDeliveryStatus());
       } else {
-	printf("Retry count: %d, discovery: %d\n",
-	  status.getTxRetryCount(), status.getDiscoveryStatus());
+        gLogger->debug("Retry count: %d, discovery: %d",
+          status.getTxRetryCount(), status.getDiscoveryStatus());
       }
+      data->unavailable();
     }
     if (success && !mXBee.getResponse().isError() &&
         mXBee.getResponse().getApiId() == ZB_RX_RESPONSE) {
@@ -209,17 +211,15 @@ void KrishnaAdapter::requestData(KrishnaMeter *aMeter)
       mXBee.getResponse(response);
       success = response.getDataLength() == data->getDataLength();
       if (!success)
-	printf("Length error: resp: %d != expected: %d\n", 
-	        response.getDataLength(), data->getDataLength());
+        gLogger->error("Length error: resp: %d != expected: %d", 
+                response.getDataLength(), data->getDataLength());
     } else {
       success = false;
     }
 
     if (success) {
-      memcpy(data->getData(), response.getData(), response.getDataLength());
-      data->writeValues();
-    } else {
-      data->unavailable();
+      if (data->writeData(response.getData(), response.getDataLength()))
+        data->writeValues();
     }
   }
 }
@@ -243,7 +243,7 @@ void KrishnaAdapter::gatherDeviceData()
       mXBee.getResponse(response);
       if (!response.isOk()) {
         mSerial->disconnect();
-        fprintf(stderr, "Cannot change ATAP local settings\n");
+        gLogger->warning("Cannot change ATAP local settings");
         mConnected = false;
       }
     }

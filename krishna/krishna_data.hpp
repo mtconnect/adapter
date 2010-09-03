@@ -7,17 +7,19 @@
 
 class KrishnaSample : public Sample {
 public:
-  KrishnaSample(const char *aName, int aOffset, double aScaler) :
-    Sample(aName) { mOffset = aOffset; mScaler = aScaler; }
+  KrishnaSample(const char *aName, int aOffset, double aScaler, bool aNonZero = false) :
+    Sample(aName), mNonZero(aNonZero) { mOffset = aOffset; mScaler = aScaler; }
 
   int getOffset() { return mOffset; }
   double getScaler() { return mScaler; }
+  bool isNonZero() { return mNonZero; }
 
   bool setValue(double aValue) { return Sample::setValue(aValue * mScaler); }
   
 protected:
   int mOffset;
   double mScaler;
+  bool mNonZero;
 };
 
 class KrishnaData {
@@ -26,6 +28,8 @@ public:
   
   ~KrishnaData() {
     delete[] mData;
+    for (size_t i = 0; i < mSamples.size(); i++)
+      delete mSamples[i];
   }
   
   int getAddress() { return mAddress; }
@@ -41,17 +45,37 @@ public:
   void createData() {
     mData = new uint16_t[getCount()];
   }
+
   void *getData() { return mData; }
-  int  getDataLength() { return mRequestCount * sizeof(uint16_t); }
+
+  int  getDataLength() { return (mRequestCount + 1) * sizeof(uint16_t); }
 
   void unavailable() {
-    for (int i = 0; i < mSamples.size(); i++) {
+    for (size_t i = 0; i < mSamples.size(); i++) {
       mSamples[i]->unavailable();
     }
   }
+
+  bool writeData(void *aData, int aLength) {
+    int count = aLength / sizeof(uint16_t);
+    uint16_t *data = (uint16_t*) aData;
+    memset(mData, 0, getCount() * sizeof(uint16_t));
+    for (int i = 0; i < count; i++) {
+      mData[i] = ntohs(data[i]);
+    }
+    
+    for (size_t i = 0; i < mSamples.size(); i++) {
+      if (mSamples[i]->isNonZero() && mData[i] == 0) {
+        gLogger->debug("%s must not be zero", mSamples[i]->getName());
+        return false;
+      }
+    }
+    
+    return true;
+  }
   
-  virtual void writeValues() {
-    for (int i = 0; i < mSamples.size(); i++) {
+  void writeValues() {
+    for (size_t i = 0; i < mSamples.size(); i++) {
       mSamples[i]->setValue((double) mData[i]);
     }
   }
@@ -74,6 +98,28 @@ public:
   uint8_t getFunctionCode() { return getFrameData()[Rx64Response::getDataOffset() + 2]; }
   uint16_t getAddress() { return (getFrameData()[Rx64Response::getDataOffset() + 3] << 8) +
 	                         (getFrameData()[Rx64Response::getDataOffset() + 4]); }
+};
+
+class KrishnaRequest : public ZBTxRequest {
+public:
+  KrishnaRequest(XBeeAddress64 &addr64, uint16_t aAddress, uint16_t aCount) 
+    :  ZBTxRequest(addr64, 0, 0), mAddress(aAddress), mCount(aCount)
+  {
+    mPayload[0] = htons(0x0103);
+    mPayload[1] = htons(aAddress);
+    mPayload[2] = htons(aCount);    
+    
+    setPayloadLength(sizeof(mPayload));
+    setPayload((uint8_t*) mPayload);
+  }
+  
+  uint16_t getCount() { return mCount; }
+  uint16_t getDataAddress() { return mAddress; }
+  
+protected:
+  uint16_t mPayload[3];
+  uint16_t mAddress;
+  uint16_t mCount;
 };
 
 #endif

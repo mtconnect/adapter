@@ -18,6 +18,7 @@
  */
 
 #include "XBee.h"
+#include "logger.hpp"
 #include <iostream>
 
 XBeeResponse::XBeeResponse() {
@@ -339,7 +340,7 @@ uint16_t RxIoSampleBaseResponse::getAnalog(uint8_t pin, uint8_t sample) {
     }
   }
 
-  std::cout << "spacing is " << static_cast<unsigned int>(spacing) << std::endl;
+  gLogger->debug("spacing is %d", static_cast<unsigned int>(spacing));
 
   // start depends on how many pins before this pin are enabled
   for (int i = 0; i < pin; i++) {
@@ -350,9 +351,14 @@ uint16_t RxIoSampleBaseResponse::getAnalog(uint8_t pin, uint8_t sample) {
 
   start+= sample * spacing;
 
-  std::cout << "start for analog pin ["<< static_cast<unsigned int>(pin) << "]/sample " << static_cast<unsigned int>(sample) << " is " << static_cast<unsigned int>(start) << std::endl;
+  gLogger->debug("start for analog pin [%d]]/sample %d is %d", static_cast<unsigned int>(pin),
+		static_cast<unsigned int>(sample),
+		static_cast<unsigned int>(start));
 
-  std::cout << "returning index " << static_cast<unsigned int>(getSampleOffset() + start) << " and index " <<  static_cast<unsigned int>(getSampleOffset() + start + 1) << ", val is " << static_cast<unsigned int>(getFrameData()[getSampleOffset() + start] << 8) <<  " and " <<  + static_cast<unsigned int>(getFrameData()[getSampleOffset() + start + 1]) << std::endl;
+  gLogger->debug("returning index %d and index %d, val is %d and %d", static_cast<unsigned int>(getSampleOffset() + start),
+		static_cast<unsigned int>(getSampleOffset() + start + 1),
+		static_cast<unsigned int>(getFrameData()[getSampleOffset() + start] << 8),
+		static_cast<unsigned int>(getFrameData()[getSampleOffset() + start + 1]));
 
   return (uint16_t)((getFrameData()[getSampleOffset() + start] << 8) + getFrameData()[getSampleOffset() + start + 1]);
 }
@@ -746,7 +752,8 @@ void XBee::readPacket() {
     if (mSerial->read(b) < 1) {
       return;
     }
-    // printf("Read byte [0x%X]\n", b);
+
+  gLogger->debug("Read byte at %d:[0x%X]", _pos, b);
 
     if (_canEscape && _pos > 0 && b == START_BYTE && ATAP == 2) {
       // new packet start before previous packeted completed -- discard previous packet and start over
@@ -758,7 +765,7 @@ void XBee::readPacket() {
       if (_pos > 0 && b == ESCAPE) {
         if (mSerial->available()) {
           if (mSerial->read(b) < 1) {
-            printf("Timed out waiting for responsen\n");
+	    gLogger->info("Timed out waiting for responsen");
             _response.setErrorCode(AT_NO_RESPONSE);
             return;
           }
@@ -786,7 +793,7 @@ void XBee::readPacket() {
       if (b == START_BYTE) {
         _pos++;
       } else {
-	printf("Skipping byte before 0x7E: [0x%X]\n", b);
+	gLogger->debug("Skipping byte before 0x7E: [0x%X]", b);
       }
 
       break;
@@ -821,7 +828,8 @@ void XBee::readPacket() {
       if (_pos == (_response.getPacketLength() + 3)) {
         // verify checksum
 
-        std::cout << "read checksum " << static_cast<unsigned int>(b) << " at pos " << static_cast<unsigned int>(_pos) << std::endl;
+	gLogger->debug("read checksum %d at pos %d", static_cast<unsigned int>(b),
+			static_cast<unsigned int>(_pos));
 
         if ((_checksumTotal & 0xff) == 0xff) {
           _response.setChecksum(b);
@@ -1329,7 +1337,8 @@ void XBee::send(XBeeRequest &request) {
   checksum+= request.getApiId();
   checksum+= request.getFrameId();
 
-  std::cout << "frame length is " << static_cast<unsigned int>(request.getFrameDataLength()) << std::endl;
+  gLogger->debug("frame length is %d", 
+	  static_cast<unsigned int>(request.getFrameDataLength()));
 
   for (int i = 0; i < request.getFrameDataLength(); i++) {
     sendByte(request.getFrameData(i), true);
@@ -1339,7 +1348,7 @@ void XBee::send(XBeeRequest &request) {
   // perform 2s complement
   checksum = 0xff - checksum;
 
-  std::cout << "checksum is " << static_cast<unsigned int>(checksum) << std::endl;
+  gLogger->debug("checksum is %d", static_cast<unsigned int>(checksum));
 
   // send checksum
   sendByte(checksum, true);
@@ -1351,13 +1360,11 @@ void XBee::send(XBeeRequest &request) {
 void XBee::sendByte(uint8_t b, bool escape) {
   escape = escape && _canEscape;
   if (escape && (b == START_BYTE || b == ESCAPE || b == XON || b == XOFF)) {
-    //std::cout << "escaping byte [" << toHexString(b) << "] " <<
-    //std::endl;
-    printf("escaping byte [0x%X]\n", b);
+    gLogger->debug("escaping byte [0x%X]", b);
     mSerial->print(ESCAPE);
     mSerial->print(b ^ 0x20);
   } else {
-    // printf("Sending byte [0x%X]\n", b);
+    gLogger->debug("Sending byte [0x%X]\n", b);
     mSerial->print(b);
   }
 }
