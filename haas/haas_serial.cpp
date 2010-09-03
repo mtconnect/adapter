@@ -7,7 +7,7 @@ using namespace std;
 HaasSerial::HaasSerial(const char *aDevice,
 	     int aBaud, const char *aParity, int aDataBit,
 	     int aStopBit, bool aDebug)
-  : Serial(aDevice, aBaud, aParity, aDataBit, aStopBit, aDebug)
+  : Serial(aDevice, aBaud, aParity, aDataBit, aStopBit)
 {
 }
 

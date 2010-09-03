@@ -36,44 +36,11 @@
 #include "server.hpp"
 #include "string_buffer.hpp"
 
-int main(int aArgc, char *aArgv[])
+int main(int aArgc, const char *aArgv[])
 {
-  int port = 7878;
-  int i = 1;
-  bool debug = false;
-  bool positions = false;
-
-  while (aArgv[i][0] == '-' && aArgc > 0)
-  {
-    if (aArgv[i][1] == 'd')
-      debug = true;
-    else if (aArgv[i][1] == 'p')
-      positions = true;
-    else
-    {
-      printf("Invalid option: %s\n", aArgv[i]);
-      printf("Usage: %s [-dp] <Serial_COM> [port]\n", aArgv[0]);
-      exit(1);
-    }
-
-    i++;
-    aArgc--;
-  }
-
-  if (aArgc < 2)
-  {
-    printf("Usage: %s <Serial_COM>\n", aArgv[0]);
-    exit(1);
-  }
-
-  if (aArgc > 2)
-    port = atoi(aArgv[i + 1]);
-    
   /* Construct the adapter and start the server */
-  HaasSerial *serial = new HaasSerial(aArgv[i], 19200, "none", 7, 1, debug);
-  HaasAdapter adapter(port, serial, positions);
-  adapter.startServer();
-  
-  return 0;
+  HaasAdapter *adapter = new  HaasAdapter(7878);
+  adapter->setName("MTConnect Haas Adapter");
+  return adapter->main(aArgc, aArgv);
 }
 

@@ -39,24 +39,26 @@
 #include "string_array.hpp"
 #include "haas_adapter.hpp"
 #include "haas_serial.hpp"
+#include "service.hpp"
 
 #define LINELEN 1024
 
 class HaasSerial;
 
-class HaasAdapter : public Adapter 
+class HaasAdapter : public Adapter, public MTConnectService 
 {
 protected:
   /* Define all the data values here */
   
   /* Define all the data values here */
+
+  // Conditions
+  Condition mZeroRet;
+  Condition mSystem;
   
   /* Events */
-  Alarm mAlarm;
-  Alarm mZeroRet;
-  Alarm mEstop;
-  Alarm mMessage;
-  Power mPower;
+  Message mMessage;
+  EmergencyStop mEstop;
   Execution mExecution;
   IntEvent mLine; 
   IntEvent mLineMax;
@@ -64,6 +66,7 @@ protected:
   Event mProgram;
   ControllerMode mMode;
   Event mBlock;
+  Availability mAvail;
   
   /* Samples */
   /* Linear Axis */
@@ -100,8 +103,13 @@ protected:
   void execution();
   
 public:
-  HaasAdapter(int aPort, HaasSerial *aSerial, bool aPositions = false);
+  HaasAdapter(int aPort);
   ~HaasAdapter();
+  
+  // For Service
+  virtual void initialize(int aArgc, const char *aArgv[]);
+  virtual void start();
+  virtual void stop();
   
   virtual void gatherDeviceData();
 };

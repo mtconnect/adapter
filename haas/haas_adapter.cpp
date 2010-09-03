@@ -36,21 +36,20 @@
 
 using namespace std;
 
-HaasAdapter::HaasAdapter(int aPort, HaasSerial *aSerial, bool aPositions)
+HaasAdapter::HaasAdapter(int aPort)
   : Adapter(aPort, 1000), 
-    mAlarm("alarm"), mZeroRet("alarm"), mMessage("alarm"), mPower("power"), mExecution("execution"),
+    mZeroRet("servo"), mMessage("message"), mExecution("execution"),
     mLine("line"), mXact("Xact"), mYact("Yact"), mZact("Zact"), 
     mXcom("Xcom"), mYcom("Ycom"), mZcom("Zcom"),
     mSpindleSpeed("spindle_speed"), mPathFeedrate("path_feedrate"),
     mProgram("program"), mMode("mode"), mBlock("block"),
     mPathFeedrateOverride("feed_ovr"), mSpindleSpeedOverride("SspeedOvr"),
-    mLineMax("line_max"), mPartCount("PartCount"), mEstop("alarm"),
-    mPositions(aPositions)
+    mLineMax("line_max"), mPartCount("PartCount"), mEstop("estop"), mSystem("system"),
+    mAvail("avail"), mPositions(false)
 {
-  addDatum(mAlarm);
   addDatum(mMessage);
   addDatum(mZeroRet);
-  addDatum(mPower);
+  addDatum(mSystem);
   addDatum(mExecution);
   addDatum(mLine);
   addDatum(mXact);
@@ -69,11 +68,54 @@ HaasAdapter::HaasAdapter(int aPort, HaasSerial *aSerial, bool aPositions)
   addDatum(mLineMax);
   addDatum(mPartCount);
   addDatum(mEstop);
+  addDatum(mAvail);
     
   
   mErrorString[0] = 0;
+}
 
-  mSerial = aSerial;
+void HaasAdapter::initialize(int aArgc, const char *aArgv[])
+{
+  MTConnectService::initialize(aArgc, aArgv);
+  
+  int port = 7878;
+  int i = 0;
+
+  while (aArgv[i][0] == '-' && aArgc > 0)
+  {
+    if (aArgv[i][1] == 'p')
+      mPositions = true;
+    else
+    {
+      gLogger->error("Invalid option: %s\nUsage: adapter [-p] <Serial_COM> [port]", aArgv[i]);
+      exit(1);
+    }
+
+    i++;
+    aArgc--;
+  }
+
+  if (aArgc < 1)
+  {
+    gLogger->error("Usage: %s <Serial_COM>", aArgv[0]);
+    exit(1);
+  }
+
+  if (aArgc > 2)
+    mPort = atoi(aArgv[i + 1]);
+    
+  /* Construct the adapter and start the server */
+  mSerial = new HaasSerial(aArgv[i], 19200, "none", 7, 1);
+}
+
+void HaasAdapter::start()
+{
+  startServer();
+}
+
+void HaasAdapter::stop()
+{
+  stopServer();
 }
 
 bool HaasAdapter::connect()
@@ -90,7 +132,7 @@ bool HaasAdapter::connect()
 void HaasAdapter::disconnect()
 {
   mSerial->disconnect();
-  mPower.setValue(Power::eOFF);
+  unavailable();
 }
 
 void HaasAdapter::actual()
@@ -152,9 +194,9 @@ void HaasAdapter::execution()
       mMode.setValue(ControllerMode::eAUTOMATIC);
 
     if (mode == "(ZERO RET)")
-      mZeroRet.setValue(Alarm::eOTHER, "NO ZERO X", Alarm::eCRITICAL, Alarm::eACTIVE, "NO ZERO X");
+      mZeroRet.setValue(Condition::eFAULT, "NO ZERO X");
     else
-      mZeroRet.setValue(Alarm::eOTHER, "NO ZERO X", Alarm::eCRITICAL, Alarm::eCLEARED, "NO ZERO X");
+      mZeroRet.setValue(Condition::eNORMAL);
   }
   if (res)
     delete res;
@@ -168,36 +210,36 @@ void HaasAdapter::execution()
     if (first == "PROGRAM")
     {
       if (second != "MDI")
-	mProgram.setValue(second.c_str());
+        mProgram.setValue(second.c_str());
       
       string third = res->at(2);
       if (third == "IDLE")
-	mExecution.setValue(Execution::eREADY);
+        mExecution.setValue(Execution::eREADY);
       else if (third == "FEED HOLD")
-	mExecution.setValue(Execution::eINTERRUPTED);
+        mExecution.setValue(Execution::eINTERRUPTED);
       
       if (third == "ALARM ON")
       {
-	mExecution.setValue(Execution::eSTOPPED);
-	double result;
-	if (mSerial->getVariable(1007, result))
-	{
-	  if (result > 0.0)
-	    mEstop.setValue(Alarm::eESTOP, "ESTOP", Alarm::eCRITICAL, Alarm::eACTIVE, "ESTOP Active");
-	  else
-	    mEstop.setValue(Alarm::eESTOP, "ESTOP", Alarm::eCRITICAL, Alarm::eCLEARED, "ESTOP Cleared");
-	}
-	
-	mAlarm.setValue(Alarm::eOTHER, "ALARM ON", Alarm::eCRITICAL, Alarm::eACTIVE, "Alarm on indicator");
+        mExecution.setValue(Execution::eSTOPPED);
+        double result;
+        if (mSerial->getVariable(1007, result))
+        {
+          if (result > 0.0)
+            mEstop.setValue(EmergencyStop::eTRIGGERED);
+          else
+            mEstop.setValue(EmergencyStop::eARMED);
+        }
+        
+        mSystem.setValue(Condition::eFAULT, "Alarm on indicator");
       }
       else
       {
-	mEstop.setValue(Alarm::eESTOP, "ESTOP", Alarm::eCRITICAL, Alarm::eCLEARED, "ESTOP Cleared");
-	mAlarm.setValue(Alarm::eOTHER, "ALARM ON", Alarm::eCRITICAL, Alarm::eCLEARED, "Alarm on indicator");
+        mEstop.setValue(EmergencyStop::eARMED);
+        mSystem.setValue(Condition::eNORMAL);
       }
       
       if (res->at(3) == "PARTS")
-	mPartCount.setValue(atoi(res->at(4).c_str()));
+        mPartCount.setValue(atoi(res->at(4).c_str()));
     }
     
     if (first == "STATUS" && second == "BUSY")
@@ -222,7 +264,7 @@ void HaasAdapter::gatherDeviceData()
     if (!mSerial->connected())
     {
       if (!connect())
-		sleep(5);
+        sleep(5);
     }
     else
     {
@@ -232,24 +274,24 @@ void HaasAdapter::gatherDeviceData()
       vector<string> *ret = mSerial->sendCommand("Q100");
       if (ret && ret->size() == 2 && ret->front() == "S/N")
       {
-	mBuffer.timestamp();
-	mPower.setValue(Power::eON);
-	if (mPositions)
-	  actual();
-	commanded();
-	spindle();
-	execution();
+        flush();
+        mAvail.available();
+        if (mPositions)
+          actual();
+        commanded();
+        spindle();
+        execution();
       }
       else
       {
-	disconnect();
+        disconnect();
       }
     }
   }
   
   catch (Serial::SerialError &e)
   {
-    printf("SerialError: %s\n", e.message());
+    gLogger->error("SerialError: %s\n", e.message());
     disconnect();
   }
 }
