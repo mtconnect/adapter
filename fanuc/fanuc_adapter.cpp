@@ -69,7 +69,7 @@ FanucAdapter::FanucAdapter(int aPort) :
 
   mConfigured = mConnected = false;
   mAxisCount = mSpindleCount = mMacroSampleCount = mPMCCount =
-	       mMacroPathCount = 0;
+               mMacroPathCount = 0;
   mXPathIndex = mYPathIndex = mZPathIndex = -1;
   mAvail.unavailable();
 }
@@ -197,11 +197,11 @@ void FanucAdapter::configAxesNames()
       name[j] = '\0';
 
       if (axes[i].name == 'X' && (axes[i].suff == 0 || mXPathIndex == -1))
-	mXPathIndex = i;
+        mXPathIndex = i;
       else if (axes[i].name == 'Y' && (axes[i].suff == 0 || mYPathIndex == -1))
-	mYPathIndex = i;
+        mYPathIndex = i;
       else if (axes[i].name == 'Z' && (axes[i].suff == 0 || mZPathIndex == -1))
-	mZPathIndex = i;
+        mZPathIndex = i;
 
       char *cp = name + j;
       strcpy(cp, "act");
@@ -275,15 +275,15 @@ void FanucAdapter::configMacrosAndPMC()
       char *cp = numbers + 1, *n;
       x = strtol(cp, &n, 10);
       if (cp == n)
-	continue;
+        continue;
       cp = n;
       y = strtol(cp, &n, 10);
       if (cp == n)
-	continue;
+        continue;
       cp = n;
       z = strtol(cp, &n, 10);
       if (cp == n)
-	continue;
+        continue;
       
       int i = mMacroPathCount++;
       mMacroPath[i] = new MacroPathPosition(name, x, y, z);
@@ -303,7 +303,7 @@ void FanucAdapter::configMacrosAndPMC()
       char *cp = numbers, *n;
       long v = strtol(cp, &n, 10);
       if (cp == n)
-	continue;
+        continue;
       int i = mMacroSampleCount++;
       mMacroSample[i] = new MacroSample(name, v);
       addDatum(*mMacroSample[i]);
@@ -412,8 +412,8 @@ void FanucAdapter::getPositions()
       mAxisAct[i]->setValue(dyn.pos.faxis.machine[i] / mAxisDivisor[i]);
     
     mPathPosition.setValue(dyn.pos.faxis.absolute[mXPathIndex] / mAxisDivisor[mXPathIndex],
-			   dyn.pos.faxis.absolute[mYPathIndex] / mAxisDivisor[mYPathIndex],
-			   dyn.pos.faxis.absolute[mZPathIndex] / mAxisDivisor[mZPathIndex]);
+                           dyn.pos.faxis.absolute[mYPathIndex] / mAxisDivisor[mYPathIndex],
+                           dyn.pos.faxis.absolute[mZPathIndex] / mAxisDivisor[mZPathIndex]);
     
     char buf[32];
     mProgramNum = dyn.prgnum;
@@ -450,7 +450,7 @@ void FanucAdapter::getPositions()
   {
     // Set Path position
     printf("%d %d %d : %d %d %d\n", tooltip[0].axes[0], tooltip[0].axes[1],
-	   tooltip[0].axes[2], tooltip[0].data[0], tooltip[0].data[1], tooltip[0].data[2]);
+           tooltip[0].axes[2], tooltip[0].data[0], tooltip[0].data[1], tooltip[0].data[2]);
   }
   */
 }
@@ -483,9 +483,9 @@ void FanucAdapter::getStatus()
         mExecution.setValue(Execution::eREADY);
     }
     if (status.emergency == 1)
-	  mEstop.setValue(EmergencyStop::eTRIGGERED);
+      mEstop.setValue(EmergencyStop::eTRIGGERED);
     else
-	  mEstop.setValue(EmergencyStop::eARMED);
+      mEstop.setValue(EmergencyStop::eARMED);
 
     char buf[1024];
     unsigned short len = sizeof(buf);
@@ -542,15 +542,15 @@ void FanucAdapter::getMacros()
       int z = mMacroPath[i]->getZ() - mMacroMin;
       
       if ((macros->data[x].mcr_val != 0 || macros->data[x].dec_val != -1) &&
-	  (macros->data[y].mcr_val != 0 || macros->data[y].dec_val != -1) &&
-	  (macros->data[z].mcr_val != 0 || macros->data[z].dec_val != -1))
+          (macros->data[y].mcr_val != 0 || macros->data[y].dec_val != -1) &&
+          (macros->data[z].mcr_val != 0 || macros->data[z].dec_val != -1))
       {
-	mMacroPath[i]->setValue(((double) macros->data[x].mcr_val) /
-				  pow(10.0, macros->data[x].dec_val),
-				((double) macros->data[y].mcr_val) /
-				  pow(10.0, macros->data[y].dec_val),
-				((double) macros->data[z].mcr_val) /
-				  pow(10.0, macros->data[z].dec_val));
+        mMacroPath[i]->setValue(((double) macros->data[x].mcr_val) /
+                                  pow(10.0, macros->data[x].dec_val),
+                                ((double) macros->data[y].mcr_val) /
+                                  pow(10.0, macros->data[y].dec_val),
+                                ((double) macros->data[z].mcr_val) /
+                                  pow(10.0, macros->data[z].dec_val));
       }
     }
   }
@@ -655,26 +655,26 @@ void FanucAdapter::getCondition(long aAlarm)
     {
       if (aAlarm & (0x1 << i))
       {
-	ODBALMMSG2 alarms[MAX_AXIS];
-	short num = MAX_AXIS;
-	
-	short ret = cnc_rdalmmsg2(mFlibhndl, i, &num, alarms);
-	if (ret != EW_OK)
-	  continue;
+        ODBALMMSG2 alarms[MAX_AXIS];
+        short num = MAX_AXIS;
+        
+        short ret = cnc_rdalmmsg2(mFlibhndl, i, &num, alarms);
+        if (ret != EW_OK)
+          continue;
 
-	for (int j = 0; j < num; j++) 
-	{
-	  ODBALMMSG2 &alarm = alarms[j];
-	  char num[16];
-	  
-	  Condition *cond = translateAlarmNo(i, alarm.axis);
-	  if (cond == NULL)
-	    continue;
+        for (int j = 0; j < num; j++) 
+        {
+          ODBALMMSG2 &alarm = alarms[j];
+          char num[16];
+          
+          Condition *cond = translateAlarmNo(i, alarm.axis);
+          if (cond == NULL)
+            continue;
 
-	  sprintf(num, "%d", alarm.alm_no);
-	  if (cond->setValue(Condition::eFAULT, alarm.alm_msg, num))
-		mActiveConditions.add(cond);
-	}
+          sprintf(num, "%d", alarm.alm_no);
+          if (cond->setValue(Condition::eFAULT, alarm.alm_msg, num))
+                mActiveConditions.add(cond);
+        }
       }
     }       
   } else {
