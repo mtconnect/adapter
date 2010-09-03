@@ -56,7 +56,7 @@ FanucAdapter::FanucAdapter(int aPort, const char *aDeviceIP, int aDevicePort) :
   addDatum(mSpindle);
 
   /* Controller */
-  addDatum(mProgramInfo);
+  //addDatum(mProgramInfo);
   addDatum(mProgram);
   addDatum(mAvail);
   addDatum(mExecution);
