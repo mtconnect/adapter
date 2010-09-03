@@ -36,20 +36,9 @@
 #include "server.hpp"
 #include "string_buffer.hpp"
 
-int main(int aArgc, char *aArgv[])
-{
-  if (aArgc < 3)
-  {
-	  printf("Usage: %s <device_ip> <device_port>\n", aArgv[0]);
-	  exit(1);
-  }
-  int port = 7878;
-  if (aArgc > 3)
-    port = atoi(aArgv[3]);
-    
-  /* Construct the adapter and start the server */
-  FanucAdapter adapter(port, aArgv[1], atoi(aArgv[2]));
-  adapter.startServer();
-  
-  return 0;
+int main(int aArgc, const char *aArgv[])
+{  
+  FanucAdapter *adapter = new FanucAdapter(7878);
+  adapter->setName("MTConnect Fanuc Adapter");
+  return adapter->main(aArgc, aArgv);  
 }

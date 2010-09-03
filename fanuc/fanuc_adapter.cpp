@@ -35,7 +35,7 @@
 #include "fanuc_adapter.hpp"
 #include "minIni.h"
 
-FanucAdapter::FanucAdapter(int aPort, const char *aDeviceIP, int aDevicePort) : 
+FanucAdapter::FanucAdapter(int aPort) : 
   Adapter(aPort), 
   mAvail("avail"), mExecution("execution"), mLine("line"),
   mPathFeedrate("path_feedrate"), 
@@ -67,8 +67,6 @@ FanucAdapter::FanucAdapter(int aPort, const char *aDeviceIP, int aDevicePort) :
 
   addDatum(mPathPosition);
 
-  mDevicePort = aDevicePort;
-  mDeviceIP = aDeviceIP;
   mConfigured = mConnected = false;
   mAxisCount = mSpindleCount = mMacroSampleCount = mPMCCount =
 	       mMacroPathCount = 0;
@@ -96,6 +94,27 @@ FanucAdapter::~FanucAdapter()
   }
   
   disconnect();
+}
+
+void FanucAdapter::initialize(int aArgc, const char *aArgv[])
+{
+  MTConnectService::initialize(aArgc, aArgv);
+  mDeviceIP = aArgv[0];
+  mDevicePort = atoi(aArgv[1]);  
+
+  int port = 7878;
+  if (aArgc > 3)
+    port = atoi(aArgv[2]);  
+}
+
+void FanucAdapter::start()
+{
+  startServer();
+}
+
+void FanucAdapter::stop()
+{
+  stopServer();
 }
 
 void FanucAdapter::gatherDeviceData()

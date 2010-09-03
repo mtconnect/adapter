@@ -211,6 +211,10 @@
 				>
 			</File>
 			<File
+				RelativePath="..\src\service.cpp"
+				>
+			</File>
+			<File
 				RelativePath="..\src\string_array.cpp"
 				>
 			</File>
@@ -250,6 +254,10 @@
 			</File>
 			<File
 				RelativePath="..\src\server.hpp"
+				>
+			</File>
+			<File
+				RelativePath="..\src\service.hpp"
 				>
 			</File>
 			<File

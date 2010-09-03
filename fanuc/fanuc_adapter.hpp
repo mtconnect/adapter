@@ -37,6 +37,7 @@
 #include "adapter.hpp"
 #include "device_datum.hpp"
 #include "condition_list.hpp"
+#include "service.hpp"
 #include "Fwlib32.h"
 
 #define MAX_MACROS 32
@@ -71,7 +72,7 @@ public:
 /* 
  * Provides a connection to the data available from the FANUC Focus library.
  */
-class FanucAdapter : public Adapter 
+class FanucAdapter : public Adapter, public MTConnectService 
 {
 protected:
   /* Define all the data values here */
@@ -161,8 +162,13 @@ protected:
   void getPMC();
 
 public:
-  FanucAdapter(int aServerPort, const char *aDeviceIP, int aDevicePort);
+  FanucAdapter(int aServerPort);
   ~FanucAdapter();
+  
+  // For Service
+  virtual void initialize(int aArgc, const char *aArgv[]);
+  virtual void start();
+  virtual void stop();
   
   virtual void gatherDeviceData();
 };
