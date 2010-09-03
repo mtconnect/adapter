@@ -70,13 +70,13 @@ ModbusAdapter::ModbusAdapter(int aPort)
       int scaling;
       const YAML::Node *scaleNode = node.FindValue("scalingAddress");
       if (scaleNode != NULL) {
-	*scaleNode >> scaling;
-	data = new ModbusDouble(address, scaling, 0);
+        *scaleNode >> scaling;
+        data = new ModbusDouble(address, scaling, 0);
       } else if ((scaleNode = node.FindValue("scaler")) != NULL) {
-	*scaleNode >> scaling;
-	data = new ModbusDouble(address, 0, scaling);
+        *scaleNode >> scaling;
+        data = new ModbusDouble(address, 0, scaling);
       } else {
-	data = new ModbusDouble(address, 0, 1);
+        data = new ModbusDouble(address, 0, 1);
       }
     }
 
@@ -142,17 +142,17 @@ void ModbusAdapter::gatherDeviceData()
     bool success = false;
     if ((*iter)->type() == ModbusData::eCOIL) {
       success = read_input_status(&mb_param, 1, (*iter)->address(), (*iter)->count(),
-				(static_cast<ModbusCoil*>(*iter))->data()) > 0;
+                                (static_cast<ModbusCoil*>(*iter))->data()) > 0;
     } else { 
       success = read_holding_registers(&mb_param, 1, (*iter)->address(), (*iter)->count(),
-				       (static_cast<ModbusRegister*>(*iter))->data()) > 0;
+                                       (static_cast<ModbusRegister*>(*iter))->data()) > 0;
       if (success && (*iter)->type() == ModbusData::eDOUBLE) {
-	ModbusDouble *d = static_cast<ModbusDouble*>(*iter);
-	if (d->scalerAddress() != 0) {
-	  uint16_t scaler[1];
-	  success = read_holding_registers(&mb_param, 1, d->scalerAddress(), 1, scaler) > 0;
-	  if (success) d->scaler = scaler[0];
-	}
+        ModbusDouble *d = static_cast<ModbusDouble*>(*iter);
+        if (d->scalerAddress() != 0) {
+          uint16_t scaler[1];
+          success = read_holding_registers(&mb_param, 1, d->scalerAddress(), 1, scaler) > 0;
+          if (success) d->scaler = scaler[0];
+        }
       }
     }
 
