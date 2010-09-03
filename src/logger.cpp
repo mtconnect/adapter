@@ -16,6 +16,8 @@ void Logger::error(const char *aFormat, ...)
 
 void Logger::warning(const char *aFormat, ...)
 {
+  if (mLogLevel > eWARNING) return;
+  
   char buffer[LOGGER_BUFFER_SIZE];
   char ts[32];
   va_list args;
@@ -26,6 +28,8 @@ void Logger::warning(const char *aFormat, ...)
 
 void Logger::info(const char *aFormat, ...)
 {
+  if (mLogLevel > eINFO) return;
+  
   char buffer[LOGGER_BUFFER_SIZE];
   char ts[32];
   va_list args;
@@ -33,6 +37,19 @@ void Logger::info(const char *aFormat, ...)
   fprintf(stderr, "%s - Info: %s\n", timestamp(ts), format(buffer, LOGGER_BUFFER_SIZE, aFormat, args));
   va_end (args);
 }
+
+void Logger::debug(const char *aFormat, ...)
+{
+  if (mLogLevel > eDEBUG) return;
+  
+  char buffer[LOGGER_BUFFER_SIZE];
+  char ts[32];
+  va_list args;
+  va_start (args, aFormat);
+  fprintf(stderr, "%s - Debug: %s\n", timestamp(ts), format(buffer, LOGGER_BUFFER_SIZE, aFormat, args));
+  va_end (args);
+}
+
 
 const char *Logger::format(char *aBuffer, int aLen, const char *aFormat, va_list args)
 {

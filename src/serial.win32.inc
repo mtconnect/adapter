@@ -2,7 +2,7 @@ bool Serial::connect()
 {
   if (mConnected)
   {
-    printf("You are already connected, please disconnect first\n");
+    gLogger->error("You are already connected, please disconnect first\n");
     return false;
   }
   
@@ -12,7 +12,7 @@ bool Serial::connect()
   int speed;
 	 	 
   if (mFd != INVALID_HANDLE_VALUE && !CloseHandle(mFd)){
-    printf("Can't close comm port");
+    gLogger->error("Can't close comm port");
     return false;
   }
   
@@ -37,7 +37,7 @@ bool Serial::connect()
 		      NULL);
 		 
     if(mFd == INVALID_HANDLE_VALUE) {
-      printf("CreateFile Failed \n");
+      gLogger->error("CreateFile Failed\n");
       return false;
     } 
   }
@@ -48,7 +48,7 @@ bool Serial::connect()
        1024	// size of output buffer
        )
     ){
-    printf("SetupComm failed \n");
+    gLogger->error("SetupComm failed \n");
     CloseHandle(mFd);
     return false;
   }
@@ -92,7 +92,7 @@ bool Serial::connect()
     break;
   default:
     speed = CBR_9600;
-    printf("WARNING Unknown baud rate %d for %s (B9600 used)\n",
+    gLogger->warning("Unknown baud rate %d for %s (B9600 used)\n",
 	   mBaud, mDevice);
   }
 
@@ -135,13 +135,13 @@ bool Serial::connect()
   cto.WriteTotalTimeoutConstant = 1000;	 
 
   if(!SetCommTimeouts(mFd, &cto)){
-    printf("SetTimeouts failed ");
+    gLogger->error("SetTimeouts failed ");
 	CloseHandle(mFd);
     return false;
   }	 
 	 
   if(!SetCommState(mFd, &dcb)){
-    printf("SetCommState failed \n");
+    gLogger->error("SetCommState failed");
 	CloseHandle(mFd);
     return false;
   }
@@ -215,7 +215,7 @@ void Serial::printCommStatus()
   DWORD errors;
   COMSTAT status;
   ClearCommError(mFd,&errors,&status);
-  printf("Cts: %d, Dsr: %d, Rls: %d, \n" 
+  gLogger->debug("Cts: %d, Dsr: %d, Rls: %d, \n" 
          "XoffRec: %d, XoffSent: %d, Eof: %d, In: %d, Out: %d\n"
          "Errors: %d\n", 
          status.fCtsHold, status.fDsrHold, status.fRlsdHold,

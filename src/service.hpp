@@ -30,6 +30,7 @@ public:
   virtual void error(const char *aFormat, ...);
   virtual void warning(const char *aFormat, ...);
   virtual void info(const char *aFormat, ...);  
+  virtual void debug(const char *aFormat, ...);  
 
 protected:
 };

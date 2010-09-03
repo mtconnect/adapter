@@ -1,6 +1,7 @@
 
 #include "internal.hpp"
 #include "serial.hpp"
+#include "logger.hpp"
 
 Serial::SerialError::SerialError(const char *aMessage)
 {
@@ -10,7 +11,7 @@ Serial::SerialError::SerialError(const char *aMessage)
 
 Serial::Serial(const char *aDevice,
 	       int aBaud, const char *aParity, int aDataBit,
-	       int aStopBit, bool aDebug)
+	       int aStopBit)
 {
   mBaud = aBaud;
   strncpy(mDevice, aDevice, sizeof(mDevice) - 1);
@@ -19,7 +20,6 @@ Serial::Serial(const char *aDevice,
   mParity[sizeof(mParity) - 1] = '\0';
   mDataBit = aDataBit;
   mStopBit = aStopBit;
-  mDebug = aDebug;
 
 #ifdef WIN32
   mFd = INVALID_HANDLE_VALUE;
@@ -39,12 +39,11 @@ int Serial::readUntil(const char *aUntil, char *aBuffer, int aLength)
 {
   if (!mConnected)
   {
-    printf("Trying to read when not connected");
+    gLogger->error("Trying to read when not connected");
     return -1;
   }
     
-  if (mDebug) 
-    printf("Reading upto %d bytes or we get a match\n", aLength, aUntil);
+  gLogger->debug("Reading upto %d bytes or '%c' we get a match", aLength, aUntil);
 
   int len = 0, count = 0;
   char *cp = aBuffer;
@@ -61,7 +60,7 @@ int Serial::readUntil(const char *aUntil, char *aBuffer, int aLength)
       usleep(10 * 1000); // 10 msec
       if (count++ > 10)
       {
-	printf("Read timed out\n");
+	gLogger->info("Read timed out\n");
 	return -1;
       }
     }
@@ -86,23 +85,20 @@ int Serial::readUntil(const char *aUntil, char *aBuffer, int aLength)
 
   *cp = '\0';
 
-  if (mDebug) 
-    printf("Read returned: %d - '%s'\n", len, aBuffer);
+  gLogger->debug("Read returned: %d - '%s'", len, aBuffer);
 
   return len;
 }
 
 int Serial::write(char *aBuffer)
 {
-  if (mDebug) 
-    printf("Writing '%s'\n", aBuffer);
+  gLogger->debug("Writing '%s'\n", aBuffer);
 
   int ret = write(aBuffer, (int) strlen(aBuffer));
   if (ret < 0)
     throw SerialError("Couldn't write");
   
-  if (mDebug) 
-    printf("Write returned: %d\n", ret);
+  gLogger->debug("Write returned: %d\n", ret);
   
   return ret;
 }

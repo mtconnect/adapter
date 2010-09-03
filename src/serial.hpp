@@ -22,9 +22,6 @@ protected:
   int mFd;
 #endif
   
-  /* Flag debug */
-  bool mDebug;
-  
   /* TCP port */
   int mPort;
   
@@ -73,10 +70,9 @@ private:
 public:
   Serial(const char *aDevice,
 	 int aBaud, const char *aParity, int aDataBit,
-	 int aStopBit, bool aDebug = false);
+	 int aStopBit);
   ~Serial();
 
-  bool debug() { return mDebug; }
   bool connected() { return mConnected; }
   bool available() { return mConnected; }
 

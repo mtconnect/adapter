@@ -68,6 +68,11 @@ int MTConnectService::main(int argc, const char *argv[])
       return 0;
       } else if (stricmp( argv[1], "debug") == 0 ) {
         initialize(argc - 2, argv + 2);
+	gLogger->setLogLevel(Logger::eDEBUG);
+        start();
+        return 0;
+      } else if (stricmp( argv[1], "run") == 0 ) {
+        initialize(argc - 2, argv + 2);
         start();
         return 0;
       }
@@ -544,6 +549,10 @@ int MTConnectService::main(int argc, const char *argv[])
     va_end (args);
   }
 
+  void ServiceLogger::debug(const char *aFormat, ...)
+  {
+    // Debug service logging is not supported
+  }
 
 #else
   int MTConnectService::main(int argc, const char *argv[]) 
