@@ -45,7 +45,6 @@ KrishnaAdapter::KrishnaAdapter(int aPort)
   : Adapter(aPort, 500)
 {
   mConnected = 0;
-  mXBee.setCanEscape(false);
 
   ifstream fin("krishna.yaml");
   YAML::Parser parser(fin);
@@ -156,10 +155,10 @@ void KrishnaAdapter::stop()
 void KrishnaAdapter::initializeMeter(KrishnaMeter *aMeter)
 {
   if (!aMeter->mAvailable) {
-    uint8_t command[] = { 'A', 'P' };
-    uint8_t value[] = { 0x1 };
-    RemoteAtCommandRequest atap2(aMeter->mAddress, command, value, sizeof(value));
-    mXBee.send(atap2);
+    uint8_t command[] = { 'A', 'O' };
+    uint8_t payload[] = { 0 };
+    RemoteAtCommandRequest cmd(aMeter->mAddress, command, payload, sizeof(payload));
+    mXBee.send(cmd);
     bool success = false;
     if (mXBee.readPacket(mTimeout)) {
       RemoteAtCommandResponse response;
@@ -168,7 +167,7 @@ void KrishnaAdapter::initializeMeter(KrishnaMeter *aMeter)
     }
     if (!success)
     {
-      gLogger->warning("Could not set remote ATAP 1 for %s", aMeter->mName.c_str());
+      gLogger->warning("Could not Set API output format for %s to 0", aMeter->mName.c_str());
       aMeter->mAvailable = false;
     } else {
       aMeter->mAvailable = true;
@@ -179,6 +178,7 @@ void KrishnaAdapter::initializeMeter(KrishnaMeter *aMeter)
 void KrishnaAdapter::requestData(KrishnaMeter *aMeter)
 {
   if (!aMeter->mAvailable) return;
+  
   gLogger->debug("\n-------------- %s ----------------", aMeter->mName.c_str());
   std::vector<KrishnaData*>::iterator iter;
   for (size_t i = 0; i < aMeter->mData.size(); i++) {
@@ -187,7 +187,9 @@ void KrishnaAdapter::requestData(KrishnaMeter *aMeter)
     KrishnaRequest request(aMeter->mAddress, data->getAddress(), data->getRequestCount() + 1);
     mXBee.send(request);
     KrishnaResponse response;
-    while (success == true && mXBee.readPacket(mTimeout) && 
+    bool packetArrived = mXBee.readPacket(mTimeout);
+    bool nextPacket = true;
+    while (success == true &&  packetArrived && nextPacket &&
            !mXBee.getResponse().isError() && 
            mXBee.getResponse().getApiId() == ZB_TX_STATUS_RESPONSE) {
       ZBTxStatusResponse status;
@@ -195,6 +197,8 @@ void KrishnaAdapter::requestData(KrishnaMeter *aMeter)
       if (!status.isSuccess()) {
         success = false;
         aMeter->mAvailable = false;
+        data->unavailable();
+        
         if (status.getDeliveryStatus() == ADDRESS_NOT_FOUND)
           gLogger->warning("Could not find address: 0x%X", status.getDeliveryStatus());
         else
@@ -203,9 +207,15 @@ void KrishnaAdapter::requestData(KrishnaMeter *aMeter)
         gLogger->debug("Retry count: %d, discovery: %d",
           status.getTxRetryCount(), status.getDiscoveryStatus());
       }
-      data->unavailable();
+      nextPacket = mXBee.readPacket(mTimeout);
     }
-    if (success && !mXBee.getResponse().isError() &&
+    if (!packetArrived) {
+      success = false;
+      aMeter->mAvailable = false;
+      unavailable();
+      mSerial->disconnect();
+      mConnected = false;
+    } else if (success && !mXBee.getResponse().isError() &&
         mXBee.getResponse().getApiId() == ZB_RX_RESPONSE) {
       flush();
       mXBee.getResponse(response);
@@ -235,10 +245,10 @@ void KrishnaAdapter::gatherDeviceData()
       // Make sure we are set to ATAP 2 so we escape control
       // characters
       uint8_t command[] = { 'A', 'P' };
-      uint8_t value[] = { 0x1 };
+      uint8_t value[] = { 0x2 };
       AtCommandRequest atap2(command, value, sizeof(value));
       mXBee.send(atap2);
-      mXBee.readPacket();
+      mXBee.readPacket(mTimeout);
       AtCommandResponse response;
       mXBee.getResponse(response);
       if (!response.isOk()) {
