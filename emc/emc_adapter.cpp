@@ -32,20 +32,23 @@
 */
 
 #include "internal.hpp"
+#include "logger.hpp"
 #include "emc_adapter.hpp"
 
 EmcAdapter::EmcAdapter(int aPort, const char *aNmlFile)
-  : Adapter(aPort, 10), 
-    mAlarm("alarm"), mPower("power"), mExecution("execution"), mLine("line"),
+  : Adapter(aPort, 10), mAvail("avail"), mEstop("estop"),
+    mExecution("execution"), mLine("line"), mPower("power"),
     mXact("Xact"), mYact("Yact"), mZact("Zact"), 
     mXcom("Xcom"), mYcom("Ycom"), mZcom("Zcom"),
     mSpindleSpeed("spindle_speed"), mPathFeedrate("path_feedrate"),
     mProgram("program"), mMode("mode"), mBlock("block"),
     mPathFeedrateOverride("feed_ovr"), mSpindleSpeedOverride("SspeedOvr"),
-    mLineMax("line_max")
+    mLineMax("line_max"), mMessage("message")
 {
-  addDatum(mAlarm);
+  addDatum(mEstop);
+  addDatum(mMessage);
   addDatum(mPower);
+  addDatum(mAvail);
   addDatum(mExecution);
   addDatum(mLine);
   addDatum(mXact);
@@ -76,27 +79,27 @@ bool EmcAdapter::connect()
   int retval = 0;
   if (mEmcStatusBuffer == 0)
   {
-    mEmcStatusBuffer = new RCS_STAT_CHANNEL(emcFormat, "emcStatus", "adapter", mNmlFile);
+    mEmcStatusBuffer = new RCS_STAT_CHANNEL(emcFormat, (char*) "emcStatus", (char*) "adapter", mNmlFile);
     if (! mEmcStatusBuffer->valid() || EMC_STAT_TYPE != mEmcStatusBuffer->peek())
     {
       rcs_print_error("emcStatus buffer not available\n");
       delete mEmcStatusBuffer;
       
       mEmcStatusBuffer = 0;
-      mPower.setValue(Power::eOFF);
+      mPower.setValue(PowerState::eOFF);
       return false;
     }
   }
     
   if (mEmcErrorBuffer == 0)
   {
-    mEmcErrorBuffer = new NML(nmlErrorFormat, "emcError", "adapter", mNmlFile);
+    mEmcErrorBuffer = new NML(nmlErrorFormat, (char*) "emcError", (char*) "adapter", mNmlFile);
     if (!mEmcErrorBuffer->valid())
     {
       rcs_print_error("emcError buffer not available\n");
       delete mEmcErrorBuffer;
       mEmcErrorBuffer = 0;
-      mPower.setValue(Power::eOFF);
+      mPower.setValue(PowerState::eOFF);
       return false;
     }
   }
@@ -108,6 +111,7 @@ void EmcAdapter::disconnect()
 {
   if (mConnected)
   {
+    unavailable();
     if (mEmcErrorBuffer)
       delete mEmcErrorBuffer;
     mEmcErrorBuffer = 0;
@@ -170,11 +174,11 @@ void EmcAdapter::machine()
 {
   if (mEmcStatus.task.state == EMC_TASK_STATE_ON)
   {
-    mPower.setValue(Power::eON);
+    mPower.setValue(PowerState::eON);
   }
   else
   {
-    mPower.setValue(Power::eOFF);
+    mPower.setValue(PowerState::eOFF);
   }
 }
 
@@ -211,17 +215,13 @@ void EmcAdapter::execution()
 
 void EmcAdapter::alarms()
 {
-  if (mEmcStatus.task.state == EMC_TASK_STATE_ESTOP && !mEstop) 
+  if (mEmcStatus.task.state == EMC_TASK_STATE_ESTOP)
   {
-    mAlarm.setValue(Alarm::eESTOP, "ESTOP", Alarm::eCRITICAL, Alarm::eACTIVE, "ESTOP Pressed");
-    sendDatum(&mAlarm);
-    mEstop = true;
+    mEstop.setValue(EmergencyStop::eTRIGGERED);
   }
-  else if (mEmcStatus.task.state != EMC_TASK_STATE_ESTOP && mEstop)
+  else if (mEmcStatus.task.state != EMC_TASK_STATE_ESTOP)
   {
-    mAlarm.setValue(Alarm::eESTOP, "ESTOP", Alarm::eCRITICAL, Alarm::eCLEARED, "ESTOP Reset");
-    sendDatum(&mAlarm);
-    mEstop = false;
+    mEstop.setValue(EmergencyStop::eARMED);
   }
   
   char error_string[LINELEN];
@@ -242,33 +242,30 @@ void EmcAdapter::alarms()
     
   case EMC_OPERATOR_ERROR_TYPE:
     strncpy(error_string,
-	    ((EMC_OPERATOR_ERROR *) (mEmcErrorBuffer->get_address()))->
-	    error, LINELEN - 1);
+	    ((EMC_OPERATOR_ERROR *) (mEmcErrorBuffer->get_address()))->error, LINELEN - 1);
     error_string[LINELEN - 1] = 0;
     error = true;
-    sprintf(num, "%d", type);
-    mAlarm.setValue(Alarm::eOTHER, num, Alarm::eERROR, Alarm::eINSTANT, error_string);
+    sprintf(num, "%d", (int) type);
+    //mAlarm.setValue(Alarm::eOTHER, num, Alarm::eERROR, Alarm::eINSTANT, error_string);
     break;
     
   case EMC_OPERATOR_TEXT_TYPE:
     strncpy(error_string,
-	    ((EMC_OPERATOR_TEXT *) (mEmcErrorBuffer->get_address()))->
-	    text, LINELEN - 1);
+	    ((EMC_OPERATOR_TEXT *) (mEmcErrorBuffer->get_address()))->text, LINELEN - 1);
     error_string[LINELEN - 1] = 0;
     error = true;
-    sprintf(num, "%d", type);
-    mAlarm.setValue(Alarm::eOTHER, num, Alarm::eINFO, Alarm::eINSTANT, error_string);
+    sprintf(num, "%d", (int) type);
+    mMessage.setValue(error_string, num);
     break;
     
   case EMC_OPERATOR_DISPLAY_TYPE:
     strncpy(error_string,
-	    ((EMC_OPERATOR_DISPLAY *) (mEmcErrorBuffer->
-				       get_address()))->display,
+	    ((EMC_OPERATOR_DISPLAY *) (mEmcErrorBuffer->get_address()))->display,
 	    LINELEN - 1);
     error_string[LINELEN - 1] = 0;
     error = true;
-    sprintf(num, "%d", type);
-    mAlarm.setValue(Alarm::eOTHER, num, Alarm::eINFO, Alarm::eINSTANT, error_string);
+    sprintf(num, "%d", (int) type);
+    mMessage.setValue(error_string, num);
     break;
     
   case NML_ERROR_TYPE:
@@ -277,8 +274,8 @@ void EmcAdapter::alarms()
 	    NML_ERROR_LEN - 1);
     error_string[NML_ERROR_LEN - 1] = 0;
     error = true;
-    sprintf(num, "%d", type);
-    mAlarm.setValue(Alarm::eOTHER, num, Alarm::eERROR, Alarm::eINSTANT, error_string);
+    sprintf(num, "%d", (int) type);
+    //mAlarm.setValue(Alarm::eOTHER, num, Alarm::eERROR, Alarm::eINSTANT, error_string);
     break;
     
   case NML_TEXT_TYPE:
@@ -287,8 +284,8 @@ void EmcAdapter::alarms()
 	    NML_TEXT_LEN - 1);
     error_string[NML_TEXT_LEN - 1] = 0;
     error = true;
-    sprintf(num, "%d", type);
-    mAlarm.setValue(Alarm::eOTHER, num, Alarm::eINFO, Alarm::eINSTANT, error_string);
+    sprintf(num, "%d", (int) type);
+    //mAlarm.setValue(Alarm::eOTHER, num, Alarm::eINFO, Alarm::eINSTANT, error_string);
     break;
     
   case NML_DISPLAY_TYPE:
@@ -297,22 +294,22 @@ void EmcAdapter::alarms()
 	    NML_DISPLAY_LEN - 1);
     error_string[NML_DISPLAY_LEN - 1] = 0;
     error = true;
-    sprintf(num, "%d", type);
-    mAlarm.setValue(Alarm::eOTHER, num, Alarm::eINFO, Alarm::eINSTANT, error_string);
+    sprintf(num, "%d", (int) type);
+    //mAlarm.setValue(Alarm::eOTHER, num, Alarm::eINFO, Alarm::eINSTANT, error_string);
     break;
     
   default:
     // if not recognized, set the error string
     sprintf(error_string, "unrecognized error %ld", type);
-    sprintf(num, "%d", type);
-    mAlarm.setValue(Alarm::eOTHER, num, Alarm::eWARNING, Alarm::eINSTANT, error_string);
+    sprintf(num, "%d", (int) type);
+    //mAlarm.setValue(Alarm::eOTHER, num, Alarm::eWARNING, Alarm::eINSTANT, error_string);
     error = true;
     break;
   }
 
   if (error)
   {
-    sendDatum(&mAlarm);
+    //sendDatum(&mAlarm);
   }
 }
 
@@ -327,6 +324,8 @@ void EmcAdapter::gatherDeviceData()
   {
     if (!connect())
       sleep(5);
+    else
+      mAvail.available();
   }
   else
   {

@@ -38,30 +38,35 @@
 #include "device_datum.hpp"
 #include "string_array.hpp"
 
-#include "rcs.hh"               // rcs_print_error(), esleep()
-#include "emc.hh"               // EMC NML
-#include "emc_nml.hh"
-#include "emcglb.h"             // EMC_NMLFILE, TRAJ_MAX_VELOCITY
-#include "emccfg.h"             // DEFAULT_TRAJ_MAX_VELOCITY
-#include "inifile.hh"           // INIFILE
-#include "rcs_print.hh"
-#include "nml_oi.hh"
-#include "timer.hh"
+#include "emc2/rcs.hh"               // rcs_print_error(), esleep()
+#include "emc2/emc.hh"               // EMC NML
+#include "emc2/emc_nml.hh"
+#include "emc2/emcglb.h"             // EMC_NMLFILE, TRAJ_MAX_VELOCITY
+#include "emc2/emccfg.h"             // DEFAULT_TRAJ_MAX_VELOCITY
+#include "emc2/inifile.hh"           // INIFILE
+#include "emc2/rcs_print.hh"
+#include "emc2/nml_oi.hh"
+#include "emc2/timer.hh"
 
 class EmcAdapter : public Adapter 
 {
 protected:
   /* Define all the data values here */
   
+  /* Conditions */
+  
+  
   /* Events */
-  Alarm mAlarm;
-  Power mPower;
+  Availability mAvail;
+  EmergencyStop mEstop;
+  PowerState mPower;
   Execution mExecution;
   IntEvent mLine; 
   IntEvent mLineMax; 
   Event mProgram;
   ControllerMode mMode;
   Event mBlock;
+  Message mMessage;
   
   /* Samples */
   /* Linear Axis */
@@ -87,7 +92,6 @@ protected:
   char mErrorString[LINELEN];
   RCS_STAT_CHANNEL *mEmcStatusBuffer;
   bool mConnected;
-  bool mEstop;
   StringArray mBlocks;
   
   char mNmlFile[1024];

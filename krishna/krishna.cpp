@@ -37,7 +37,7 @@
 #include "string_buffer.hpp"
 
 int main(int aArgc, const char *aArgv[])
-{    
+{
   /* Construct the adapter and start the server */
   KrishnaAdapter *adapter = new KrishnaAdapter(7878);
   adapter->setName("MTConnect Krishna Adapter");

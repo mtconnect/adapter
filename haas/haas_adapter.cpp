@@ -39,33 +39,23 @@ using namespace std;
 HaasAdapter::HaasAdapter(int aPort)
   : Adapter(aPort, 1000), 
     mZeroRet("servo"), mMessage("message"), mExecution("execution"),
-    mLine("line"), mXact("Xact"), mYact("Yact"), mZact("Zact"), 
-    mXcom("Xcom"), mYcom("Ycom"), mZcom("Zcom"),
-    mSpindleSpeed("spindle_speed"), mPathFeedrate("path_feedrate"),
-    mProgram("program"), mMode("mode"), mBlock("block"),
-    mPathFeedrateOverride("feed_ovr"), mSpindleSpeedOverride("SspeedOvr"),
-    mLineMax("line_max"), mPartCount("PartCount"), mEstop("estop"), mSystem("system"),
+    mXact("Xact"), mYact("Yact"), mZact("Zact"), 
+    mSpindleSpeed("spindle_speed"), 
+    mProgram("program"), mMode("mode"), 
+    mPartCount("PartCount"), mEstop("estop"), mSystem("system"),
     mAvail("avail"), mPositions(false)
 {
   addDatum(mMessage);
+  addDatum(mSystem);
   addDatum(mZeroRet);
   addDatum(mSystem);
   addDatum(mExecution);
-  addDatum(mLine);
   addDatum(mXact);
   addDatum(mYact);
   addDatum(mZact);
-  addDatum(mXcom);
-  addDatum(mYcom);
-  addDatum(mZcom);
   addDatum(mSpindleSpeed);
-  addDatum(mPathFeedrate);
   addDatum(mProgram);
   addDatum(mMode);
-  addDatum(mBlock);
-  addDatum(mPathFeedrateOverride);
-  addDatum(mSpindleSpeedOverride);
-  addDatum(mLineMax);
   addDatum(mPartCount);
   addDatum(mEstop);
   addDatum(mAvail);

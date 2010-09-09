@@ -153,7 +153,7 @@ void Adapter::sendDatum(DeviceDatum *aValue)
 /* Send the buffer to the clients. Only sends if there is something in the buffer. */
 void Adapter::sendBuffer()
 {
-  if (mBuffer.length() > 0)
+  if (mServer != 0 && mBuffer.length() > 0)
   {
     mBuffer.append("\n");
     mServer->sendToClients(mBuffer);

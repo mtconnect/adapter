@@ -7,8 +7,8 @@ communications:
   timeout: 1000
   parity: none
 meters:
-  - device: VMC-3Axis
-    address: [0x00, 0x13, 0xA2, 0x00, 0x40, 0x32, 0xED, 0x26]
+  - device: TEST1
+    address: [0x00, 0x13, 0xA2, 0x00, 0x40, 0x3C, 0x33, 0x8C]
     prefix: true
     data: &data
     - address: 1600
@@ -47,48 +47,123 @@ meters:
         offset: 10
         scaler: 0.01
         nonZero: true
-      - name: r_power_factor
-        offset: 11
+  - device: TEST2
+    address: [0x00, 0x13, 0xA2, 0x00, 0x40, 0x3C, 0x36, 0x73]
+    prefix: true
+    data: &data
+    - address: 1600
+      items: 
+      - name: r_voltage
+        offset: 0
+        scaler: 0.1
+      - name: y_voltage
+        offset: 1
+        scaler: 0.1
+      - name: b_voltage
+        offset: 2
+        scaler: 0.1
+      - name: r_current
+        offset: 3
+        scaler: 0.1
+      - name: y_current
+        offset: 4
+        scaler: 0.1
+      - name: b_current
+        offset: 5
+        scaler: 0.1
+      - name: total_active_power
+        offset: 6
+        scaler: 0.1
+      - name: total_reactive_power
+        offset: 7
+        scaler: 0.1
+      - name: total_apparent_power
+        offset: 8
+        scaler: 0.1
+      - name: total_power_factor
+        offset: 9
         scaler: 0.001
-      - name: y_power_factor
-        offset: 12 
+      - name: line_frequency
+        offset: 10
+        scaler: 0.01
+        nonZero: true
+  - device: TEST3
+    address: [0x00, 0x13, 0xA2, 0x00, 0x40, 0x3C, 0x33, 0x90]
+    prefix: true
+    data: &data
+    - address: 1600
+      items: 
+      - name: r_voltage
+        offset: 0
+        scaler: 0.1
+      - name: y_voltage
+        offset: 1
+        scaler: 0.1
+      - name: b_voltage
+        offset: 2
+        scaler: 0.1
+      - name: r_current
+        offset: 3
+        scaler: 0.1
+      - name: y_current
+        offset: 4
+        scaler: 0.1
+      - name: b_current
+        offset: 5
+        scaler: 0.1
+      - name: total_active_power
+        offset: 6
+        scaler: 0.1
+      - name: total_reactive_power
+        offset: 7
+        scaler: 0.1
+      - name: total_apparent_power
+        offset: 8
+        scaler: 0.1
+      - name: total_power_factor
+        offset: 9
         scaler: 0.001
-      - name: b_power_factor
-        offset: 13
+      - name: line_frequency
+        offset: 10
+        scaler: 0.01
+        nonZero: true
+  - device: TEST4
+    address: [0x00, 0x13, 0xA2, 0x00, 0x40, 0x3C, 0x33, 0x96]
+    prefix: true
+    data: &data
+    - address: 1600
+      items: 
+      - name: r_voltage
+        offset: 0
+        scaler: 0.1
+      - name: y_voltage
+        offset: 1
+        scaler: 0.1
+      - name: b_voltage
+        offset: 2
+        scaler: 0.1
+      - name: r_current
+        offset: 3
+        scaler: 0.1
+      - name: y_current
+        offset: 4
+        scaler: 0.1
+      - name: b_current
+        offset: 5
+        scaler: 0.1
+      - name: total_active_power
+        offset: 6
+        scaler: 0.1
+      - name: total_reactive_power
+        offset: 7
+        scaler: 0.1
+      - name: total_apparent_power
+        offset: 8
+        scaler: 0.1
+      - name: total_power_factor
+        offset: 9
         scaler: 0.001
-      - name: r_active_power
-        offset: 14
-        scaler: 0.1
-      - name: y_active_power
-        offset: 15
-        scaler: 0.1
-      - name: b_active_power
-        offset: 16
-        scaler: 0.1
-      - name: r_reactive_power
-        offset: 17
-        scaler: 0.1
-      - name: y_reactive_power
-        offset: 18
-        scaler: 0.1
-      - name: b_reactive_power
-        offset: 19
-        scaler: 0.1
-      - name: r_apparent_power
-        offset: 20
-        scaler: 0.1
-      - name: y_apparent_power
-        offset: 21
-        scaler: 0.1
-      - name: b_apparent_power
-        offset: 22
-        scaler: 0.1
-      - name: rising_demand
-        offset: 23
-        scaler: 0.1
-      - name: maximum_demand
-        offset: 24
-        scaler: 0.1
-
-    
-  
+      - name: line_frequency
+        offset: 10
+        scaler: 0.01
+        nonZero: true

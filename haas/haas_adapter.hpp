@@ -60,12 +60,9 @@ protected:
   Message mMessage;
   EmergencyStop mEstop;
   Execution mExecution;
-  IntEvent mLine; 
-  IntEvent mLineMax;
   IntEvent mPartCount;
   Event mProgram;
   ControllerMode mMode;
-  Event mBlock;
   Availability mAvail;
   
   /* Samples */
@@ -73,19 +70,10 @@ protected:
   Sample mXact;
   Sample mYact;
   Sample mZact;
-  
-  Sample mXcom;
-  Sample mYcom;
-  Sample mZcom;
-  
+    
   /* Spindle */
   Sample mSpindleSpeed;  
-  Sample mSpindleSpeedOverride;  
   
-  /* Path Feedrate */
-  Sample mPathFeedrate;
-  Sample mPathFeedrateOverride;
-
   bool mPositions;
   
 protected:

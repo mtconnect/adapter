@@ -33,7 +33,6 @@ void MTConnectService::initialize(int aArgc, const char *aArgv[])
 
 SERVICE_STATUS          gSvcStatus; 
 SERVICE_STATUS_HANDLE   gSvcStatusHandle; 
-HANDLE                  ghSvcStopEvent = NULL;
 
 VOID WINAPI SvcCtrlHandler( DWORD ); 
 VOID WINAPI SvcMain( DWORD, LPTSTR * ); 
@@ -189,32 +188,34 @@ int MTConnectService::main(int argc, const char *argv[])
 
     HKEY mtc;
     res = RegOpenKey(software, "MTConnect", &mtc);
-    RegCloseKey(software);
     if (res != ERROR_SUCCESS)
     {
-      printf("Could not open MTConnect, creating: %d\n", res);
+      //printf("Could not open MTConnect, creating: %d\n", res);
       res = RegCreateKey(software, "MTConnect", &mtc);
       if (res != ERROR_SUCCESS)
       {
+        RegCloseKey(software);
         printf("Could not create MTConnect: %d\n", res);
         return;
       }
     }
+    RegCloseKey(software);
 
   // Create Service Key
     HKEY adapter;
     res = RegOpenKey(mtc, mName, &adapter);
-    RegCloseKey(mtc);
     if (res != ERROR_SUCCESS)
     {
-      printf("Could not open %s, creating: %d\n", mName, res);
+      //printf("Could not open %s, creating: %d\n", mName, res);
       res = RegCreateKey(mtc, mName, &adapter);
       if (res != ERROR_SUCCESS)
       {
+        RegCloseKey(mtc);
         printf("Could not create %s: %d\n", mName, res);
         return;
       }
     }
+    RegCloseKey(mtc);
 
     char arguments[2048];
   // TODO: create registry entries for arguments to be passed in later to create the adapter multi_sz
@@ -279,6 +280,7 @@ int MTConnectService::main(int argc, const char *argv[])
     ReportSvcStatus( SERVICE_START_PENDING, NO_ERROR, 3000 );
 
     // Perform service-specific initialization and work.
+    Sleep(20000);
 
     SvcInit( dwArgc, lpszArgv );
   }
@@ -298,31 +300,18 @@ int MTConnectService::main(int argc, const char *argv[])
 //
   VOID SvcInit( DWORD dwArgc, LPTSTR *lpszArgv)
   {
-  // Get the real arguments from the registry
+    // Get the real arguments from the registry
+    char key[1024];
+    sprintf(key, "SOFTWARE\\MTConnect\\%s", gService->name());
     HKEY software;
-    LONG res = RegOpenKey(HKEY_LOCAL_MACHINE, "SOFTWARE", &software);
-    if (res != ERROR_SUCCESS)
-    {
-      printf("Could not open software key: %d\n", res);
-      return;
-    }
 
-    HKEY mtc;
-    res = RegOpenKey(software, "MTConnect", &mtc);
-    if (res != ERROR_SUCCESS)
-    {
-      SvcReportEvent("RegOpenKey: Could not open MTConnect");
-      RegCloseKey(software);
-    }
-
-    // Create Service Key
     HKEY adapter;
-    res = RegOpenKey(mtc, gService->name(), &adapter);
-    RegCloseKey(software);
+    LONG res = RegOpenKeyEx(HKEY_LOCAL_MACHINE, key, 0, KEY_READ, &adapter);
     if (res != ERROR_SUCCESS)
     {
       SvcReportEvent("RegOpenKey: Could not open Adapter");
-      RegCloseKey(software);
+      ReportSvcStatus( SERVICE_STOPPED, 1, 0 );
+      return;
     }
 
     char *argp[64];
@@ -338,6 +327,11 @@ int MTConnectService::main(int argc, const char *argv[])
         argc++;
       }
       argp[argc] = 0;
+    } else {
+      SvcReportEvent("RegOpenKey: Could not get Arguments");
+      RegCloseKey(adapter);
+      ReportSvcStatus( SERVICE_STOPPED, 1, 0 );
+      return;
     }
 
     gService->initialize(argc, (const char**) argp);
@@ -350,17 +344,6 @@ int MTConnectService::main(int argc, const char *argv[])
     // Create an event. The control handler function, SvcCtrlHandler,
     // signals this event when it receives the stop control code.
 
-    ghSvcStopEvent = CreateEvent(NULL,    // default security attributes
-      TRUE,    // manual reset event
-      FALSE,   // not signaled
-      NULL);   // no name
-
-    if ( ghSvcStopEvent == NULL)
-    {
-      ReportSvcStatus( SERVICE_STOPPED, NO_ERROR, 0 );
-      return;
-    }
-
     // Report running status when initialization is complete.
 
     ReportSvcStatus( SERVICE_RUNNING, NO_ERROR, 0 );
@@ -368,15 +351,7 @@ int MTConnectService::main(int argc, const char *argv[])
   // TO_DO: Perform work until service stops.
     gService->start();
 
-    while(1)
-    {
-        // Check whether to stop the service.
-
-      WaitForSingleObject(ghSvcStopEvent, INFINITE);
-
-      ReportSvcStatus( SERVICE_STOPPED, NO_ERROR, 0 );
-      return;
-    }
+    ReportSvcStatus( SERVICE_STOPPED, NO_ERROR, 0 );
   }
 
 //
@@ -436,7 +411,6 @@ int MTConnectService::main(int argc, const char *argv[])
     {  
       case SERVICE_CONTROL_STOP: 
       ReportSvcStatus(SERVICE_STOP_PENDING, NO_ERROR, 0);
-      SetEvent(ghSvcStopEvent);
       if (gService != NULL)
         gService->stop();
       ReportSvcStatus(gSvcStatus.dwCurrentState, NO_ERROR, 0);
