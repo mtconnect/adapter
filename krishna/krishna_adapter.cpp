@@ -104,20 +104,29 @@ KrishnaAdapter::KrishnaAdapter(int aPort)
         string name;
         item["name"] >> name;
         double scaler;
+	uint16_t maximum = 0, minimum = 0;
         item["scaler"] >> scaler;
         int offset;
         item["offset"] >> offset;
         
         bool nonZero = false;
-        if (item.FindValue("nonZero") != NULL)
+	if (item.FindValue("nonZero") != NULL) {
           item["nonZero"] >> nonZero;
+	  if (nonZero)
+	    minimum = 1;
+	}
+        if (item.FindValue("max") != NULL)
+          item["max"] >> maximum;
 
-        string itemName;
+        if (item.FindValue("min") != NULL)
+          item["min"] >> minimum;
+
+	string itemName;
         if (m->mPrefix)
           itemName = m->mName + ":" + name;
         else
           itemName = name;
-        KrishnaSample *sample = new KrishnaSample(itemName.c_str(), offset, scaler, nonZero);
+        KrishnaSample *sample = new KrishnaSample(itemName.c_str(), offset, scaler, minimum, maximum);
         kdata->addSample(sample);
         addDatum(*sample);
       }
@@ -197,7 +206,7 @@ void KrishnaAdapter::requestData(KrishnaMeter *aMeter)
       if (!status.isSuccess()) {
         success = false;
         aMeter->mAvailable = false;
-        data->unavailable();
+        // data->unavailable();
         
         if (status.getDeliveryStatus() == ADDRESS_NOT_FOUND)
           gLogger->warning("Could not find address: 0x%X", status.getDeliveryStatus());
@@ -212,7 +221,7 @@ void KrishnaAdapter::requestData(KrishnaMeter *aMeter)
     if (!packetArrived) {
       success = false;
       aMeter->mAvailable = false;
-      unavailable();
+      // unavailable();
       mSerial->disconnect();
       mConnected = false;
     } else if (success && !mXBee.getResponse().isError() &&

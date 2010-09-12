@@ -7,12 +7,13 @@
 
 class KrishnaSample : public Sample {
 public:
-  KrishnaSample(const char *aName, int aOffset, double aScaler, bool aNonZero = false) :
-    Sample(aName), mNonZero(aNonZero) { mOffset = aOffset; mScaler = aScaler; }
+  KrishnaSample(const char *aName, int aOffset, double aScaler, uint16_t aMin = 0, uint16_t aMax = 0) :
+    Sample(aName), mMin(aMin), mMax(aMax), mOffset(aOffset), mScaler(aScaler) { }
 
   int getOffset() { return mOffset; }
   double getScaler() { return mScaler; }
-  bool isNonZero() { return mNonZero; }
+  uint16_t minimum() { return mMin; }
+  uint16_t maximum() { return mMax; }
 
   bool setValue(double aValue) { return Sample::setValue(aValue * mScaler); }
   
@@ -20,6 +21,7 @@ protected:
   int mOffset;
   double mScaler;
   bool mNonZero;
+  uint16_t mMax, mMin;
 };
 
 class KrishnaData {
@@ -65,8 +67,11 @@ public:
     }
     
     for (size_t i = 0; i < mSamples.size(); i++) {
-      if (mSamples[i]->isNonZero() && mData[i] == 0) {
-        gLogger->debug("%s must not be zero", mSamples[i]->getName());
+      if ((mSamples[i]->minimum() > 0 && mData[i] < mSamples[i]->minimum()) || 
+          (mSamples[i]->maximum() > 0 && mData[i] > mSamples[i]->maximum())) {
+        gLogger->debug("%s must be >= %d and <= %d", 
+			mSamples[i]->getName(), mSamples[i]->minimum(), 
+			mSamples[i]->maximum());
         return false;
       }
     }
