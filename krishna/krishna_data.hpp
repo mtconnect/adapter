@@ -70,8 +70,8 @@ public:
       if ((mSamples[i]->minimum() > 0 && mData[i] < mSamples[i]->minimum()) || 
           (mSamples[i]->maximum() > 0 && mData[i] > mSamples[i]->maximum())) {
         gLogger->debug("%s must be >= %d and <= %d", 
-			mSamples[i]->getName(), mSamples[i]->minimum(), 
-			mSamples[i]->maximum());
+                       mSamples[i]->getName(), mSamples[i]->minimum(), 
+                       mSamples[i]->maximum());
         return false;
       }
     }
@@ -102,7 +102,7 @@ public:
   uint8_t getMeterId() { return getFrameData()[Rx64Response::getDataOffset() + 1]; }
   uint8_t getFunctionCode() { return getFrameData()[Rx64Response::getDataOffset() + 2]; }
   uint16_t getAddress() { return (getFrameData()[Rx64Response::getDataOffset() + 3] << 8) +
-	                         (getFrameData()[Rx64Response::getDataOffset() + 4]); }
+                           (getFrameData()[Rx64Response::getDataOffset() + 4]); }
 };
 
 class KrishnaRequest : public ZBTxRequest {

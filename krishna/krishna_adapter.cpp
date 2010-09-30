@@ -104,24 +104,24 @@ KrishnaAdapter::KrishnaAdapter(int aPort)
         string name;
         item["name"] >> name;
         double scaler;
-	uint16_t maximum = 0, minimum = 0;
+        uint16_t maximum = 0, minimum = 0;
         item["scaler"] >> scaler;
         int offset;
         item["offset"] >> offset;
         
         bool nonZero = false;
-	if (item.FindValue("nonZero") != NULL) {
-          item["nonZero"] >> nonZero;
-	  if (nonZero)
-	    minimum = 1;
-	}
+        if (item.FindValue("nonZero") != NULL) {
+                item["nonZero"] >> nonZero;
+          if (nonZero)
+            minimum = 1;
+        }
         if (item.FindValue("max") != NULL)
           item["max"] >> maximum;
 
         if (item.FindValue("min") != NULL)
           item["min"] >> minimum;
 
-	string itemName;
+        string itemName;
         if (m->mPrefix)
           itemName = m->mName + ":" + name;
         else

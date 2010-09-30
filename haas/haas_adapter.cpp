@@ -95,7 +95,7 @@ void HaasAdapter::initialize(int aArgc, const char *aArgv[])
     mPort = atoi(aArgv[i + 1]);
     
   /* Construct the adapter and start the server */
-  mSerial = new HaasSerial(aArgv[i], 19200, "none", 7, 1);
+  mSerial = new HaasSerial(aArgv[i], 19200, "even", 7, 1);
 }
 
 void HaasAdapter::start()

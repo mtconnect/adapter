@@ -43,6 +43,7 @@ meters:
       - name: total_power_factor
         offset: 9
         scaler: 0.001
+        min: 20
       - name: line_frequency
         offset: 10
         scaler: 0.01
