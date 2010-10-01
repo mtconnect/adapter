@@ -50,15 +50,21 @@ public:
   } tType;
     
 public:
-  ModbusData(int a) { mAddress = a; }
+  ModbusData(int a) : mAddress(a) { mCount = 0; }
   
   int address() { return mAddress; }
-  int count() { return mDataItems.size(); }
+  int count() { 
+    if (mCount == 0) {
+      for (int i = 0; i < mSize.size(); i++) mCount += mSize[i];
+    }
+    return mCount; 
+  }
   tType type() { return mType; }
 
   std::vector<DeviceDatum*> mDataItems;
+  std::vector<int> mSize;
   
-  virtual void createDataItems(std::vector<std::string> aNames) = 0;
+  virtual void createDataItems(std::vector<std::string> &aNames, std::vector<int> &aSize) = 0;
   virtual void writeValues() = 0;
 
   void unavailable() {
@@ -70,6 +76,7 @@ public:
 protected:
   int mAddress;
   tType mType;
+  int mCount;
 };
 
 class ModbusCoil : public ModbusData {
@@ -83,10 +90,11 @@ public:
   uint8_t operator[](int n) { return mData[n]; }
   uint8_t *data() { return mData; }
 
-  virtual void createDataItems(std::vector<std::string> aNames) {
+  virtual void createDataItems(std::vector<std::string> &aNames, std::vector<int> &aSize) {
     std::vector<std::string>::iterator iter;
     for (iter = aNames.begin(); iter != aNames.end(); iter++) {
       mDataItems.push_back(new IntEvent(iter->c_str()));
+      mSize.push_back(1);
     }
     mData = new uint8_t[count()];
   }
@@ -114,17 +122,25 @@ public:
   uint16_t operator[](int n) { return mData[n]; }
   uint16_t *data() { return mData; }
   
-  virtual void createDataItems(std::vector<std::string> aNames) {
+  virtual void createDataItems(std::vector<std::string> &aNames, std::vector<int> &aSize) {
     std::vector<std::string>::iterator iter;
     for (iter = aNames.begin(); iter != aNames.end(); iter++) {
       mDataItems.push_back(new IntEvent(iter->c_str()));
     }
+    mSize = aSize;
     mData = new uint16_t[count()];
   }
   
   virtual void writeValues() {
+    int offset = 0;
     for (int i = 0; i < mDataItems.size(); i++) {
-      (static_cast<IntEvent*>(mDataItems[i]))->setValue(mData[i]);
+      int value;
+      if (mSize[i] == 1)
+        value = mData[offset];
+      else
+        value = (static_cast<int>(mData[offset]) << 16) + mData[offset + 1];
+      (static_cast<IntEvent*>(mDataItems[i]))->setValue(value);;
+      offset += mSize[i];
     }
   }
   
@@ -144,17 +160,25 @@ public:
   int scalerAddress() { return mScalerAddress; }
   double scaler;
 
-  virtual void createDataItems(std::vector<std::string> aNames) {
+  virtual void createDataItems(std::vector<std::string> &aNames, std::vector<int> &aSize) {
     std::vector<std::string>::iterator iter;
     for (iter = aNames.begin(); iter != aNames.end(); iter++) {
       mDataItems.push_back(new Sample(iter->c_str()));
     }
+    mSize = aSize;
     mData = new uint16_t[count()];
   }
 
   virtual void writeValues() {
+    int offset = 0;
     for (int i = 0; i < mDataItems.size(); i++) {
-      (static_cast<Sample*>(mDataItems[i]))->setValue((double) mData[i] / scaler);
+      int value;
+      if (mSize[i] == 1)
+        value = mData[offset];
+      else
+        value = (static_cast<int>(mData[offset]) << 16) + mData[offset + 1];
+      (static_cast<Sample*>(mDataItems[i]))->setValue(static_cast<double>(value) / scaler);
+      offset += mSize[i];
     }
   }
 

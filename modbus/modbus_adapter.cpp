@@ -62,6 +62,7 @@ ModbusAdapter::ModbusAdapter(int aPort)
     
     node["type"] >> type;
     node["address"] >> address;
+    
     if (type == "coil") {
       data = new ModbusCoil(address);
     } else if (type == "register") {
@@ -79,13 +80,29 @@ ModbusAdapter::ModbusAdapter(int aPort)
         data = new ModbusDouble(address, 0, 1);
       }
     }
-
+    
     std::vector<std::string> nameList;
     const YAML::Node &names = node["names"];
     for(unsigned j = 0; j < names.size(); j++) {
       nameList.push_back(names[j]);
     }
-    data->createDataItems(nameList);
+    
+    const YAML::Node *sizeNode = node.FindValue("size");
+    int size = 1;
+    std::vector<int> sizes;
+    if (sizeNode != NULL) {
+      if (sizeNode->GetType() == YAML::CT_SEQUENCE) {
+        *sizeNode >> sizes;
+      } else {
+        *sizeNode >> size;
+      }
+    }
+    if (sizes.size() == 0) {
+      for(unsigned j = 0; j < names.size(); j++)
+        sizes.push_back(size);      
+    }
+    
+    data->createDataItems(nameList, sizes);
     
     std::vector<DeviceDatum*>::iterator iter;
     for (iter = data->mDataItems.begin(); iter != data->mDataItems.end(); iter++) {

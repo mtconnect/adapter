@@ -7,18 +7,22 @@ communications:
   parity: none
 data:
   - type: double
-    address: 1208
-    scalingAddress: 1608
+    size: 2
+    address: 0
+    scalingAddress: 21
     names: [power_sum, power_a, power_b, power_c]
   - type: double
-    address: 1612
+    address: 10
+    size: 1
     scaler: 10
     names: [volt_avg, vola_a, volt_b, volt_b]
   - type: double
-    address: 1220
+    address: 14
+    size: 2
     scaler: 10
     names: [frequency]
   - type: double
-    address: 1350
+    address: 16
+    size: [1, 1, 2]
     names: [current_a, current_b, current_c]
   
