@@ -60,6 +60,10 @@ protected:
   int mHeartbeatFrequency; /* The frequency (ms) to heartbeat
 			    * server. Responds to Ping. Default 10 sec */
   bool mRunning;
+  
+#if defined(WIN32) && defined(THREADED)
+  HANDLE mServerThread;
+#endif
 
   
 protected:
@@ -72,18 +76,25 @@ protected:
   virtual void sendInitialData(Client *aClient);
   virtual void sendChangedData();
   virtual void flush();
+  void timestamp() { mBuffer.timestamp(); }
   virtual void unavailable();
-  virtual void stopServer();
-  
+    
 public:
   Adapter(int aPort, int aScanDelay = 100);
   ~Adapter();
   
+  void readFromClients();
+  void connectToClients();
 
   /* Start the server and never return */
+#if defined(WIN32) && defined(THREADED)
+  bool startServerThread();
+  void serverThread();
+#endif
   void startServer();
   
   /* Stop server */
+  virtual void stopServer();
 
   /* Pure virtual method to get the data from the device. */
   virtual void gatherDeviceData() = 0;

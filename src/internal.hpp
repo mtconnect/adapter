@@ -61,6 +61,7 @@ typedef unsigned int uint32_t;
 /* Unix specifc include files */
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <netinet/tcp.h>
 #include <sys/time.h>
 #include <time.h>
 #include <netinet/in.h>

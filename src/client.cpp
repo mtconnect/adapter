@@ -35,22 +35,51 @@
 #include "client.hpp"
 #include "server.hpp"
 
+#if defined(THREADED) && defined(WIN32)
+static CRITICAL_SECTION sWriteLock;
+static bool sWriteLockInitialized = false;
+#endif
+
 /* Instance methods */
 Client::Client(SOCKET aSocket)
 {
   mSocket = aSocket;
   mHeartbeats = false;
+#if defined(THREADED) && defined(WIN32)
+  InitializeCriticalSection(&sWriteLock);
+#endif
 }
 
 Client::~Client()
 {
   ::shutdown(mSocket, SHUT_RDWR);
   ::closesocket(mSocket);
+#if defined(THREADED) && defined(WIN32)
+  DeleteCriticalSection(&sWriteLock);
+#endif
 }
 
 int Client::write(const char *aString)
 {
-  return ::send(mSocket, aString, (int) strlen(aString), 0);
+  int res;
+
+#if defined(THREADED) && defined(WIN32)
+  EnterCriticalSection(&sWriteLock);
+#endif
+
+  try {
+    res = ::send(mSocket, aString, (int) strlen(aString), 0);
+  }
+
+  catch(...) {
+    res = -1;
+  }
+
+#if defined(THREADED) && defined(WIN32)
+  LeaveCriticalSection(&sWriteLock);
+#endif
+
+  return res;
 }
 
 int Client::read(char *aBuffer, int aMaxLen)

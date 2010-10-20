@@ -73,6 +73,75 @@ void Adapter::sleepMs(int aMs)
   
 }
 
+#if defined(WIN32) && defined(THREADED)
+
+static int ServerThread(void *aArg)
+{
+  Adapter *adapter = (Adapter*) aArg;
+  adapter->serverThread();
+  return 0;
+}
+
+bool Adapter::startServerThread() 
+{
+  if (gLogger == NULL) gLogger = new Logger();
+  
+  mServer = new Server(mPort, mHeartbeatFrequency);  
+  mRunning = true;
+
+  mServerThread = CreateThread(0, 0, (LPTHREAD_START_ROUTINE) &ServerThread, this, 0, 0);
+  if (mServerThread == NULL) {
+    fprintf(stderr, "Cannot create server thread");
+    delete mServer;
+    return false;
+  } else {
+    CloseHandle(mServerThread);
+  }
+  
+  return true;
+}
+
+/* Poll every second for activity. We could do blocking but it complicates 
+ * list management and locking. May refactor this when we have more time.
+ */
+void Adapter::serverThread()
+{
+  while (mRunning) {
+    connectToClients();
+    readFromClients();
+    Sleep(1000);
+  }
+}
+
+#endif
+
+/*
+ * Reads from clients, either blocking or polling.
+ */
+void Adapter::readFromClients() 
+{
+  mServer->readFromClients();
+}
+
+/*
+ * Checks for new client connections, either blocking or polling.
+ */
+
+void Adapter::connectToClients()
+{
+  /* Check if we have any new clients */
+  Client **clients = mServer->connectToClients();
+  if (clients != 0)
+  {
+    for (int i = 0; clients[i] != 0; i++)
+    {
+      /* If there are any new clients, send them the initial values for all the 
+       * data values */
+      sendInitialData(clients[i]);
+    }
+  }  
+}
+ 
 /*  
  * This is the main loop of the application. Once the server is started and 
  * the application runs forever until it is killed. The process follows this flow:
@@ -90,29 +159,17 @@ void Adapter::startServer()
 {  
   if (gLogger == NULL) gLogger = new Logger();
   
-  mServer = new Server(mPort, mHeartbeatFrequency);
-  bool hasClients = false;
-  
+  mServer = new Server(mPort, mHeartbeatFrequency);  
   mRunning = true;
   
   /* Process untill stopped */
   while (mRunning) 
   {
     /* Check if we have any new clients */
-    Client **clients = mServer->connectToClients();
-    if (clients != 0)
-    {
-      hasClients = true;
-      for (int i = 0; clients[i] != 0; i++)
-      {
-        /* If there are any new clients, send them the initial values for all the 
-         * data values */
-        sendInitialData(clients[i]);
-      }
-    }
+    connectToClients();
     
     /* Read and all data from the clients */
-    mServer->readFromClients();
+    readFromClients();
     
     /* Don't bother getting data if we don't have anyone to read it */
     if (mServer->numClients() > 0)
@@ -122,9 +179,8 @@ void Adapter::startServer()
       sendChangedData();
       mBuffer.reset();
     }
-    else if (hasClients)
+    else if (mServer->hasClients())
     {
-      hasClients = false;
       clientsDisconnected();
     }
     

@@ -50,6 +50,11 @@ protected:
   char mPong[32];
   int mTimeout;
   
+#if defined(THREADED) && defined(WIN32)
+  CRITICAL_SECTION mListLock;
+#endif
+  
+  
 protected:
   void removeClient(Client *aClient);
   void addClient(Client *aClient);
@@ -71,6 +76,7 @@ public:
   
   /* Getters */
   int numClients() { return mNumClients; }
+  bool hasClients() { return mNumClients > 0; }
   
 };
 

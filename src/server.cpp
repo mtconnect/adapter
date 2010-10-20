@@ -42,10 +42,13 @@ const int READ_BUFFER_LEN = 8092;
 /* Create the server and bind to the port */
 Server::Server(int aPort, int aHeartbeatFreq)
 {
-
   mNumClients = 0;
   mPort = aPort;
   mTimeout = aHeartbeatFreq * 2;
+  
+#if defined(THREADED) && defined(WIN32)
+  InitializeCriticalSection(&mListLock);
+#endif  
 
   SOCKADDR_IN t;
 
@@ -104,10 +107,19 @@ Server::~Server()
 #ifdef WINDOWS
   WSACleanup();
 #endif
+
+#if defined(THREADED) && defined(WIN32)
+  DeleteCriticalSection(&mListLock);
+#endif  
+
 }
 
 void Server::readFromClients()
 {
+#if defined(THREADED) && defined(WIN32)
+  EnterCriticalSection(&mListLock);  
+#endif
+  
   fd_set rset;
   FD_ZERO(&rset);
   int nfds = 0;
@@ -158,6 +170,7 @@ void Server::readFromClients()
           removeClient(client);
       }
     }
+    
   }
 
   // Check heartbeats
@@ -175,6 +188,10 @@ void Server::readFromClients()
       }
     }
   }
+  
+#if defined(THREADED) && defined(WIN32)
+  LeaveCriticalSection(&mListLock);
+#endif  
 }
 
 void Server::sendToClient(Client *aClient, const char *aString)
@@ -185,8 +202,16 @@ void Server::sendToClient(Client *aClient, const char *aString)
 
 void Server::sendToClients(const char *aString)
 {
+#if defined(THREADED) && defined(WIN32)
+  EnterCriticalSection(&mListLock);
+#endif
+
   for (int i = mNumClients - 1; i >= 0; i--)
     sendToClient(mClients[i], aString);
+    
+#if defined(THREADED) && defined(WIN32)
+  LeaveCriticalSection(&mListLock);
+#endif  
 }
 
 Client **Server::connectToClients()
@@ -220,6 +245,9 @@ Client **Server::connectToClients()
     }
     gLogger->info("Connected to: %s on port %d", inet_ntoa(addr.sin_addr), ntohs(addr.sin_port));
 
+    int flag = 1;
+    ::setsockopt(socket, IPPROTO_TCP, TCP_NODELAY, (const char*) &flag, sizeof(int));
+
     Client *client = new Client(socket);
     addClient(client);
     added = true;
@@ -240,8 +268,11 @@ Client **Server::connectToClients()
 */
 void Server::removeClient(Client *aClient)
 {
+#if defined(THREADED) && defined(WIN32)
+  EnterCriticalSection(&mListLock);
+#endif
+  
   int pos = 0;
-
   for (pos = 0; pos < mNumClients; pos++)
   {
     if (mClients[pos] == aClient)
@@ -261,10 +292,18 @@ void Server::removeClient(Client *aClient)
     delete aClient;
     mClients[mNumClients + 1] = 0;
   }
+
+#if defined(THREADED) && defined(WIN32)
+  LeaveCriticalSection(&mListLock);
+#endif
 }
 
 void Server::addClient(Client *aClient)
 {
+#if defined(THREADED) && defined(WIN32)
+  EnterCriticalSection(&mListLock);
+#endif
+  
   if (mNumClients < MAX_CLIENTS)
   {
     mClients[mNumClients] = aClient;
@@ -274,6 +313,10 @@ void Server::addClient(Client *aClient)
   {
     delete aClient;
   }
+
+#if defined(THREADED) && defined(WIN32)
+  LeaveCriticalSection(&mListLock);
+#endif
 }
 
 unsigned int Server::getTimestamp()

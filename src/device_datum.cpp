@@ -673,6 +673,7 @@ bool PathPosition::unavailable()
 Availability::Availability(const char *aName)
   : DeviceDatum(aName)
 {
+  mHasValue = true;
   mUnavailable = false;
 }
  

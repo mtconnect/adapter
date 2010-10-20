@@ -43,7 +43,9 @@ class Client
   /* Instance Variables */
 protected:
   SOCKET mSocket;
-
+#if defined(THREADED) && defined(WIN32)
+  CRITICAL_SECTION mWriteLock;
+#endif
   /* class methods */
 public:
   bool mHeartbeats;
