@@ -99,12 +99,19 @@ FanucAdapter::~FanucAdapter()
 void FanucAdapter::initialize(int aArgc, const char *aArgv[])
 {
   MTConnectService::initialize(aArgc, aArgv);
+
+  if (aArgc < 2) {
+    gLogger->error("Usage: fanuc.exe <command> <ip> <port>");
+    exit(1);
+  }
+
   mDeviceIP = aArgv[0];
   mDevicePort = atoi(aArgv[1]);  
 
   int port = 7878;
-  if (aArgc > 3)
-    port = atoi(aArgv[2]);  
+  if (aArgc > 2)
+    port = atoi(aArgv[2]);
+  mPort = port; 
 }
 
 void FanucAdapter::start()
