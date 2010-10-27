@@ -13,7 +13,7 @@ interface
     procedure free; virtual; stdcall; abstract;
   end;
 
-  function NewAdapter(aPort: integer): TAdapter; stdcall;
+  function NewAdapter(aPort: integer): TAdapter; cdecl;
 
   type TEvent = class
     function getDatum() : Pointer; virtual; stdcall; abstract;
@@ -22,7 +22,7 @@ interface
     procedure free(); virtual; stdcall; abstract;
   end;
 
-  function NewEvent(aName: PChar): TEvent; stdcall;
+  function NewEvent(aName: PChar): TEvent; cdecl;
 
   type TSample = class
     function getDatum() : Pointer; virtual; stdcall; abstract;
@@ -31,7 +31,7 @@ interface
     procedure free(); virtual; stdcall; abstract;
   end;
 
-  function NewSample(aName: PChar): TSample; stdcall;
+  function NewSample(aName: PChar): TSample; cdecl;
 
  type
   TExecutionState = (
@@ -48,7 +48,7 @@ interface
     procedure free(); virtual; stdcall; abstract;
   end;
 
-  function NewExecution(aName: PChar): TExecution; stdcall;
+  function NewExecution(aName: PChar): TExecution; cdecl;
 
  type
   TControllerModes = (
@@ -65,7 +65,7 @@ interface
     procedure free(); virtual; stdcall; abstract;
   end;
 
-  function NewControllerMode(aName: PChar): TControllerMode; stdcall;
+  function NewControllerMode(aName: PChar): TControllerMode; cdecl;
 
   type
    TRotationDirection = (
@@ -80,7 +80,7 @@ interface
      procedure free(); virtual; stdcall; abstract;
    end;
 
-   function NewDirection(aName: PChar): TDirection; stdcall;
+   function NewDirection(aName: PChar): TDirection; cdecl;
 
  type
   TEStop = (
@@ -95,7 +95,7 @@ interface
     procedure free(); virtual; stdcall; abstract;
   end;
 
-  function NewEmergencyStop(aName: PChar): TEmergencyStop; stdcall;
+  function NewEmergencyStop(aName: PChar): TEmergencyStop; cdecl;
 
   type
    TCoupling = (
@@ -113,7 +113,7 @@ interface
      procedure free(); virtual; stdcall; abstract;
    end;
 
-   function NewAxisCoupling(aName: PChar): TAxisCoupling; stdcall;
+   function NewAxisCoupling(aName: PChar): TAxisCoupling; cdecl;
       
   type
    TDoorStates = (
@@ -128,7 +128,7 @@ interface
      procedure free(); virtual; stdcall; abstract;
    end;
 
-   function NewDoorState(aName: PChar): TDoorState; stdcall;
+   function NewDoorState(aName: PChar): TDoorState; cdecl;
 
  type
   TPathModes = (
@@ -144,7 +144,7 @@ interface
     procedure free(); virtual; stdcall; abstract;
   end;
 
-  function NewPathMode(aName: PChar): TPathMode; stdcall;
+  function NewPathMode(aName: PChar): TPathMode; cdecl;
 
   type
    TRotaryModes = (
@@ -160,7 +160,7 @@ interface
      procedure free(); virtual; stdcall; abstract;
    end;
 
-   function NewRotaryMode(aName: PChar): TRotaryMode; stdcall;
+   function NewRotaryMode(aName: PChar): TRotaryMode; cdecl;
 
 
   type
@@ -177,7 +177,7 @@ interface
      procedure free(); virtual; stdcall; abstract;
    end;
 
-   function NewCondition(aName: PChar): TCondition; stdcall;
+   function NewCondition(aName: PChar): TCondition; cdecl;
 
  type
   TMessage = class
@@ -186,7 +186,7 @@ interface
     procedure free(); virtual; stdcall; abstract;
   end;
 
-  function NewMessage(aName: PChar): TMessage; stdcall;
+  function NewMessage(aName: PChar): TMessage; cdecl;
 
   type
    TAvailability = class
@@ -196,7 +196,7 @@ interface
      procedure free(); virtual; stdcall; abstract;
    end;
 
-   function NewAvailability(aName: PChar): TAvailability; stdcall;
+   function NewAvailability(aName: PChar): TAvailability; cdecl;
 
 
 implementation
@@ -217,4 +217,6 @@ implementation
   function NewAvailability(aName: PChar): TAvailability; external 'DelphiAdapter.dll';
 
 end.
+
+
 
