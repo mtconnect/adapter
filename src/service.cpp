@@ -303,7 +303,6 @@ int MTConnectService::main(int argc, const char *argv[])
     // Get the real arguments from the registry
     char key[1024];
     sprintf(key, "SOFTWARE\\MTConnect\\%s", gService->name());
-    HKEY software;
 
     HKEY adapter;
     LONG res = RegOpenKeyEx(HKEY_LOCAL_MACHINE, key, 0, KEY_READ, &adapter);
@@ -316,7 +315,7 @@ int MTConnectService::main(int argc, const char *argv[])
 
     char *argp[64];
     BYTE arguments[2048];
-    DWORD len, type, argc = 0;
+    DWORD len = sizeof(arguments) - 1, type, argc = 0;
     res = RegQueryValueEx(adapter, "Arguments", 0, &type, (BYTE*) arguments, &len);
     if (res == ERROR_SUCCESS)
     {
