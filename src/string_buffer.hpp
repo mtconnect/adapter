@@ -59,6 +59,7 @@ public:
   void reset();
   void timestamp();
   size_t  length() { return mLength; }
+  void newline();
 };
 
 #endif

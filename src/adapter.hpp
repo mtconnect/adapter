@@ -39,7 +39,7 @@
 
 class DeviceDatum;
 
-const int MAX_DEVICE_DATA = 128;
+const int INITIAL_MAX_DEVICE_DATA = 128;
 /*
  * Abstract adapter that manages all the data values and writing them
  * to the clients.
@@ -51,8 +51,10 @@ class Adapter
 {
 protected:
   Server *mServer;         /* The socket server */
-  StringBuffer mBuffer;    /* A string buffer to hold the string we write to the streams */
-  DeviceDatum *mDeviceData[MAX_DEVICE_DATA]; /* A 0 terminated array of data value objects */
+  StringBuffer mBuffer;    /* A string buffer to hold the string we
+			    * write to the streams */
+  int mMaxDatum;          /* The max number of device datums */
+  DeviceDatum **mDeviceData; /* A 0 terminated array of data value objects */
   int mScanDelay;          /* How long to sleep (in ms) between scans */
   int mNumDeviceData;     /* The number of data values */
   int mPort;              /* The server port we bind to */
@@ -67,7 +69,6 @@ protected:
 
   
 protected:
-  void addDatum(DeviceDatum &aValue);
   void sleepMs(int aMs);
 
   /* Internal buffer sending methods */
@@ -92,6 +93,7 @@ public:
   void serverThread();
 #endif
   void startServer();
+  void addDatum(DeviceDatum &aValue);
   
   /* Stop server */
   virtual void stopServer();

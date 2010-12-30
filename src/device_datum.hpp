@@ -347,41 +347,6 @@ public:
   virtual bool unavailable();
 };
 
-// The conditon items
-
-class Condition : public DeviceDatum 
-{
-public:
-  enum ELevels {
-    eUNAVAILABLE,
-    eNORMAL,
-    eWARNING,
-    eFAULT
-  };
-
-protected:
-  ELevels mLevel;
-  char mText[EVENT_VALUE_LEN];
-  char mNativeCode[EVENT_VALUE_LEN];
-  char mNativeSeverity[EVENT_VALUE_LEN];
-  char mQualifier[EVENT_VALUE_LEN];
-
-public:
-  Condition(const char *aName);
-  bool setValue(ELevels aLevel, const char *aText = "", const char *aCode = "",
-		const char *aQualifier = "", const char *aSeverity = ""); 
-  virtual char *toString(char *aBuffer, int aMaxLen);
-
-  ELevels getLevel() { return mLevel; }
-  const char *getText() { return mText; }
-  const char *getNativeCode() { return mNativeCode; }
-  const char *getNativeSeverity() { return mNativeSeverity; }
-  const char *getQualifier() { return mQualifier; }
-
-  virtual bool requiresFlush();
-  virtual bool unavailable();
-};
-
 class Message : public DeviceDatum {
   char mText[EVENT_VALUE_LEN];
   char mNativeCode[EVENT_VALUE_LEN];

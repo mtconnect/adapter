@@ -3,6 +3,7 @@
 #define LOGGER_HPP
 
 #include <stdarg.h>
+#include <stdio.h>
 
 #define LOGGER_BUFFER_SIZE 1024
 
@@ -15,7 +16,7 @@ public:
     eERROR
   };
   
-  Logger() { mLogLevel = eINFO; }
+  Logger(FILE *aFile = stderr) : mFile(aFile) { mLogLevel = eINFO; }
   void setLogLevel(LogLevel aLevel) { mLogLevel = aLevel; }
   LogLevel getLogLevel() { return mLogLevel; }
   
@@ -29,6 +30,7 @@ protected:
   const char *timestamp(char *aBuffer);
   
   LogLevel mLogLevel;
+  FILE *mFile;
 };
 
 extern Logger *gLogger;

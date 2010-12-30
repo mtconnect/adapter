@@ -10,7 +10,8 @@ void Logger::error(const char *aFormat, ...)
   char ts[32];
   va_list args;
   va_start (args, aFormat);
-  fprintf(stderr, "%s - Error: %s\n", timestamp(ts), format(buffer, LOGGER_BUFFER_SIZE, aFormat, args));
+  fprintf(mFile, "%s - Error: %s\n", timestamp(ts), format(buffer, LOGGER_BUFFER_SIZE, aFormat, args));
+  fflush(mFile);
   va_end (args);
 }
 
@@ -22,7 +23,8 @@ void Logger::warning(const char *aFormat, ...)
   char ts[32];
   va_list args;
   va_start (args, aFormat);
-  fprintf(stderr, "%s - Warning: %s\n", timestamp(ts), format(buffer, LOGGER_BUFFER_SIZE, aFormat, args));
+  fprintf(mFile, "%s - Warning: %s\n", timestamp(ts), format(buffer, LOGGER_BUFFER_SIZE, aFormat, args));
+  fflush(mFile);
   va_end (args);
 }
 
@@ -34,7 +36,8 @@ void Logger::info(const char *aFormat, ...)
   char ts[32];
   va_list args;
   va_start (args, aFormat);
-  fprintf(stderr, "%s - Info: %s\n", timestamp(ts), format(buffer, LOGGER_BUFFER_SIZE, aFormat, args));
+  fprintf(mFile, "%s - Info: %s\n", timestamp(ts), format(buffer, LOGGER_BUFFER_SIZE, aFormat, args));
+  fflush(mFile);
   va_end (args);
 }
 
@@ -46,7 +49,8 @@ void Logger::debug(const char *aFormat, ...)
   char ts[32];
   va_list args;
   va_start (args, aFormat);
-  fprintf(stderr, "%s - Debug: %s\n", timestamp(ts), format(buffer, LOGGER_BUFFER_SIZE, aFormat, args));
+  fprintf(mFile, "%s - Debug: %s\n", timestamp(ts), format(buffer, LOGGER_BUFFER_SIZE, aFormat, args));
+  fflush(mFile);
   va_end (args);
 }
 

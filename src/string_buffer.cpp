@@ -85,6 +85,12 @@ const char *StringBuffer::append(const char* aString)
   return mBuffer;
 }
 
+void StringBuffer::newline()
+{
+  append("\n");
+  append(mTimestamp);
+}
+
 void StringBuffer::reset()
 {
   if (mBuffer != 0)

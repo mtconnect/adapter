@@ -43,7 +43,9 @@ Adapter::Adapter(int aPort, int aScanDelay)
   mServer = 0;
   mPort = aPort;
   mHeartbeatFrequency = 10000;
+  mMaxDatum = INITIAL_MAX_DEVICE_DATA;
   mRunning = false;
+  mDeviceData = new DeviceDatum*[mMaxDatum];
 }
 
 Adapter::~Adapter()
@@ -51,16 +53,25 @@ Adapter::~Adapter()
   mRunning = false;
   if (mServer)
     delete mServer;
+
+  delete[] mDeviceData;
 }
 
 /* Add a data value to the list of data values */
 void Adapter::addDatum(DeviceDatum &aValue)
 {
-  if (mNumDeviceData < MAX_DEVICE_DATA)
+  if (mNumDeviceData >= mMaxDatum)
   {
-    mDeviceData[mNumDeviceData++] = &aValue;
-    mDeviceData[mNumDeviceData] = 0;
+    DeviceDatum** devData = new DeviceDatum*[mMaxDatum * 2];
+    memcpy(devData, mDeviceData, sizeof(DeviceDatum*) * mMaxDatum);
+    delete[] mDeviceData;
+    
+    mDeviceData = devData;
+    mMaxDatum *= 2;
   }
+  
+  mDeviceData[mNumDeviceData++] = &aValue;
+  mDeviceData[mNumDeviceData] = 0;
 }
 
 void Adapter::sleepMs(int aMs)
