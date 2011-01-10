@@ -37,6 +37,7 @@
 #include "adapter.hpp"
 #include "device_datum.hpp"
 #include "service.hpp"
+#include "condition.hpp"
 
 class FakeAdapter : public Adapter, public MTConnectService
 {

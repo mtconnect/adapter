@@ -49,8 +49,8 @@ FakeAdapter::~FakeAdapter()
 void FakeAdapter::initialize(int aArgc, const char *aArgv[])
 {
   MTConnectService::initialize(aArgc, aArgv);
-  if (aArgc > 0) {
-    mPort = atoi(aArgv[0]);
+  if (aArgc > 1) {
+    mPort = atoi(aArgv[1]);
   }
 }
 
@@ -67,14 +67,42 @@ void FakeAdapter::stop()
 static int count = 0;
 void FakeAdapter::gatherDeviceData()
 {
-  if (!mAvailability.available())
-    mAvailability.unavailable();
+  mAvailability.available();
 
-  if (count % 10) {
-    mSystem.setValue(Condition::eFAULT);
-  } else {
-    mSystem.setValue(Condition::eNORMAL);
+  printf("Count: %d\n", count);
+  switch (count % 5)
+  {
+  case 0:
+    printf("Add 0\n");
+    mSystem.add(Condition::eFAULT, "Fault 1", "0");
+    break;
+
+  case 1:
+    printf("Add 0, 1\n");
+    mSystem.add(Condition::eFAULT, "Fault 1", "0");
+    mSystem.add(Condition::eFAULT, "Fault 2", "1");
+    break;
+
+  case 2:
+    printf("Add 0, 1, 2\n");
+    mSystem.add(Condition::eFAULT, "Fault 1", "0");
+    mSystem.add(Condition::eFAULT, "Fault 2", "1");
+    mSystem.add(Condition::eFAULT, "Fault 3", "2");
+    break;
+
+  case 3:
+    printf("Add 1, 3\n");
+    mSystem.add(Condition::eFAULT, "Fault 2", "1");
+    mSystem.add(Condition::eFAULT, "Fault 4", "3");
+    break;
+
+  case 4:
+    // Clear all
+    printf("Clear\n");
+    mAvailability.unavailable();
+    break;
   }
+  
   count++;
 }
 

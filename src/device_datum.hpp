@@ -79,6 +79,8 @@ public:
   virtual bool requiresFlush();
 
   virtual bool unavailable() = 0;
+  virtual void begin() { }
+  virtual void cleanup() { }
 };
 
 /*

@@ -184,11 +184,13 @@ void Adapter::startServer()
     
     /* Don't bother getting data if we don't have anyone to read it */
     if (mServer->numClients() > 0)
-    {      
+    {
+      begin();
       mBuffer.timestamp();
       gatherDeviceData();
       sendChangedData();
       mBuffer.reset();
+      cleanup();
     }
     else if (mServer->hasClients())
     {
@@ -202,9 +204,28 @@ void Adapter::startServer()
   mServer = NULL;
 }
 
+void Adapter::begin()
+{
+  for (int i = 0; i < mNumDeviceData; i++)
+  {
+    DeviceDatum *value = mDeviceData[i];
+    value->begin();
+  }
+}
+
+void Adapter::cleanup()
+{
+  for (int i = 0; i < mNumDeviceData; i++)
+  {
+    DeviceDatum *value = mDeviceData[i];
+    value->cleanup();
+  }
+}
+
+
 void Adapter::stopServer()
 {    
-    mRunning = false;
+  mRunning = false;
 }
 
 /* Send a single value to the buffer. */

@@ -100,6 +100,8 @@ public:
 
   /* Pure virtual method to get the data from the device. */
   virtual void gatherDeviceData() = 0;
+  virtual void begin();
+  virtual void cleanup();
 
   /* Overload this method to handle situation when all clients disconnect */
   virtual void clientsDisconnected();
