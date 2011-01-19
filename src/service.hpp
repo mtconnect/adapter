@@ -21,7 +21,7 @@ protected:
   bool mIsService;
   
   void install(int argc, const char *argv[]);
-
+  void remove();
 };
 
 #ifdef WIN32

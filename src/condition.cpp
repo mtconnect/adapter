@@ -49,6 +49,7 @@ void Condition::begin()
   for (int i = 0; i < mActiveCount; i++) {
     mActiveList[i]->clear();
   }
+  mChanged = true;
 }
 
 void Condition::cleanup()

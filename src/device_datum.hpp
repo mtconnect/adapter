@@ -69,7 +69,7 @@ public:
   DeviceDatum(const char *aName);
   virtual ~DeviceDatum();
   
-  bool changed() { return mChanged; }
+  virtual bool changed() { return mChanged; }
   void reset() { mChanged = false; }
   
   char *getName() { return mName; }
