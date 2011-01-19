@@ -311,7 +311,7 @@ VOID WINAPI SvcMain( DWORD dwArgc, LPTSTR *lpszArgv )
 
   // Report initial status to the SCM
 
-  ReportSvcStatus( SERVICE_START_PENDING, NO_ERROR, 3000 );
+  ReportSvcStatus( SERVICE_START_PENDING, NO_ERROR, 10000 );
 
   // Perform service-specific initialization and work.
   Sleep(20000);
