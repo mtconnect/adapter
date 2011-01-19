@@ -70,7 +70,7 @@ void FakeAdapter::gatherDeviceData()
   mAvailability.available();
 
   printf("Count: %d\n", count);
-  switch (count % 5)
+  switch (count % 6)
   {
   case 0:
     printf("Add 0\n");
@@ -95,8 +95,15 @@ void FakeAdapter::gatherDeviceData()
     mSystem.add(Condition::eFAULT, "Fault 2", "1");
     mSystem.add(Condition::eFAULT, "Fault 4", "3");
     break;
-
+    
   case 4:
+    printf("Stay the same\n");
+    mSystem.add(Condition::eFAULT, "Fault 2", "1");
+    mSystem.add(Condition::eFAULT, "Fault 4", "3");
+    break;
+    
+
+  case 5:
     // Clear all
     printf("Clear\n");
     mAvailability.unavailable();

@@ -54,6 +54,9 @@ void Condition::begin()
 void Condition::cleanup()
 {
   mBegun = false;
+  for (int i = 0; i < mActiveCount; i++) {
+    mActiveList[i]->clear();
+  }
 }
 
 void Condition::append(StringBuffer &aStringBuffer, char *aBuffer,
@@ -106,8 +109,9 @@ bool Condition::append(StringBuffer &aBuffer)
 	cond->setValue(eNORMAL, "", cond->getNativeCode());
       }
       
-      if (cond->hasChanged())
+      if (cond->hasChanged()) 
 	append(aBuffer, cp, cond, first, max);
+	
       
       // Remove stale conditions since they have now been generated.
       if (!cond->isPlaceHolder() && !cond->isMarked())
@@ -225,6 +229,8 @@ char *Condition::ActiveCondition::toString(char *aBuffer, int aMaxLen)
   }
   snprintf(aBuffer, aMaxLen, "|%s|%s|%s|%s|", text, mNativeCode, mNativeSeverity,
 	        mQualifier);
+
+  mChanged = false;
   return aBuffer;
 }
 
