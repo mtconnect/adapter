@@ -54,9 +54,6 @@ void Condition::begin()
 void Condition::cleanup()
 {
   mBegun = false;
-  for (int i = 0; i < mActiveCount; i++) {
-    mActiveList[i]->clear();
-  }
 }
 
 void Condition::append(StringBuffer &aStringBuffer, char *aBuffer,
@@ -66,8 +63,10 @@ void Condition::append(StringBuffer &aStringBuffer, char *aBuffer,
     aStringBuffer.newline();
   else
     aFirst = false;
+
+  char *cp = aBuffer + strlen(aBuffer);
       
-  aCond->toString(aBuffer, aMaxLen);
+  aCond->toString(cp, aMaxLen);
   appendText(aBuffer, (char*) aCond->getText(), aMaxLen);
   aStringBuffer.append(aBuffer);
 }
@@ -76,15 +75,18 @@ bool Condition::append(StringBuffer &aBuffer)
 {
   char buffer[1024];
   bool first = true;
-  strcpy(buffer, mName);
-  char *cp = buffer + strlen(mName);
-  *cp++ = '|';
+  buffer[0] = '|';
+  strcpy(buffer + 1, mName);
+  char *cp = buffer + strlen(buffer);
   int max = 1024 - strlen(buffer);
   
   if (!mBegun)
   {
     for (int i = 0; i < mActiveCount; i++)
-      append(aBuffer, cp, mActiveList[i], first, max);
+    {
+      *cp = '\0';
+      append(aBuffer, buffer, mActiveList[i], first, max);
+    }
   }
   else
   {
@@ -109,9 +111,10 @@ bool Condition::append(StringBuffer &aBuffer)
 	cond->setValue(eNORMAL, "", cond->getNativeCode());
       }
       
-      if (cond->hasChanged()) 
-	append(aBuffer, cp, cond, first, max);
-	
+      if (cond->hasChanged()) {
+	*cp = '\0';
+	append(aBuffer, buffer, cond, first, max);
+      }
       
       // Remove stale conditions since they have now been generated.
       if (!cond->isPlaceHolder() && !cond->isMarked())
@@ -174,7 +177,7 @@ bool Condition::add(ELevels aLevel, const char *aText, const char *aCode,
     
     if (i < mActiveCount)
     {
-      res = mActiveList[i]->setValue(aLevel, aText, aCode, aQualifier, aSeverity);
+      res = mChanged = mActiveList[i]->setValue(aLevel, aText, aCode, aQualifier, aSeverity);
       mActiveList[i]->mark();
     }
     else

@@ -14,10 +14,12 @@ void MTConnectService::setName(const char *aName)
 
 void MTConnectService::initialize(int aArgc, const char *aArgv[])
 {
-  if (mIsService)
-    gLogger = new ServiceLogger();
-  else
-    gLogger = new Logger();
+  if (gLogger == NULL) {
+    if (mIsService)
+      gLogger = new ServiceLogger();
+    else
+      gLogger = new Logger();
+  }
 }
 
 #ifdef WIN32
