@@ -19,6 +19,7 @@ public:
 protected:
   char mName[SERVICE_NAME_LEN];
   bool mIsService;
+  bool mDebug;
   
   void install(int argc, const char *argv[]);
   void remove();

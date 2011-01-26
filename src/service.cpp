@@ -2,7 +2,7 @@
 #include "string.h"
 
 MTConnectService::MTConnectService() :
-  mIsService(false)
+  mIsService(false), mDebug(false)
 {
 }
 
@@ -71,6 +71,7 @@ int MTConnectService::main(int argc, const char *argv[])
       remove();
       return 0;
     } else if (stricmp( argv[1], "debug") == 0 ) {
+      mDebug = true;
       initialize(argc - 2, argv + 2);
       gLogger->setLogLevel(Logger::eDEBUG);
       start();
