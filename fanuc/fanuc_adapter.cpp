@@ -417,10 +417,16 @@ void FanucAdapter::getPositions()
   {
     for (int i = 0; i < mAxisCount; i++)
       mAxisAct[i]->setValue(dyn.pos.faxis.machine[i] / mAxisDivisor[i]);
+      
+    double x = 0.0, y = 0.0, z = 0.0;
+    if (mXPathIndex > -1)
+      x = dyn.pos.faxis.absolute[mXPathIndex] / mAxisDivisor[mXPathIndex];
+    if (mYPathIndex > -1)
+      y = dyn.pos.faxis.absolute[mYPathIndex] / mAxisDivisor[mYPathIndex];
+    if (mZPathIndex > -1)
+      z = dyn.pos.faxis.absolute[mZPathIndex] / mAxisDivisor[mZPathIndex];
     
-    mPathPosition.setValue(dyn.pos.faxis.absolute[mXPathIndex] / mAxisDivisor[mXPathIndex],
-                           dyn.pos.faxis.absolute[mYPathIndex] / mAxisDivisor[mYPathIndex],
-                           dyn.pos.faxis.absolute[mZPathIndex] / mAxisDivisor[mZPathIndex]);
+    mPathPosition.setValue(x, y, z);
     
     char buf[32];
     mProgramNum = dyn.prgnum;
