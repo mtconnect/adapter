@@ -34,9 +34,49 @@
 #ifndef CONFIGURATION_HPP
 #define CONFIGURATION_HPP
 
+#include <vector>
+
+class DeviceDatum;
+
+class Register
+{
+public:
+  enum EType 
+  {
+    FLOAT_64,
+    FLOAT_32,
+    INTEGER_32,
+    INTEGER_16,
+    INTEGER_8,
+    BOOL,
+    BIT,
+    CONDITION,
+    TEXT
+  };
+
+  Register();
+  Register(Register &aRegister)
+  {
+    mType = aRegister.mType;
+    mOffset = aRegister.mOffset;
+  }
+
+protected:
+  EType mType;
+  int mOffset;
+  bool mTimeseries;
+};
+
 class RegisterSet
 {
+  void addRegister(Register &aRegister) { mRegisters.push_back(aRegister); }
   
+protected:
+  int mAddress;
+  int mLength;
+  int mCount;
+
+  stl::vector<Register> mRegisters;
 };
 
 #endif
