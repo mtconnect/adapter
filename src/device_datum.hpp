@@ -128,9 +128,10 @@ class Sample : public DeviceDatum
 protected:
   double mValue;
   bool mUnavailable;
+  double mEpsilon;
 
 public:
-  Sample(const char *aName);
+  Sample(const char *aName, double aEpsilon = 0.000001);
   bool setValue(double aValue);
   double getValue() { return mValue; }
   virtual char *toString(char *aBuffer, int aMaxLen);
@@ -367,9 +368,10 @@ class PathPosition : public DeviceDatum {
 protected:
   double mX, mY, mZ;
   bool mUnavailable;
+  double mEpsilon;
 
 public:
-  PathPosition(const char *aName);
+  PathPosition(const char *aName, double aEpsilon = 0.000001);
   bool setValue(double aX, double aY, double aZ);
   double getX() { return mX; }
   double getY() { return mY; }

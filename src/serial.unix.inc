@@ -9,10 +9,8 @@ bool Serial::connect()
   struct termios tios;
   speed_t speed;
 
-  if (mDebug) {
-    printf("Opening %s at %d bauds (%s) data: %d, stop: %d\n",
-	   mDevice, mBaud, mParity, mDataBit, mStopBit);
-  }
+  gLogger->debug("Opening %s at %d bauds (%s) data: %d, stop: %d\n",
+		 mDevice, mBaud, mParity, mDataBit, mStopBit);
 
   /* The O_NOCTTY flag tells UNIX that this program doesn't want
      to be the "controlling terminal" for that port. If you

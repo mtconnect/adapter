@@ -166,8 +166,8 @@ bool IntEvent::unavailable()
 /*
  * Sample methods
  */
-Sample::Sample(const char *aName)
-  : DeviceDatum(aName)
+Sample::Sample(const char *aName, double aEpsilon)
+  : DeviceDatum(aName), mEpsilon(aEpsilon)
 {
   mValue = 0.0;
   mUnavailable = false;
@@ -175,7 +175,7 @@ Sample::Sample(const char *aName)
  
 bool Sample::setValue(double aValue)
 {
-  if (fabs(aValue - mValue) > 0.000001 || !mHasValue ||
+  if (fabs(aValue - mValue) > mEpsilon || !mHasValue ||
       mUnavailable)
   {
       mChanged = true;
@@ -201,6 +201,7 @@ bool Sample::unavailable()
   {
     mChanged = true;
     mUnavailable = true;
+    mHasValue = true;
   }
   
   return mChanged;
@@ -556,8 +557,8 @@ bool Message::unavailable()
 /*
  * PathPosition methods
  */
-PathPosition::PathPosition(const char *aName)
-  : DeviceDatum(aName)
+PathPosition::PathPosition(const char *aName, double aEpsilon)
+  : DeviceDatum(aName), mEpsilon(aEpsilon)
 {
   mX = mY = mZ = 0.0;
   mUnavailable = false;
@@ -566,9 +567,9 @@ PathPosition::PathPosition(const char *aName)
 bool PathPosition::setValue(double aX, double aY, double aZ)
 {
   if (!mHasValue ||
-      fabs(aX - mX) > 0.000001 ||
-      fabs(aY - mY) > 0.000001 ||
-      fabs(aZ - mZ) > 0.000001 ||
+      fabs(aX - mX) > mEpsilon ||
+      fabs(aY - mY) > mEpsilon ||
+      fabs(aZ - mZ) > mEpsilon ||
       mUnavailable)
   {
       mChanged = true;
