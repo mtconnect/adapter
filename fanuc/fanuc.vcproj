@@ -42,10 +42,10 @@
 				Name="VCCLCompilerTool"
 				Optimization="0"
 				AdditionalIncludeDirectories="..\src;..\Fwlib;..\Fwlib\e1;..\minIni_07"
-				PreprocessorDefinitions="INI_ANSIONLY;DEBUG;FS0ID;WIN32;$(NOINHERIT)"
+				PreprocessorDefinitions="INI_ANSIONLY;DEBUG;FS30D;WIN32;$(NOINHERIT)"
 				MinimalRebuild="true"
 				BasicRuntimeChecks="3"
-				RuntimeLibrary="1"
+				RuntimeLibrary="3"
 				UsePrecompiledHeader="0"
 				WarningLevel="3"
 				DebugInformationFormat="4"
@@ -183,7 +183,7 @@
 				>
 			</File>
 			<File
-				RelativePath="..\src\condition_list.cpp"
+				RelativePath="..\src\condition.cpp"
 				>
 			</File>
 			<File
@@ -234,6 +234,10 @@
 			</File>
 			<File
 				RelativePath="..\src\client.hpp"
+				>
+			</File>
+			<File
+				RelativePath="..\src\condition.hpp"
 				>
 			</File>
 			<File

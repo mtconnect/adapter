@@ -365,25 +365,24 @@ void FanucAdapter::connect()
   short ret = ::cnc_allclibhndl3(mDeviceIP, mDevicePort, 10, &mFlibhndl);
   printf("Result: %d\n", ret);
   if (ret == EW_OK) 
-  {
+  { 
+    mAvail.available();
     mConnected = true;
     if (!mConfigured) configure();
     
-    mAvail.available();
-
     // Set all conditions to normal
-    mServo.setValue(Condition::eNORMAL);
-    mComms.setValue(Condition::eNORMAL);
-    mLogic.setValue(Condition::eNORMAL);
-    mMotion.setValue(Condition::eNORMAL);
-    mSystem.setValue(Condition::eNORMAL);
-    mSpindle.setValue(Condition::eNORMAL);
+    mServo.normal();
+    mComms.normal();
+    mLogic.normal();
+    mMotion.normal();
+    mSystem.normal();
+    mSpindle.normal();
 
     for (int i = 0; i < mAxisCount; i++)
     {
-      mAxisTravel[i]->setValue(Condition::eNORMAL);
-      mAxisOverheat[i]->setValue(Condition::eNORMAL);
-      mAxisServo[i]->setValue(Condition::eNORMAL);
+      mAxisTravel[i]->normal();
+      mAxisOverheat[i]->normal();
+      mAxisServo[i]->normal();
     }
     
   }
@@ -685,19 +684,10 @@ void FanucAdapter::getCondition(long aAlarm)
             continue;
 
           sprintf(num, "%d", alarm.alm_no);
-          if (cond->setValue(Condition::eFAULT, alarm.alm_msg, num))
-                mActiveConditions.add(cond);
+          cond->add(Condition::eFAULT, alarm.alm_msg, num);
         }
       }
     }       
-  } else {
-    ConditionList::Iterator it = mActiveConditions.begin();
-    while(!it.end())
-    {
-      Condition *cond = it;
-      cond->setValue(Condition::eNORMAL);
-      it.remove();
-    }
   }
 }
 

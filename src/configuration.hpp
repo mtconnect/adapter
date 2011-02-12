@@ -35,6 +35,7 @@
 #define CONFIGURATION_HPP
 
 #include <vector>
+#include <string>
 
 class DeviceDatum;
 
@@ -54,9 +55,13 @@ public:
     TEXT
   };
 
-  Register();
-  Register(Register &aRegister)
-  {
+  Register(EType aType, int aOffset, bool aTimeSeries = false) {
+    mType = aType;
+    mOffset = aOffset;
+    mTimeseries = aTimeSeries;
+  }
+  
+  Register(Register &aRegister) {
     mType = aRegister.mType;
     mOffset = aRegister.mOffset;
   }
@@ -65,6 +70,9 @@ protected:
   EType mType;
   int mOffset;
   bool mTimeseries;
+  double mScaler;
+  int mScalerOffset;
+  int mCount;
 };
 
 class RegisterSet

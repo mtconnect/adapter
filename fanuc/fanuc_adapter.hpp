@@ -35,8 +35,8 @@
 #define FANUC_ADAPTER_HPP
 
 #include "adapter.hpp"
+#include "condition.hpp"
 #include "device_datum.hpp"
-#include "condition_list.hpp"
 #include "service.hpp"
 #include "Fwlib32.h"
 
@@ -137,7 +137,6 @@ protected:
   double mAxisDivisor[MAX_AXIS];
 
   short mAxisCount, mSpindleCount;
-  ConditionList mActiveConditions;
 
 protected:
   void connect();
