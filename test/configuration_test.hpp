@@ -20,7 +20,7 @@
 * (COLLECTIVELY, THE "AMT PARTIES") AND PARTICIPANTS MAKE NO REPRESENTATION OR
 * WARRANTY OF ANY KIND WHATSOEVER RELATING TO THESE MATERIALS, INCLUDING, WITHOUT
 * LIMITATION, ANY EXPRESS OR IMPLIED WARRANTY OF NONINFRINGEMENT,
-* MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE. 
+* MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
 
 * LIMITATION OF LIABILITY. IN NO EVENT SHALL AMT, MTCONNECT, ANY OTHER AMT
 * PARTY, OR ANY PARTICIPANT BE LIABLE FOR THE COST OF PROCURING SUBSTITUTE GOODS
@@ -31,93 +31,27 @@
 * SUCH PARTY HAD ADVANCE NOTICE OF THE POSSIBILITY OF SUCH DAMAGES.
 */
 
-#ifndef CONFIGURATION_HPP
-#define CONFIGURATION_HPP
+#ifndef CONFIGURATION_TEST_HPP
+#define CONFIGURATION_TEST_HPP
 
-#include <vector>
-#include <string>
-#include <map>
-#include <istream>
+#include <cppunit/TestFixture.h>
+#include <cppunit/extensions/HelperMacros.h>
 
-class DeviceDatum;
-namespace YAML {
-  class Parser;
-}
+#include "configuration.hpp"
 
-// A register represents a PLC/PMC register as an accessible unit. The
-// value of the register will manifest as a typed value or a
-// conditional that will map to an event and be represented by a
-// state. 
-class Register
+class ConfigurationTest : public CppUnit::TestFixture
 {
+  CPPUNIT_TEST_SUITE(ConfigurationTest);
+  CPPUNIT_TEST(testConstructor);
+  CPPUNIT_TEST_SUITE_END();
+
+protected:
+  void testConstructor();
+
 public:
-  enum EType 
-  {
-    FLOAT_64,
-    FLOAT_32,
-    INTEGER_32,
-    INTEGER_16,
-    INTEGER_8,
-    BOOL,
-    BIT,
-    CONDITION,
-    TEXT
-  };
-
-  Register(EType aType, int aOffset, bool aTimeSeries = false) {
-    mType = aType;
-    mOffset = aOffset;
-    mTimeseries = aTimeSeries;
-  }
-  ~Register();
-  
-  Register(Register &aRegister) {
-    mType = aRegister.mType;
-    mOffset = aRegister.mOffset;
-    mTimeseries = aRegister.mTimeseries;
-  }
-
-protected:
-  EType mType;
-  int mOffset;
-  bool mTimeseries;
-  double mScaler;
-  int mScalerOffset;
-  int mCount;
-
-  DeviceDatum *mDatum;
-};
-
-class RegisterSet
-{
-  void addRegister(Register &aRegister) { mRegisters.push_back(&aRegister); }
-  
-protected:
-  int mAddress;
-  int mLength;
-  int mCount;
-
-  std::vector<Register*> mRegisters;
-};
-
-class Configuration
-{
-public:
-  Configuration(std::istream &aStream);
-  virtual ~Configuration();
-
-  int getPort() { return mPort; }
-  int getScanDelay() { return mScanDelay; }
-  int getTimeout() { return mTimeout; }
-
-  RegisterSet *getRegisters(std::string &aName);
-
-protected:
-  int mPort;
-  int mScanDelay;
-  int mTimeout;
-  YAML::Parser *mParser;
-  std::map<std::string, RegisterSet*> mRegisters;
+  void setUp();
+  void tearDown();
 };
 
 #endif
+

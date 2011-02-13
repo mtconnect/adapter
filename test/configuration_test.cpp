@@ -31,93 +31,34 @@
 * SUCH PARTY HAD ADVANCE NOTICE OF THE POSSIBILITY OF SUCH DAMAGES.
 */
 
-#ifndef CONFIGURATION_HPP
-#define CONFIGURATION_HPP
-
-#include <vector>
+#include "configuration_test.hpp"
 #include <string>
-#include <map>
 #include <istream>
 
-class DeviceDatum;
-namespace YAML {
-  class Parser;
+using namespace std;
+
+CPPUNIT_TEST_SUITE_REGISTRATION(ConfigurationTest);
+
+void ConfigurationTest::setUp()
+{
 }
 
-// A register represents a PLC/PMC register as an accessible unit. The
-// value of the register will manifest as a typed value or a
-// conditional that will map to an event and be represented by a
-// state. 
-class Register
+void ConfigurationTest::tearDown()
 {
-public:
-  enum EType 
-  {
-    FLOAT_64,
-    FLOAT_32,
-    INTEGER_32,
-    INTEGER_16,
-    INTEGER_8,
-    BOOL,
-    BIT,
-    CONDITION,
-    TEXT
-  };
+}
 
-  Register(EType aType, int aOffset, bool aTimeSeries = false) {
-    mType = aType;
-    mOffset = aOffset;
-    mTimeseries = aTimeSeries;
-  }
-  ~Register();
-  
-  Register(Register &aRegister) {
-    mType = aRegister.mType;
-    mOffset = aRegister.mOffset;
-    mTimeseries = aRegister.mTimeseries;
-  }
-
-protected:
-  EType mType;
-  int mOffset;
-  bool mTimeseries;
-  double mScaler;
-  int mScalerOffset;
-  int mCount;
-
-  DeviceDatum *mDatum;
-};
-
-class RegisterSet
+void ConfigurationTest::testConstructor()
 {
-  void addRegister(Register &aRegister) { mRegisters.push_back(&aRegister); }
-  
-protected:
-  int mAddress;
-  int mLength;
-  int mCount;
+  string config =
+    "adapter:\n"
+    "  port: 7878\n"
+    "  scanDelay: 100\n"
+    "  timeout: 10000\n";
 
-  std::vector<Register*> mRegisters;
-};
+  istringstream str(config);
+  Configuration cfg(str);
 
-class Configuration
-{
-public:
-  Configuration(std::istream &aStream);
-  virtual ~Configuration();
-
-  int getPort() { return mPort; }
-  int getScanDelay() { return mScanDelay; }
-  int getTimeout() { return mTimeout; }
-
-  RegisterSet *getRegisters(std::string &aName);
-
-protected:
-  int mPort;
-  int mScanDelay;
-  int mTimeout;
-  YAML::Parser *mParser;
-  std::map<std::string, RegisterSet*> mRegisters;
-};
-
-#endif
+  CPPUNIT_ASSERT_EQUAL(cfg.getPort(), 7878);
+  CPPUNIT_ASSERT_EQUAL(cfg.getScanDelay(), 100);
+  CPPUNIT_ASSERT_EQUAL(cfg.getTimeout(), 10000);
+}

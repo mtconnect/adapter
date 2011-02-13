@@ -31,93 +31,30 @@
 * SUCH PARTY HAD ADVANCE NOTICE OF THE POSSIBILITY OF SUCH DAMAGES.
 */
 
-#ifndef CONFIGURATION_HPP
-#define CONFIGURATION_HPP
+#include "configuration.hpp"
+#include "yaml.h"
 
-#include <vector>
-#include <string>
-#include <map>
-#include <istream>
+using namespace std;
 
-class DeviceDatum;
-namespace YAML {
-  class Parser;
+Configuration::Configuration(istream &aStream)
+{
+  YAML::Parser parser(aStream);
+  YAML::Node doc;
+  parser.GetNextDocument(doc);
+  const YAML::Node &adapter = doc["adapter"];
+  adapter["port"] >> mPort;
+  adapter["scanDelay"] >> mScanDelay;
+  adapter["timeout"] >> mTimeout;
 }
 
-// A register represents a PLC/PMC register as an accessible unit. The
-// value of the register will manifest as a typed value or a
-// conditional that will map to an event and be represented by a
-// state. 
-class Register
+Configuration::~Configuration()
 {
-public:
-  enum EType 
-  {
-    FLOAT_64,
-    FLOAT_32,
-    INTEGER_32,
-    INTEGER_16,
-    INTEGER_8,
-    BOOL,
-    BIT,
-    CONDITION,
-    TEXT
-  };
+}
 
-  Register(EType aType, int aOffset, bool aTimeSeries = false) {
-    mType = aType;
-    mOffset = aOffset;
-    mTimeseries = aTimeSeries;
-  }
-  ~Register();
-  
-  Register(Register &aRegister) {
-    mType = aRegister.mType;
-    mOffset = aRegister.mOffset;
-    mTimeseries = aRegister.mTimeseries;
-  }
-
-protected:
-  EType mType;
-  int mOffset;
-  bool mTimeseries;
-  double mScaler;
-  int mScalerOffset;
-  int mCount;
-
-  DeviceDatum *mDatum;
-};
-
-class RegisterSet
+RegisterSet *Configuration::getRegisters(string &aName)
 {
-  void addRegister(Register &aRegister) { mRegisters.push_back(&aRegister); }
-  
-protected:
-  int mAddress;
-  int mLength;
-  int mCount;
+  return mRegisters[aName];
+}
 
-  std::vector<Register*> mRegisters;
-};
 
-class Configuration
-{
-public:
-  Configuration(std::istream &aStream);
-  virtual ~Configuration();
 
-  int getPort() { return mPort; }
-  int getScanDelay() { return mScanDelay; }
-  int getTimeout() { return mTimeout; }
-
-  RegisterSet *getRegisters(std::string &aName);
-
-protected:
-  int mPort;
-  int mScanDelay;
-  int mTimeout;
-  YAML::Parser *mParser;
-  std::map<std::string, RegisterSet*> mRegisters;
-};
-
-#endif
