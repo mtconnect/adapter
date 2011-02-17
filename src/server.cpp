@@ -46,8 +46,12 @@ Server::Server(int aPort, int aHeartbeatFreq)
   mPort = aPort;
   mTimeout = aHeartbeatFreq * 2;
   
-#if defined(THREADED) && defined(WIN32)
+#ifdef THREADED
+#ifdef WIN32
   InitializeCriticalSection(&mListLock);
+#else
+  pthread_mutex_init(&mListLock, NULL);
+#endif
 #endif  
 
   SOCKADDR_IN t;
@@ -108,16 +112,24 @@ Server::~Server()
   WSACleanup();
 #endif
 
-#if defined(THREADED) && defined(WIN32)
+#ifdef THREADED
+#ifdef WIN32
   DeleteCriticalSection(&mListLock);
+#else
+  pthread_mutex_destroy(&mListLock);
+#endif  
 #endif  
 
 }
 
 void Server::readFromClients()
 {
-#if defined(THREADED) && defined(WIN32)
-  EnterCriticalSection(&mListLock);  
+#ifdef THREADED
+#ifdef WIN32
+  EnterCriticalSection(&mListLock);
+#else
+  pthread_mutex_lock(&mListLock);
+#endif
 #endif
   
   fd_set rset;
@@ -189,9 +201,13 @@ void Server::readFromClients()
     }
   }
   
-#if defined(THREADED) && defined(WIN32)
+#ifdef THREADED
+#ifdef WIN32
   LeaveCriticalSection(&mListLock);
-#endif  
+#else
+  pthread_mutex_unlock(&mListLock);
+#endif
+#endif
 }
 
 void Server::sendToClient(Client *aClient, const char *aString)
@@ -202,16 +218,24 @@ void Server::sendToClient(Client *aClient, const char *aString)
 
 void Server::sendToClients(const char *aString)
 {
-#if defined(THREADED) && defined(WIN32)
+#ifdef THREADED
+#ifdef WIN32
   EnterCriticalSection(&mListLock);
+#else
+  pthread_mutex_lock(&mListLock);
+#endif
 #endif
 
   for (int i = mNumClients - 1; i >= 0; i--)
     sendToClient(mClients[i], aString);
     
-#if defined(THREADED) && defined(WIN32)
+#ifdef THREADED
+#ifdef WIN32
   LeaveCriticalSection(&mListLock);
-#endif  
+#else
+  pthread_mutex_unlock(&mListLock);
+#endif
+#endif
 }
 
 Client **Server::connectToClients()
@@ -268,8 +292,12 @@ Client **Server::connectToClients()
 */
 void Server::removeClient(Client *aClient)
 {
-#if defined(THREADED) && defined(WIN32)
+#ifdef THREADED
+#ifdef WIN32
   EnterCriticalSection(&mListLock);
+#else
+  pthread_mutex_lock(&mListLock);
+#endif
 #endif
   
   int pos = 0;
@@ -293,15 +321,24 @@ void Server::removeClient(Client *aClient)
     mClients[mNumClients + 1] = 0;
   }
 
-#if defined(THREADED) && defined(WIN32)
+    
+#ifdef THREADED
+#ifdef WIN32
   LeaveCriticalSection(&mListLock);
+#else
+  pthread_mutex_unlock(&mListLock);
+#endif
 #endif
 }
 
 void Server::addClient(Client *aClient)
 {
-#if defined(THREADED) && defined(WIN32)
+#ifdef THREADED
+#ifdef WIN32
   EnterCriticalSection(&mListLock);
+#else
+  pthread_mutex_lock(&mListLock);
+#endif
 #endif
   
   if (mNumClients < MAX_CLIENTS)
@@ -314,8 +351,12 @@ void Server::addClient(Client *aClient)
     delete aClient;
   }
 
-#if defined(THREADED) && defined(WIN32)
+#ifdef THREADED
+#ifdef WIN32
   LeaveCriticalSection(&mListLock);
+#else
+  pthread_mutex_unlock(&mListLock);
+#endif
 #endif
 }
 

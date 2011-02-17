@@ -46,6 +46,9 @@ Adapter::Adapter(int aPort, int aScanDelay)
   mMaxDatum = INITIAL_MAX_DEVICE_DATA;
   mRunning = false;
   mDeviceData = new DeviceDatum*[mMaxDatum];
+#ifdef THREADED
+  mServerThread = 0;
+#endif
 }
 
 Adapter::~Adapter()
@@ -84,7 +87,9 @@ void Adapter::sleepMs(int aMs)
   
 }
 
-#if defined(WIN32) && defined(THREADED)
+#if THREADED
+
+#ifdef WIN32
 
 static int ServerThread(void *aArg)
 {
@@ -112,6 +117,62 @@ bool Adapter::startServerThread()
   return true;
 }
 
+void Adapter::waitUntilDone()
+{
+  int ret = 1;
+  if (mServerThread != 0) {
+    DWORD res = WaitForSingleObject(mServerThread, INFINITE);
+    if (res == WAIT_OBJECT_0)
+    {
+      if (GetExitCodeThread(mServerThread, &res))
+	ret = res;
+    }
+  }
+  return ret;
+}
+
+#else
+
+static void *ServerThread(void *aArg)
+{
+  Adapter *adapter = (Adapter*) aArg;
+  adapter->serverThread();
+
+  static int res = 0;
+  return &res;
+}
+
+
+bool Adapter::startServerThread() 
+{
+  if (gLogger == NULL) gLogger = new Logger();
+  
+  mServer = new Server(mPort, mHeartbeatFrequency);  
+  mRunning = true;
+
+  int res = pthread_create(&mServerThread, NULL, ::ServerThread, this);
+  if (res != 0) {
+    fprintf(stderr, "Cannot create server thread");
+    delete mServer;
+    return false;
+  }
+  
+  return true;
+}
+
+int Adapter::waitUntilDone()
+{
+  int ret = 1;
+  if (mServerThread != 0) {
+    int *value;
+    int res = pthread_join(mServerThread, (void**) &value);
+    if (res != 0) ret = *value;
+  }
+  return ret;
+}
+
+#endif
+
 /* Poll every second for activity. We could do blocking but it complicates 
  * list management and locking. May refactor this when we have more time.
  */
@@ -120,7 +181,11 @@ void Adapter::serverThread()
   while (mRunning) {
     connectToClients();
     readFromClients();
+#ifdef WIN32
     Sleep(1000);
+#else
+    sleep(1);
+#endif
   }
 }
 

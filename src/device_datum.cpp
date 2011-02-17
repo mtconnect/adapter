@@ -191,7 +191,7 @@ char *Sample::toString(char *aBuffer, int aMaxLen)
   if (mUnavailable)
     snprintf(aBuffer, aMaxLen, "|%s|UNAVAILABLE", mName);
   else
-    snprintf(aBuffer, aMaxLen, "|%s|%.10f", mName, mValue);
+    snprintf(aBuffer, aMaxLen, "|%s|%.10g", mName, mValue);
   return aBuffer;
 }
 

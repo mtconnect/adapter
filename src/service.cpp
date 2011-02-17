@@ -564,6 +564,7 @@ void ServiceLogger::debug(const char *aFormat, ...)
 }
 
 #else
+
 int MTConnectService::main(int argc, const char *argv[]) 
 { 
   initialize(argc - 1, argv + 1);

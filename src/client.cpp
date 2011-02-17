@@ -35,8 +35,13 @@
 #include "client.hpp"
 #include "server.hpp"
 
-#if defined(THREADED) && defined(WIN32)
+#ifdef THREADED
+#ifdef WIN32
 static CRITICAL_SECTION sWriteLock;
+#else
+#include <pthread.h>
+static pthread_mutex_t sWriteLock;
+#endif
 static bool sWriteLockInitialized = false;
 #endif
 
@@ -45,8 +50,16 @@ Client::Client(SOCKET aSocket)
 {
   mSocket = aSocket;
   mHeartbeats = false;
-#if defined(THREADED) && defined(WIN32)
-  InitializeCriticalSection(&sWriteLock);
+
+#ifdef THREADED
+  if (!sWriteLockInitialized) {
+#ifdef WIN32
+    InitializeCriticalSection(&sWriteLock);
+#else
+    pthread_mutex_init(&sWriteLock, NULL);
+#endif
+    sWriteLockInitialized = true;
+  }
 #endif
 }
 
@@ -54,8 +67,12 @@ Client::~Client()
 {
   ::shutdown(mSocket, SHUT_RDWR);
   ::closesocket(mSocket);
-#if defined(THREADED) && defined(WIN32)
+#ifdef THREADED
+#ifdef WIN32
   DeleteCriticalSection(&sWriteLock);
+#else
+  pthread_mutex_destroy(&sWriteLock);
+#endif
 #endif
 }
 
@@ -63,8 +80,12 @@ int Client::write(const char *aString)
 {
   int res;
 
-#if defined(THREADED) && defined(WIN32)
+#ifdef THREADED
+#ifdef WIN32
   EnterCriticalSection(&sWriteLock);
+#else
+  pthread_mutex_lock(&sWriteLock);
+#endif
 #endif
 
   try {
@@ -75,8 +96,13 @@ int Client::write(const char *aString)
     res = -1;
   }
 
-#if defined(THREADED) && defined(WIN32)
+
+#ifdef THREADED
+#ifdef WIN32
   LeaveCriticalSection(&sWriteLock);
+#else
+  pthread_mutex_unlock(&sWriteLock);
+#endif
 #endif
 
   return res;

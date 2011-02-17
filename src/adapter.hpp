@@ -37,6 +37,10 @@
 #include "server.hpp"
 #include "string_buffer.hpp"
 
+#if defined(THREADED) && !defined(WIN32)
+#include <pthread.h>
+#endif
+
 class DeviceDatum;
 
 const int INITIAL_MAX_DEVICE_DATA = 128;
@@ -63,8 +67,12 @@ protected:
 			    * server. Responds to Ping. Default 10 sec */
   bool mRunning;
   
-#if defined(WIN32) && defined(THREADED)
+#ifdef THREADED
+#ifdef WIN32
   HANDLE mServerThread;
+#else
+  pthread_t mServerThread;
+#endif
 #endif
 
   
@@ -88,10 +96,12 @@ public:
   void connectToClients();
 
   /* Start the server and never return */
-#if defined(WIN32) && defined(THREADED)
+#ifdef THREADED
   bool startServerThread();
   void serverThread();
+  int  waitUntilDone();
 #endif
+  
   void startServer();
   void addDatum(DeviceDatum &aValue);
   

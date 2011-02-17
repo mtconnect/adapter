@@ -31,36 +31,46 @@
 * SUCH PARTY HAD ADVANCE NOTICE OF THE POSSIBILITY OF SUCH DAMAGES.
 */
 
-#ifndef STRING_BUFFER_HPP
-#define STRING_BUFFER_HPP
+#ifndef AUDIO_ADAPTER_HPP
+#define AUDIO_ADAPTER_HPP
 
-/*
- * A simple extensible string that can be appended to. The memory will be reused
- * since it maintains its length. The string buffer also supports setting a timestamp
- * that will be prepended to the string once some data is appended.
- *
- * Currently allocating in 1k increments.
- */
-class StringBuffer 
+#include "adapter.hpp"
+#include "device_datum.hpp"
+#include "time_series.hpp"
+#include "service.hpp"
+#include "condition.hpp"
+#include <sys/time.h>
+extern "C" {
+  #include "portaudio.h"
+}
+
+class AudioAdapter : public Adapter, public MTConnectService
 {
 protected:
-  char *mBuffer; /* A resizable character buffer */
-  size_t mSize;     /* The allocated size of the string */
-  size_t mLength;   /* The length of the string */
-  char mTimestamp[64];
+  /* Define all the data values here */
   
-public:
-  StringBuffer(const char *aString = 0);
-  ~StringBuffer();
+  /* Events */
+  Availability mAvailability; 
+  TimeSeries   mAudio;
+  double mStartTime;
 
-  operator const char *() { return mBuffer; }
-  const char *append(const char *aString);
-  const char* operator<<(const char *aString) { return append(aString); }
-  void reset();
-  void timestamp();
-  void setTimestamp(const char *aTs) { strcpy(mTimestamp, aTs); }
-  size_t  length() { return mLength; }
-  void newline();
+  PaStream*           mStream;
+
+public:
+  AudioAdapter(int aPort);
+  ~AudioAdapter();
+  
+  virtual void initialize(int aArgc, const char *aArgv[]);
+  virtual void start();
+  virtual void stop();
+  virtual void gatherDeviceData();
+
+  int recordCallback(const void *inputBuffer, void *outputBuffer,
+		     unsigned long framesPerBuffer,
+		     const PaStreamCallbackTimeInfo* timeInfo,
+		     PaStreamCallbackFlags statusFlags);
+  
 };
 
 #endif
+

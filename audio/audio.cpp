@@ -31,36 +31,17 @@
 * SUCH PARTY HAD ADVANCE NOTICE OF THE POSSIBILITY OF SUCH DAMAGES.
 */
 
-#ifndef STRING_BUFFER_HPP
-#define STRING_BUFFER_HPP
+#include "internal.hpp"
+#include "audio_adapter.hpp"
+#include "server.hpp"
+#include "string_buffer.hpp"
 
-/*
- * A simple extensible string that can be appended to. The memory will be reused
- * since it maintains its length. The string buffer also supports setting a timestamp
- * that will be prepended to the string once some data is appended.
- *
- * Currently allocating in 1k increments.
- */
-class StringBuffer 
-{
-protected:
-  char *mBuffer; /* A resizable character buffer */
-  size_t mSize;     /* The allocated size of the string */
-  size_t mLength;   /* The length of the string */
-  char mTimestamp[64];
-  
-public:
-  StringBuffer(const char *aString = 0);
-  ~StringBuffer();
+int main(int aArgc, const char *aArgv[])
+{    
+  /* Construct the adapter and start the server */
+  AudioAdapter *adapter = new AudioAdapter(7878);
+  adapter->setName("Audio MTConnect Adapter");
+  adapter->main(aArgc, aArgv);
+  return adapter->waitUntilDone();
+}
 
-  operator const char *() { return mBuffer; }
-  const char *append(const char *aString);
-  const char* operator<<(const char *aString) { return append(aString); }
-  void reset();
-  void timestamp();
-  void setTimestamp(const char *aTs) { strcpy(mTimestamp, aTs); }
-  size_t  length() { return mLength; }
-  void newline();
-};
-
-#endif

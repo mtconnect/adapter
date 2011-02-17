@@ -34,6 +34,13 @@
 #ifndef SERVER_HPP
 #define SERVER_HPP
 
+#ifdef THREADED
+#ifndef WIN32
+#include <pthread.h>
+#endif
+#endif
+
+
 class Client;
 
 /* Some constants */
@@ -50,8 +57,12 @@ protected:
   char mPong[32];
   int mTimeout;
   
-#if defined(THREADED) && defined(WIN32)
+#ifdef THREADED
+#ifdef WIN32
   CRITICAL_SECTION mListLock;
+#else
+  pthread_mutex_t mListLock;
+#endif
 #endif
   
   

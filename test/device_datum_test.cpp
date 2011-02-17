@@ -103,14 +103,14 @@ void DeviceDatumTest::testSample()
   CPPUNIT_ASSERT(sample.hasInitialValue());
 
   CPPUNIT_ASSERT(sample.toString(buffer, 255) != 0);
-  CPPUNIT_ASSERT_EQUAL(string("|Test|1.2345670000"), string(buffer));
+  CPPUNIT_ASSERT_EQUAL(string("|Test|1.234567"), string(buffer));
 
   CPPUNIT_ASSERT(sample.setValue(1.234568));
   CPPUNIT_ASSERT(sample.changed());
   CPPUNIT_ASSERT(sample.hasInitialValue());
 
   CPPUNIT_ASSERT(sample.toString(buffer, 255) != 0);
-  CPPUNIT_ASSERT_EQUAL(string("|Test|1.2345680000"), string(buffer));
+  CPPUNIT_ASSERT_EQUAL(string("|Test|1.234568"), string(buffer));
 
   sample.reset();
 
@@ -119,5 +119,5 @@ void DeviceDatumTest::testSample()
   CPPUNIT_ASSERT(!sample.changed());
 
   CPPUNIT_ASSERT(sample.toString(buffer, 255) != 0);
-  CPPUNIT_ASSERT_EQUAL(string("|Test|1.2345680000"), string(buffer));
+  CPPUNIT_ASSERT_EQUAL(string("|Test|1.234568"), string(buffer));
 }
