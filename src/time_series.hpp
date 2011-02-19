@@ -31,49 +31,41 @@
 * SUCH PARTY HAD ADVANCE NOTICE OF THE POSSIBILITY OF SUCH DAMAGES.
 */
 
-#ifndef AUDIO_ADAPTER_HPP
-#define AUDIO_ADAPTER_HPP
+#ifndef TIME_SERIES_HPP
+#define TIME_SERIES_HPP
 
-#include "adapter.hpp"
 #include "device_datum.hpp"
-#include "time_series.hpp"
-#include "service.hpp"
-#include "condition.hpp"
-#include <sys/time.h>
-extern "C" {
-  #include "portaudio.h"
-}
+#include <vector>
 
-class AudioAdapter : public Adapter, public MTConnectService
+/*
+ * A time series of samples
+ */
+
+class TimeSeries : public DeviceDatum 
 {
 protected:
-  /* Define all the data values here */
-  
-  /* Events */
-  Availability mAvailability; 
-  TimeSeries   mAudio;
-  Sample       mAudioMax;
-  Sample       mAudioMin;
-  Sample       mAudioAvg;
-  double mStartTime;
-
-  PaStream*           mStream;
+  std::vector<float> mValues;
+  bool mUnavailable;
+  float mEpsilon;
+  float mRate;
 
 public:
-  AudioAdapter(int aPort);
-  ~AudioAdapter();
-  
-  virtual void initialize(int aArgc, const char *aArgv[]);
-  virtual void start();
-  virtual void stop();
-  virtual void gatherDeviceData();
+  TimeSeries(const char *aName, float aEpsilon = 0.000001,
+             float aRate = -1.0);
 
-  int recordCallback(const void *inputBuffer, void *outputBuffer,
-		     unsigned long framesPerBuffer,
-		     const PaStreamCallbackTimeInfo* timeInfo,
-		     PaStreamCallbackFlags statusFlags);
+  bool setValue(std::vector<float> aValues);
+  void addValue(float aValue);
+  std::vector<float> &getValues() { return mValues; }
+  int getCount() { return mValues.size(); }
+  void clear() { mValues.clear(); }
+  float getRate() { return mRate; }
+  void setRate(float aRate) { mRate = aRate; }
   
+  virtual char *toString(char *aBuffer, int aMaxLen);
+  virtual bool unavailable();
+  virtual bool requiresFlush();
+  virtual bool append(StringBuffer &aBuffer);
 };
 
-#endif
 
+#endif

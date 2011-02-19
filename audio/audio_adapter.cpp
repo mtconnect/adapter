@@ -33,6 +33,9 @@
 
 #include "internal.hpp"
 #include "audio_adapter.hpp"
+#include <float.h>
+
+#define SAMPLE_FREQUENCY 44100
 
 static int recordCallback( const void *inputBuffer, void *outputBuffer,
                            unsigned long framesPerBuffer,
@@ -54,7 +57,8 @@ int AudioAdapter::recordCallback(const void *inputBuffer, void *outputBuffer,
   {
     int i;
     char timestamp[64], mant[16];
-    double now = mStartTime + timeInfo->inputBufferAdcTime;
+    double duration = ((double) framesPerBuffer / (double) SAMPLE_FREQUENCY);
+    double now = mStartTime + timeInfo->inputBufferAdcTime + duration;
     double sec, frac;
     frac = modf(now, &sec);
 
@@ -66,30 +70,50 @@ int AudioAdapter::recordCallback(const void *inputBuffer, void *outputBuffer,
     mant[i++] = 'Z';
     mant[i] = '\0';
     strcat(timestamp, mant + 1);
-    //printf("Time: %s\n", timestamp);
+    // printf("%s: %d frames\n", timestamp, (int) framesPerBuffer);
     
     begin();
+    mBuffer.reset();
     mBuffer.setTimestamp(timestamp);
     mAudio.clear();
+
+    float min = FLT_MAX, max = FLT_MIN;
+    double sum = 0.0;
 
     float *data = (float*) inputBuffer;
     for (int i = 0; i < framesPerBuffer; i++)
     {
-      mAudio.addValue(data[i]);
+      float d = data[i];
+      if (d < min) min = d;
+      if (d > max) max = d;
+      sum += d;
+      mAudio.addValue(d);
     }
+    sendChangedData();
+    
+    // Now for the stats, add the duration onto the timestamp...
+    mBuffer.reset();
+    sprintf(timestamp + strlen(timestamp), "@%0.9g", duration);
+    mBuffer.setTimestamp(timestamp);
+    mAudioMax.setValue(max);
+    mAudioMin.setValue(min);
+    mAudioAvg.setValue(sum / (double) framesPerBuffer);
 
     sendChangedData();
-    mBuffer.reset();
     cleanup();
   }
   return 0;
 }
 
 AudioAdapter::AudioAdapter(int aPort)
-  : Adapter(aPort, 1000), mAvailability("avail"), mAudio("audio")
+  : Adapter(aPort, 1000), mAvailability("avail"), mAudio("audio"),
+    mAudioMin("audio_min"), mAudioMax("audio_max"), mAudioAvg("audio_avg")
 {
   addDatum(mAvailability);
   addDatum(mAudio);
+  addDatum(mAudioMin);
+  addDatum(mAudioMax);
+  addDatum(mAudioAvg);
 }
 
 AudioAdapter::~AudioAdapter()
@@ -123,8 +147,8 @@ void AudioAdapter::start()
   err = Pa_OpenStream(&mStream,
 		      &inputParameters,
 		      NULL,                  /* &outputParameters, */
-		      44100,
-		      10240,
+		      SAMPLE_FREQUENCY,
+		      2048, // paFramesPerBufferUnspecified,
 		      paClipOff,      /* we won't output out of range samples so don't bother clipping them */
 		      ::recordCallback,
 		      this );
