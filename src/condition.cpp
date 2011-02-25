@@ -142,7 +142,7 @@ bool Condition::add(ELevels aLevel, const char *aText, const char *aCode,
   ActiveCondition *cond = NULL;
   bool res;
   // First check for a unassociated normal or a unavailable.
-  if ((aLevel == eNORMAL || eUNAVAILABLE) &&
+  if ((aLevel == eNORMAL || aLevel == eUNAVAILABLE) &&
       aCode[0] == '\0')
   {
     // See if we are already in this state.
