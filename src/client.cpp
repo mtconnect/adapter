@@ -67,13 +67,6 @@ Client::~Client()
 {
   ::shutdown(mSocket, SHUT_RDWR);
   ::closesocket(mSocket);
-#ifdef THREADED
-#ifdef WIN32
-  DeleteCriticalSection(&sWriteLock);
-#else
-  pthread_mutex_destroy(&sWriteLock);
-#endif
-#endif
 }
 
 int Client::write(const char *aString)

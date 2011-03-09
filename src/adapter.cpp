@@ -117,7 +117,7 @@ bool Adapter::startServerThread()
   return true;
 }
 
-void Adapter::waitUntilDone()
+int Adapter::waitUntilDone()
 {
   int ret = 1;
   if (mServerThread != 0) {
@@ -356,7 +356,7 @@ void Adapter::flush()
 void Adapter::clientsDisconnected()
 {
   /* Do nothing for now ... */
-  printf("All clients have disconnected\n");
+  gLogger->info("All clients have disconnected");
 }
 
 void Adapter::unavailable()
