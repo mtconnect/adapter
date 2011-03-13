@@ -181,6 +181,9 @@ void Adapter::serverThread()
   while (mRunning) {
     connectToClients();
     readFromClients();
+
+    periodicWork();
+    
 #ifdef WIN32
     Sleep(1000);
 #else

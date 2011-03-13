@@ -100,6 +100,9 @@ public:
   bool startServerThread();
   void serverThread();
   int  waitUntilDone();
+
+  // allow for subclasses to do some work when threaded
+  virtual void periodicWork() {}
 #endif
   
   void startServer();

@@ -83,7 +83,7 @@ public:
   int print(char c) { char b[2]; b[0] = c; return write(b, 1); }
   int read(char &c) { 
     char buffer[2]; 
-    int ret = read(buffer, 1); 
+    int ret = read(buffer, 1);
     c = buffer[0]; 
     return ret;
   }
@@ -95,7 +95,7 @@ public:
   }
   bool flushInput();
   bool flush();
-  void printCommStatus();
+  bool printCommStatus();
 };
 
 #endif

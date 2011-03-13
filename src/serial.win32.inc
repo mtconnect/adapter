@@ -176,10 +176,7 @@ int Serial::read(char *aBuffer, int aLen)
   }
   else
   {
-    DWORD errors;
-    COMSTAT status;
-    
-    ClearCommError(mFd, &errors, &status);
+    if (!printCommStatus()) disconnect();
     ret = -1;
   }
 
@@ -196,9 +193,7 @@ int Serial::write(const char *aBuffer, int aLen)
   }
   else
   {
-    DWORD errors;
-    COMSTAT status;
-    ClearCommError(mFd,&errors,&status);
+    if (!printCommStatus()) disconnect();
     ret = -1;
   }
   return ret;
@@ -210,16 +205,22 @@ bool Serial::flush()
 }
 
 
-void Serial::printCommStatus()
+bool Serial::printCommStatus()
 {
-  DWORD errors;
+  DWORD errors = 0;
   COMSTAT status;
-  ClearCommError(mFd,&errors,&status);
-  gLogger->debug("Cts: %d, Dsr: %d, Rls: %d, \n" 
-         "XoffRec: %d, XoffSent: %d, Eof: %d, In: %d, Out: %d\n"
-         "Errors: %d\n", 
-         status.fCtsHold, status.fDsrHold, status.fRlsdHold,
-         status.fXoffHold, status.fXoffSent, status.fEof,
-         status.cbInQue, status.cbOutQue,
-         errors);
+  memset(&status, 0, sizeof(status));
+  BOOL res = ClearCommError(mFd,&errors,&status);
+  if (res)
+    gLogger->debug("Cts: %d, Dsr: %d, Rls: %d, \n" 
+		   "XoffRec: %d, XoffSent: %d, Eof: %d, In: %d, Out: %d\n"
+		   "Errors: %d\n", 
+		   status.fCtsHold, status.fDsrHold, status.fRlsdHold,
+		   status.fXoffHold, status.fXoffSent, status.fEof,
+		   status.cbInQue, status.cbOutQue,
+		   errors);
+  else
+    gLogger->debug("Comm port is disconnected");
+
+  return res;
 }
