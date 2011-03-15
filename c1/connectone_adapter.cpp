@@ -256,8 +256,6 @@ void ConnectOneAdapter::handleRxResponse(XBeeResponse &aResponse)
     handleMTConnectCommand(dev, data);
   else
     handleMTConnectSamples(dev, data);
-
-  dev->mLastMsgTime = time(NULL);
 }
 
 void ConnectOneAdapter::handleMTConnectSamples(ConnectOneDevice *dev, std::string &data)
@@ -305,9 +303,11 @@ void ConnectOneAdapter::handleMTConnectSamples(ConnectOneDevice *dev, std::strin
     }
   }
           
+  LOCK(sWriteLock);
   sendChangedData();
   mBuffer.reset();
   cleanup();
+  UNLOCK(sWriteLock);
 }
 
 void ConnectOneAdapter::handleMTConnectCommand(ConnectOneDevice *dev, std::string &data)
@@ -367,9 +367,11 @@ ConnectOneDevice *ConnectOneAdapter::getOrCreateDevice(XBeeAddress64 &aAddr)
     dev->mSilenceTimeout = mSilenceTimeout;
     dev->mHonorTimestamp = mHonorTimestamp;
     
-    dev->mAvailable = true;
     mDevices.push_back(dev);
   }
+  
+  dev->mAvailable = true;
+  dev->mLastMsgTime = time(NULL);
 
   return dev;
 }
@@ -432,7 +434,8 @@ void ConnectOneAdapter::periodicWork()
     if (dev->mAvailable && (now - dev->mLastMsgTime) > mSilenceTimeout)
       unavailable(dev);
 
-    if (mSerial->connected())
+    // Always ping, even if unavailable
+    if (mSerial->connected() && dev->mAvailable)
     {
       char *payload = "* PING\n";
       ZBTxRequest request(dev->mAddress, (uint8_t*) payload,
