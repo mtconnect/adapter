@@ -23,7 +23,10 @@ public:
   std::string   mName;
   bool          mPrefix;
   std::map<std::string, Sample*> mDataItems;
-  time_t       mLastMsgTime;
+  time_t        mLastMsgTime;
+
+  time_t        mSilenceTimeout;
+  bool mHonorTimestamp;
 };
   
 

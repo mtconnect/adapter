@@ -4,5 +4,4 @@ communications:
   baud: 115200
   dataBits: 8
   stopBits: 1
-  timeout: 1000
   parity: none

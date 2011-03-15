@@ -760,7 +760,7 @@ void XBee::readPacket() {
       return;
     }
 
-    gLogger->debug("Read byte at %d:[0x%X] %c", _pos, b, b);
+    gLogger->debug("<- Read byte at %d:[0x%X] %c", _pos, b, b);
 
     if (_canEscape && _pos > 0 && b == START_BYTE && ATAP == 2) {
       // new packet start before previous packeted completed -- discard previous packet and start over
@@ -836,7 +836,7 @@ void XBee::readPacket() {
       if (_pos == (_response.getPacketLength() + 3)) {
         // verify checksum
 
-	gLogger->debug("read checksum %d at pos %d (total: %d)", static_cast<unsigned int>(b),
+	gLogger->debug("<- Read checksum %d at pos %d (total: %d)", static_cast<unsigned int>(b),
 		       static_cast<unsigned int>(_pos), _checksumTotal);
 
         if ((_checksumTotal & 0xff) == 0xff) {
@@ -858,6 +858,8 @@ void XBee::readPacket() {
         _pos = 0;
 
         _checksumTotal = 0;
+	
+	gLogger->debug("<- --------- Read Complete ------------\n");
 
         return;
       } else {
@@ -1364,16 +1366,18 @@ void XBee::send(XBeeRequest &request) {
 
   // send packet
   mSerial->flush();
+  
+  gLogger->debug("-> --------- Send Complete ------------\n");
 }
 
 void XBee::sendByte(uint8_t b, bool escape) {
   escape = escape && _canEscape;
   if (escape && (b == START_BYTE || b == ESCAPE || b == XON || b == XOFF)) {
-    gLogger->debug("escaping byte [0x%X]", b);
+    gLogger->debug("escaping byte [0x%X] %c", b, b);
     mSerial->print(ESCAPE);
     mSerial->print(b ^ 0x20);
   } else {
-    gLogger->debug("Sending byte [0x%X]\n", b);
+    gLogger->debug("-> Sending byte [0x%X] %c", b, b);
     mSerial->print(b);
   }
 }

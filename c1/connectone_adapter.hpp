@@ -57,15 +57,19 @@ public:
   
 protected:
   // Heartbeats
-  void sendPing();
   void unavailable();
   void unavailable(ConnectOneDevice *aDevice);
   virtual void periodicWork();
 
-  void handleMTConnectData(XBeeResponse &aResponse);
+  void handleRxResponse(XBeeResponse &aResponse);
   void handleAtCommand(XBeeResponse &aResponse);
-  
-  
+  void handleXBeeDiscovery(XBeeResponse &aResponse);
+
+  void handleMTConnectSamples(ConnectOneDevice *dev, std::string &aStr);
+  void handleMTConnectCommand(ConnectOneDevice *dev, std::string &aStr);
+
+  ConnectOneDevice *getOrCreateDevice(XBeeAddress64 &aAddr);
+
   /* Events */
   std::vector<ConnectOneDevice*> mDevices; 
   
@@ -75,6 +79,7 @@ protected:
   int mBaud, mDataBits, mStopBits;
   int mTimeout;
   int mSilenceTimeout;
+  bool mHonorTimestamp;
 
   Serial *mSerial;
   XBee   mXBee;  
