@@ -20,6 +20,7 @@
 #include "XBee.h"
 #include "logger.hpp"
 #include <iostream>
+#include <ctype.h>
 
 XBeeResponse::XBeeResponse() {
 
@@ -760,7 +761,7 @@ void XBee::readPacket() {
       return;
     }
 
-    gLogger->debug("<- Read byte at %d:[0x%X] %c", _pos, b, b);
+    gLogger->debug("<- Read byte at %d:[0x%X] %c", _pos, b, isprint(b) ? b : 0);
 
     if (_canEscape && _pos > 0 && b == START_BYTE && ATAP == 2) {
       // new packet start before previous packeted completed -- discard previous packet and start over
@@ -1373,11 +1374,11 @@ void XBee::send(XBeeRequest &request) {
 void XBee::sendByte(uint8_t b, bool escape) {
   escape = escape && _canEscape;
   if (escape && (b == START_BYTE || b == ESCAPE || b == XON || b == XOFF)) {
-    gLogger->debug("escaping byte [0x%X] %c", b, b);
+    gLogger->debug("escaping byte [0x%X] %c", b, isprint(b) ? b : 0);
     mSerial->print(ESCAPE);
     mSerial->print(b ^ 0x20);
   } else {
-    gLogger->debug("-> Sending byte [0x%X] %c", b, b);
+    gLogger->debug("-> Sending byte [0x%X] %c", b, isprint(b) ? b : 0);
     mSerial->print(b);
   }
 }

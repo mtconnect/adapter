@@ -64,11 +64,14 @@ protected:
   void handleRxResponse(XBeeResponse &aResponse);
   void handleAtCommand(XBeeResponse &aResponse);
   void handleXBeeDiscovery(XBeeResponse &aResponse);
+  void handleXBeeTxStatus(XBeeResponse &aResponse);
 
   void handleMTConnectSamples(ConnectOneDevice *dev, std::string &aStr);
   void handleMTConnectCommand(ConnectOneDevice *dev, std::string &aStr);
 
   ConnectOneDevice *getOrCreateDevice(XBeeAddress64 &aAddr);
+
+  void initializeXBee();
 
   /* Events */
   std::vector<ConnectOneDevice*> mDevices; 
@@ -80,6 +83,7 @@ protected:
   int mTimeout;
   int mSilenceTimeout;
   bool mHonorTimestamp;
+  int mHeartBeat;
 
   Serial *mSerial;
   XBee   mXBee;  

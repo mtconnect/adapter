@@ -38,9 +38,13 @@
 #ifdef THREADED
 #ifdef WIN32
 static CRITICAL_SECTION sWriteLock;
+#define LOCK(s) EnterCriticalSection(&s)
+#define UNLOCK(s) LeaveCriticalSection(&s)
 #else
 #include <pthread.h>
 static pthread_mutex_t sWriteLock;
+#define LOCK(s) pthread_mutex_lock(&s);
+#define UNLOCK(s) pthread_mutex_unlock(&s);
 #endif
 static bool sWriteLockInitialized = false;
 #endif
@@ -73,13 +77,7 @@ int Client::write(const char *aString)
 {
   int res;
 
-#ifdef THREADED
-#ifdef WIN32
-  EnterCriticalSection(&sWriteLock);
-#else
-  pthread_mutex_lock(&sWriteLock);
-#endif
-#endif
+  LOCK(sWriteLock);
 
   try {
     res = ::send(mSocket, aString, (int) strlen(aString), 0);
@@ -89,14 +87,7 @@ int Client::write(const char *aString)
     res = -1;
   }
 
-
-#ifdef THREADED
-#ifdef WIN32
-  LeaveCriticalSection(&sWriteLock);
-#else
-  pthread_mutex_unlock(&sWriteLock);
-#endif
-#endif
+  UNLOCK(sWriteLock);
 
   return res;
 }

@@ -47,32 +47,34 @@ static CRITICAL_SECTION sWriteLock;
 static CRITICAL_SECTION sSendLock;
 #define LOCK(s) EnterCriticalSection(&s)
 #define UNLOCK(s) LeaveCriticalSection(&s)
-#else
+#define INIT(s) InitializeCriticalSection(&s)
+#else // !WIN32
 #include <pthread.h>
 static pthread_mutex_t sWriteLock;
 static pthread_mutex_t sSendLock;
 #define LOCK(s) pthread_mutex_lock(&s);
 #define UNLOCK(s) pthread_mutex_unlock(&s);
-#endif
+#define INIT(s) pthread_mutex_init(&s, NULL)
+#endif // WIN32
+
 static bool sWriteLockInitialized = false;
+
+#define SET_WITH_DEFAULT(node, key, value, def) \
+  if (node.FindValue(key) != NULL)              \
+    comms[key] >> value;                        \
+  else                                          \
+    value = def
 
 ConnectOneAdapter::ConnectOneAdapter(int aPort)
   : Adapter(aPort, 500)
 {
   if (!sWriteLockInitialized) {
-#ifdef WIN32
-    InitializeCriticalSection(&sWriteLock);
-    InitializeCriticalSection(&sSendLock);
-#else
-    pthread_mutex_init(&sWriteLock, NULL);
-    pthread_mutex_init(&sSendLock, NULL);
-#endif
+    INIT(sWriteLock);
+    INIT(sSendLock);
     sWriteLockInitialized = true;
   }
 
   mConnected = 0;
-  mSilenceTimeout = 20;
-  mHonorTimestamp = false;
 
   ifstream fin("connectone.yaml");
   YAML::Parser parser(fin);
@@ -81,16 +83,12 @@ ConnectOneAdapter::ConnectOneAdapter(int aPort)
   const YAML::Node &comms = doc["communications"];
   comms["port"] >> mSerialPort;
   comms["baud"] >> mBaud;
-  if (comms.FindValue("dataBits") != NULL)
-    comms["dataBits"] >> mDataBits;
-  else
-    mDataBits = 8;
+  SET_WITH_DEFAULT(comms, "dataBits", mDataBits, 8);
   comms["stopBits"] >> mStopBits;
   comms["parity"] >> mParity;
-  if (comms.FindValue("silenceTimeout") != NULL)
-    comms["silenceTimeout"] >> mSilenceTimeout;
-  if (comms.FindValue("honorTimestamp") != NULL)
-    comms["honorTimestamp"] >> mHonorTimestamp;
+  SET_WITH_DEFAULT(comms, "silenceTimeout", mSilenceTimeout, 20);
+  SET_WITH_DEFAULT(comms, "honorTimestamp", mHonorTimestamp, false);
+  SET_WITH_DEFAULT(comms, "heartBeat", mHeartBeat, 2);
 
   mSerial = new Serial(mSerialPort.c_str(), mBaud, mParity.c_str(),
                        mDataBits, mStopBits);
@@ -101,9 +99,22 @@ ConnectOneAdapter::ConnectOneAdapter(int aPort)
     const YAML::Node &devices = doc["devices"];
     for(unsigned i = 0; i < devices.size(); i++) {
       const YAML::Node &device = devices[i];
+      if (device.FindValue("name") == NULL ||
+          device.FindValue("address") == NULL ||
+          device.FindValue("prefix") == NULL)
+      {
+        gLogger->error("Device must have 'name', 'address', and 'prefix'");
+        continue;
+      }
+
       string deviceName;
-      device["device"] >> deviceName;
+      device["name"] >> deviceName;
       const YAML::Node &address = device["address"];
+	  if (address.GetType() != YAML::CT_SEQUENCE || address.size() < 8)
+	  {
+		gLogger->error("Address must be 8 characters");
+		continue;
+	  }
       uint32_t msb = 0, lsb = 0;
       for (int j = 0; j < 8; j++) {
         uint32_t v;
@@ -116,16 +127,9 @@ ConnectOneAdapter::ConnectOneAdapter(int aPort)
       XBeeAddress64 xbAddr(msb, lsb);
       ConnectOneDevice *d = new ConnectOneDevice(deviceName, xbAddr);
       device["prefix"] >> d->mPrefix;
-
-      if (device.FindValue("silenceTimeout") != NULL)
-        device["silenceTimeout"] >> d->mSilenceTimeout;
-      else
-        d->mSilenceTimeout = mSilenceTimeout;
-
-      if (device.FindValue("honorTimestamp") != NULL)
-        device["honorTimestamp"] >> d->mHonorTimestamp;
-      else
-        d->mHonorTimestamp = mHonorTimestamp;
+      SET_WITH_DEFAULT(device, "silenceTimeout", d->mSilenceTimeout, mSilenceTimeout);
+      SET_WITH_DEFAULT(device, "honorTimestamp", d->mHonorTimestamp, mHonorTimestamp);
+      SET_WITH_DEFAULT(device, "heartBeat", d->mHeartBeat, mHeartBeat);
 
       mDevices.push_back(d);
     }
@@ -176,6 +180,10 @@ void ConnectOneAdapter::start()
         case 0x88:
           handleAtCommand(response);
           break;
+
+        case 0x8B:
+          handleXBeeTxStatus(response);
+          break;
         }
       }
       else if (response.isError())
@@ -195,47 +203,58 @@ void ConnectOneAdapter::start()
       if (!connected)
         sleep(10);
       else
+        initializeXBee();
+    }
+  }
+}
+
+void ConnectOneAdapter::initializeXBee()
+{
+  LOCK(sSendLock);
+  
+  // Set the PAN ID
+  {
+    uint8_t command[] = { 'A', 'P' };
+    uint8_t value[] = { 0x2 };
+    
+    AtCommandRequest request(command, value, sizeof(value));
+    mXBee.send(request);
+  }
+  {
+    uint8_t command[] = { 'C', 'H' };
+    uint8_t value[] = { 0x0 };
+    
+    AtCommandRequest request(command, value, 0);
+    mXBee.send(request);
+  }
+  {
+    uint8_t command[] = { 'N', 'P' };
+    uint8_t value[] = { 0 };
+    
+    AtCommandRequest request(command, value, 0);
+    mXBee.send(request);
+  }
+  
+  gLogger->info("Connected to serial port");
+  
+  UNLOCK(sSendLock);
+}
+
+void ConnectOneAdapter::handleXBeeTxStatus(XBeeResponse &aResponse)
+{
+  ZBTxStatusResponse status;
+  aResponse.getZBTxStatusResponse(status);
+  if (!status.isSuccess())
+  {
+    gLogger->info("Could not transmit frame: %d", status.getFrameId());
+
+    for (size_t i = 0; i < mDevices.size(); i++) 
+    {
+      ConnectOneDevice *dev = mDevices[i];
+      if (dev->mAvailable && dev->hasFrame(status.getFrameId()))
       {
-        LOCK(sSendLock);
-      
-        // Set the PAN ID
-        {
-          uint8_t command[] = { 'A', 'P' };
-          uint8_t value[] = { 0x2 };
-          
-          AtCommandRequest request(command, value, sizeof(value));
-          mXBee.send(request);
-        }
-
-        {
-          uint8_t command[] = { 'N', 'P' };
-          uint8_t value[] = { 0 };
-          
-          AtCommandRequest request(command, value, 0);
-          mXBee.send(request);
-        }
-
-        // Set the PAN ID
-        {
-          uint8_t command[] = { 'I', 'D' };
-          uint8_t value[] = { 0x11, 0x11 };
-          
-          AtCommandRequest request(command, value, sizeof(value));
-          mXBee.send(request);
-        }
-        
-        // Send a discovery request
-        {
-          uint8_t command[] = { 'N', 'D' };
-          uint8_t value[] = { 0 };
-          
-          AtCommandRequest request(command, value, 0);
-          mXBee.send(request);
-        }        
-        
-        gLogger->info("Connected to serial port");
-        
-        UNLOCK(sSendLock);
+        unavailable(dev);
+        break;
       }
     }
   }
@@ -260,6 +279,8 @@ void ConnectOneAdapter::handleRxResponse(XBeeResponse &aResponse)
 
 void ConnectOneAdapter::handleMTConnectSamples(ConnectOneDevice *dev, std::string &data)
 {
+  LOCK(sWriteLock);
+
   size_t pos = data.find_first_of('|');
   if (pos != string::npos && dev->mHonorTimestamp) {
     mBuffer.setTimestamp(data.substr(0, pos).c_str());
@@ -281,12 +302,13 @@ void ConnectOneAdapter::handleMTConnectSamples(ConnectOneDevice *dev, std::strin
       Sample *sample;
       if (dev->mDataItems.count(key) == 0) 
       {
+        string name(key);
         if (dev->mPrefix) {
-          key.insert((size_t) 0, ":");
-          key.insert((size_t) 0, dev->mName);
+          name.insert((size_t) 0, ":");
+          name.insert((size_t) 0, dev->mName);
         }
         
-        sample = new Sample(key.c_str());
+        sample = new Sample(name.c_str());
         dev->mDataItems.insert(pair<string, Sample*>(key, sample));
         addDatum(*sample);
       }
@@ -303,18 +325,21 @@ void ConnectOneAdapter::handleMTConnectSamples(ConnectOneDevice *dev, std::strin
     }
   }
           
-  LOCK(sWriteLock);
   sendChangedData();
   mBuffer.reset();
   cleanup();
+  
   UNLOCK(sWriteLock);
 }
 
 void ConnectOneAdapter::handleMTConnectCommand(ConnectOneDevice *dev, std::string &data)
 {
-  if (data.find("* PONG") != string::npos)
+  size_t pos = data.find("* PONG");
+  if (pos != string::npos)
   {
-    gLogger->debug("Got pong");
+    int hb = atoi(data.substr(pos + 7).c_str());
+    if (hb > 0) dev->mHeartBeat = hb / 1000;
+    gLogger->debug("Got pong: heartbeat = %d", dev->mHeartBeat);
   }
 }
 
@@ -331,8 +356,26 @@ void ConnectOneAdapter::handleAtCommand(XBeeResponse &aResponse)
       mXBee.setMaxSize(v);
 
       gLogger->debug("Maximum payload = %d", v);
+
+      // Set the PAN ID
+      {
+        uint8_t command[] = { 'I', 'D' };
+        uint8_t value[] = { 0x11, 0x11 };
+        
+        AtCommandRequest request(command, value, sizeof(value));
+        mXBee.send(request);
+      }
     }
-    if (cp[0] == 'N' && cp[1] == 'D')
+    else if (cp[0] == 'I' && cp[1] == 'D')
+    {
+      // Send a discovery request
+      uint8_t command[] = { 'N', 'D' };
+      uint8_t value[] = { 0 };
+      
+      AtCommandRequest request(command, value, 0);
+      mXBee.send(request);
+    }        
+    else if (cp[0] == 'N' && cp[1] == 'D')
     {
       uint8_t *response = cmd.getValue();
       XBeeAddress64 addr(ntohl(*((uint32_t*) (response + 2))),
@@ -363,14 +406,23 @@ ConnectOneDevice *ConnectOneAdapter::getOrCreateDevice(XBeeAddress64 &aAddr)
   
   if (dev == NULL)
   {
+    gLogger->info("Device Discovered: 0x%X%X", aAddr.getMsb(), aAddr.getLsb());
+    
     dev = new ConnectOneDevice("discovered", aAddr);
+    
+    // set defaults for discovered connections.
     dev->mSilenceTimeout = mSilenceTimeout;
     dev->mHonorTimestamp = mHonorTimestamp;
+    dev->mHeartBeat = mHeartBeat;
     
     mDevices.push_back(dev);
   }
-  
-  dev->mAvailable = true;
+
+  if (!dev->mAvailable) 
+  {
+    gLogger->info("Device Available: 0x%X%X", aAddr.getMsb(), aAddr.getLsb());
+    dev->mAvailable = true;
+  }
   dev->mLastMsgTime = time(NULL);
 
   return dev;
@@ -407,6 +459,10 @@ void ConnectOneAdapter::unavailable(ConnectOneDevice *aDevice)
   
   if (aDevice->mAvailable) 
   {
+    gLogger->info("Device unvaailable: 0x%X%X",
+                 aDevice->mAddress.getMsb(),
+                 aDevice->mAddress.getLsb());
+    
     mBuffer.timestamp();
     map<string, Sample*>::iterator iter;
     for (iter = aDevice->mDataItems.begin();
@@ -431,19 +487,23 @@ void ConnectOneAdapter::periodicWork()
   for (size_t i = 0; i < mDevices.size(); i++) 
   {
     ConnectOneDevice *dev = mDevices[i];
-    if (dev->mAvailable && (now - dev->mLastMsgTime) > mSilenceTimeout)
-      unavailable(dev);
-
-    // Always ping, even if unavailable
-    if (mSerial->connected() && dev->mAvailable)
+    if (dev->mAvailable)
     {
-      char *payload = "* PING\n";
-      ZBTxRequest request(dev->mAddress, (uint8_t*) payload,
-                          (uint8_t) strlen(payload));
-      request.setFrameId(mXBee.getNextFrameId());
-      mXBee.send(request);
+      if ((now - dev->mLastMsgTime) > mSilenceTimeout)
+        unavailable(dev);
+      else if (mSerial->connected() && (now - dev->mLastHeartbeat) >= mHeartBeat)
+      {
+        char *payload = "* PING\n";
+        ZBTxRequest request(dev->mAddress, (uint8_t*) payload,
+                            (uint8_t) strlen(payload));
+        uint8_t frame = mXBee.getNextFrameId();
+        dev->addFrame(frame);
+        request.setFrameId(frame);
+        mXBee.send(request);
+        dev->mLastHeartbeat = now;
+      }
     }
   }
-
+  
   UNLOCK(sSendLock);
 }

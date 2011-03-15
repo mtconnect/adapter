@@ -63,7 +63,7 @@ Adapter::~Adapter()
 /* Add a data value to the list of data values */
 void Adapter::addDatum(DeviceDatum &aValue)
 {
-  if (mNumDeviceData >= mMaxDatum)
+  if (mNumDeviceData >= mMaxDatum - 1)
   {
     DeviceDatum** devData = new DeviceDatum*[mMaxDatum * 2];
     memcpy(devData, mDeviceData, sizeof(DeviceDatum*) * mMaxDatum);
