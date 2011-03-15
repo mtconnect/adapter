@@ -61,7 +61,7 @@ static bool sWriteLockInitialized = false;
 
 #define SET_WITH_DEFAULT(node, key, value, def) \
   if (node.FindValue(key) != NULL)              \
-    comms[key] >> value;                        \
+    node[key] >> value;                        \
   else                                          \
     value = def
 
@@ -86,6 +86,7 @@ ConnectOneAdapter::ConnectOneAdapter(int aPort)
   SET_WITH_DEFAULT(comms, "dataBits", mDataBits, 8);
   comms["stopBits"] >> mStopBits;
   comms["parity"] >> mParity;
+
   SET_WITH_DEFAULT(comms, "silenceTimeout", mSilenceTimeout, 20);
   SET_WITH_DEFAULT(comms, "honorTimestamp", mHonorTimestamp, false);
   SET_WITH_DEFAULT(comms, "heartBeat", mHeartBeat, 2);
@@ -406,7 +407,7 @@ ConnectOneDevice *ConnectOneAdapter::getOrCreateDevice(XBeeAddress64 &aAddr)
   
   if (dev == NULL)
   {
-    gLogger->info("Device Discovered: 0x%X%X", aAddr.getMsb(), aAddr.getLsb());
+    gLogger->info("Device Discovered: 0x%08X%08X", aAddr.getMsb(), aAddr.getLsb());
     
     dev = new ConnectOneDevice("discovered", aAddr);
     
@@ -420,7 +421,7 @@ ConnectOneDevice *ConnectOneAdapter::getOrCreateDevice(XBeeAddress64 &aAddr)
 
   if (!dev->mAvailable) 
   {
-    gLogger->info("Device Available: 0x%X%X", aAddr.getMsb(), aAddr.getLsb());
+    gLogger->info("Device Available: 0x%08X%08X", aAddr.getMsb(), aAddr.getLsb());
     dev->mAvailable = true;
   }
   dev->mLastMsgTime = time(NULL);
@@ -459,7 +460,7 @@ void ConnectOneAdapter::unavailable(ConnectOneDevice *aDevice)
   
   if (aDevice->mAvailable) 
   {
-    gLogger->info("Device unvaailable: 0x%X%X",
+    gLogger->info("Device unvaailable: 0x%08X%08X",
                  aDevice->mAddress.getMsb(),
                  aDevice->mAddress.getLsb());
     
