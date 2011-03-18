@@ -66,15 +66,13 @@ static bool sWriteLockInitialized = false;
     value = def
 
 ConnectOneAdapter::ConnectOneAdapter(int aPort)
-  : Adapter(aPort, 500)
+  : Adapter(aPort, 500), mConnected(0), mLastND(0)
 {
   if (!sWriteLockInitialized) {
     INIT(sWriteLock);
     INIT(sSendLock);
     sWriteLockInitialized = true;
   }
-
-  mConnected = 0;
 
   ifstream fin("connectone.yaml");
   YAML::Parser parser(fin);
@@ -235,6 +233,13 @@ void ConnectOneAdapter::initializeXBee()
     AtCommandRequest request(command, value, 0);
     mXBee.send(request);
   }
+  {
+    uint8_t command[] = { 'N', 'T' };
+    uint8_t value[] = { 0 };
+    
+    AtCommandRequest request(command, value, 0);
+    mXBee.send(request);
+  }
   
   gLogger->info("Connected to serial port");
   
@@ -346,6 +351,8 @@ void ConnectOneAdapter::handleMTConnectCommand(ConnectOneDevice *dev, std::strin
 
 void ConnectOneAdapter::handleAtCommand(XBeeResponse &aResponse)
 {
+  LOCK(sSendLock);
+  
   AtCommandResponse cmd;
   aResponse.getAtCommandResponse(cmd);
   if (cmd.isOk())
@@ -385,6 +392,8 @@ void ConnectOneAdapter::handleAtCommand(XBeeResponse &aResponse)
       getOrCreateDevice(addr);
     }
   }
+
+  UNLOCK(sSendLock);
 }
 
 void ConnectOneAdapter::handleXBeeDiscovery(XBeeResponse &aResponse)
@@ -502,6 +511,15 @@ void ConnectOneAdapter::periodicWork()
         request.setFrameId(frame);
         mXBee.send(request);
         dev->mLastHeartbeat = now;
+      }
+      if ((now - mLastND) > 10)
+      {
+        uint8_t command[] = { 'N', 'D' };
+        uint8_t value[] = { 0 };
+        
+        AtCommandRequest request(command, value, 0);
+        mXBee.send(request);
+        mLastND = now;
       }
     }
   }

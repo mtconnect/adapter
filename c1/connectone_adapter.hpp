@@ -85,6 +85,8 @@ protected:
   bool mHonorTimestamp;
   int mHeartBeat;
 
+  int mLastND;
+
   Serial *mSerial;
   XBee   mXBee;  
 };
