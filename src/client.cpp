@@ -43,10 +43,13 @@ static CRITICAL_SECTION sWriteLock;
 #else
 #include <pthread.h>
 static pthread_mutex_t sWriteLock;
-#define LOCK(s) pthread_mutex_lock(&s);
-#define UNLOCK(s) pthread_mutex_unlock(&s);
+#define LOCK(s) pthread_mutex_lock(&s)
+#define UNLOCK(s) pthread_mutex_unlock(&s)
 #endif
 static bool sWriteLockInitialized = false;
+#else
+#define LOCK(s)
+#define UNLOCK(s)
 #endif
 
 /* Instance methods */

@@ -501,7 +501,7 @@ void ConnectOneAdapter::periodicWork()
     {
       if ((now - dev->mLastMsgTime) > mSilenceTimeout)
         unavailable(dev);
-      else if (mSerial->connected() && (now - dev->mLastHeartbeat) >= mHeartBeat)
+      else if (mSerial->connected() && mHeartBeat > 0 && (now - dev->mLastHeartbeat) >= mHeartBeat)
       {
         char *payload = "* PING\n";
         ZBTxRequest request(dev->mAddress, (uint8_t*) payload,
@@ -512,6 +512,7 @@ void ConnectOneAdapter::periodicWork()
         mXBee.send(request);
         dev->mLastHeartbeat = now;
       }
+#if 0
       if ((now - mLastND) > 10)
       {
         uint8_t command[] = { 'N', 'D' };
@@ -521,6 +522,7 @@ void ConnectOneAdapter::periodicWork()
         mXBee.send(request);
         mLastND = now;
       }
+#endif
     }
   }
   
