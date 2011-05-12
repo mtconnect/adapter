@@ -372,3 +372,13 @@ void Adapter::unavailable()
   flush();
 }
 
+void Adapter::initializeDeviceDatum()
+{
+  for (int i = 0; i < mNumDeviceData; i++)
+  {
+    DeviceDatum *value = mDeviceData[i];
+    value->initialize();
+  }
+  flush();
+}
+

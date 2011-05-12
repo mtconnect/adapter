@@ -57,6 +57,11 @@ void Condition::cleanup()
   mBegun = false;
 }
 
+void Condition::initialize()
+{
+  normal();
+}
+
 void Condition::append(StringBuffer &aStringBuffer, char *aBuffer,
 		       ActiveCondition *aCond, bool &aFirst, int aMaxLen)
 {

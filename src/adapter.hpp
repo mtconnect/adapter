@@ -87,6 +87,7 @@ protected:
   virtual void flush();
   void timestamp() { mBuffer.timestamp(); }
   virtual void unavailable();
+  virtual void initializeDeviceDatum();
     
 public:
   Adapter(int aPort, int aScanDelay = 100);

@@ -42,7 +42,14 @@
 class DeviceDatum;
 namespace YAML {
   class Parser;
+  class Node;
 }
+
+#define SET_WITH_DEFAULT(node, key, value, def) \
+  if (node.FindValue(key) != NULL)              \
+    node[key] >> value;                        \
+  else                                          \
+    value = def
 
 // A register represents a PLC/PMC register as an accessible unit. The
 // value of the register will manifest as a typed value or a
@@ -103,20 +110,30 @@ protected:
 class Configuration
 {
 public:
-  Configuration(std::istream &aStream);
+  Configuration();
   virtual ~Configuration();
 
-  int getPort() { return mPort; }
-  int getScanDelay() { return mScanDelay; }
-  int getTimeout() { return mTimeout; }
+  virtual void parse(std::istream &aStream, int aPort = 7878, int aDelay = 1000,
+                     int aTimeout = 10000, const char *aService = "MTConnect Adapter");
 
+  int getPort() const { return mPort; }
+  int getScanDelay() const { return mScanDelay; }
+  int getTimeout() const { return mTimeout; }
+  const std::string &getServiceName() const { return mServiceName; }
+
+  void setPort(int aPort) { mPort = aPort; }
+  
   RegisterSet *getRegisters(std::string &aName);
+
+protected:
+  virtual void parse(YAML::Node &aDoc, int aPort, int aDelay, int aTimeout, const char *aService); 
 
 protected:
   int mPort;
   int mScanDelay;
   int mTimeout;
-  YAML::Parser *mParser;
+  std::string mServiceName;
+  
   std::map<std::string, RegisterSet*> mRegisters;
 };
 

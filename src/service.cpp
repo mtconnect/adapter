@@ -63,6 +63,11 @@ int MTConnectService::main(int argc, const char *argv[])
   // Otherwise, the service is probably being started by the SCM.
 
   if(argc > 1) {
+    if (stricmp( argv[1], "debug") == 0 ) {
+      mDebug = true;
+      gLogger->setLogLevel(Logger::eDEBUG);
+    }
+    initialize(argc - 2, argv + 2);
     if (stricmp( argv[1], "install") == 0 )
     {
       install(argc - 2, argv + 2);
@@ -70,14 +75,7 @@ int MTConnectService::main(int argc, const char *argv[])
     } else if (stricmp( argv[1], "remove") == 0 ) {
       remove();
       return 0;
-    } else if (stricmp( argv[1], "debug") == 0 ) {
-      mDebug = true;
-      initialize(argc - 2, argv + 2);
-      gLogger->setLogLevel(Logger::eDEBUG);
-      start();
-      return 0;
-    } else if (stricmp( argv[1], "run") == 0 ) {
-      initialize(argc - 2, argv + 2);
+    } else if (stricmp( argv[1], "debug") == 0 || stricmp( argv[1], "run") == 0) {
       start();
       return 0;
     }

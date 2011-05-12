@@ -123,6 +123,7 @@ public:
 
   virtual void begin();
   virtual void cleanup();
+  virtual void initialize();
 };
 
 

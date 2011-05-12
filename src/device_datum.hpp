@@ -81,6 +81,7 @@ public:
   virtual bool unavailable() = 0;
   virtual void begin() { }
   virtual void cleanup() { }
+  virtual void initialize() {}
 };
 
 /*

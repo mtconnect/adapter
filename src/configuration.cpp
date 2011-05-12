@@ -36,15 +36,36 @@
 
 using namespace std;
 
-Configuration::Configuration(istream &aStream)
+Configuration::Configuration()
+  : mPort(7878), mScanDelay(1000), mTimeout(10000)
+{
+}
+
+void Configuration::parse(istream &aStream, int aPort, int aDelay, int aTimeout, const char *aService)
 {
   YAML::Parser parser(aStream);
   YAML::Node doc;
   parser.GetNextDocument(doc);
-  const YAML::Node &adapter = doc["adapter"];
-  adapter["port"] >> mPort;
-  adapter["scanDelay"] >> mScanDelay;
-  adapter["timeout"] >> mTimeout;
+  parse(doc, aPort, aDelay, aTimeout, aService);
+}
+
+void Configuration::parse(YAML::Node &aDoc, int aPort, int aDelay, int aTimeout, const char *aService)
+{
+  if (aDoc.FindValue("adapter") != NULL)
+  {
+    const YAML::Node &adapter = aDoc["adapter"];
+    SET_WITH_DEFAULT(adapter, "port", mPort, aPort);
+    SET_WITH_DEFAULT(adapter, "scanDelay", mScanDelay, aDelay);
+    SET_WITH_DEFAULT(adapter, "timeout", mTimeout, aTimeout);
+    SET_WITH_DEFAULT(adapter, "service", mServiceName, aService);
+  }
+  else
+  {
+	mPort = aPort;
+	mScanDelay = aDelay;
+	mTimeout = aTimeout;
+	mServiceName = aService;
+  }
 }
 
 Configuration::~Configuration()
