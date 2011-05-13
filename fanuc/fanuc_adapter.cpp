@@ -43,7 +43,7 @@ FanucAdapter::FanucAdapter(int aPort) :
   mMode("mode"), mMessage("message"),
   mEstop("estop"), mPathPosition("path_pos"),
   mServo("servo"), mComms("comms"), mLogic("logic"),
-  mMotion("motion"), mSystem("system"), mSpindle("spindle")
+  mMotion("motion"), mSystem("system"), mSpindle("spindle"), mPartCount("part_count")
 {
   /* Alarms */
   addDatum(mMessage);
@@ -64,6 +64,7 @@ FanucAdapter::FanucAdapter(int aPort) :
   addDatum(mPathFeedrate);
   addDatum(mMode);
   addDatum(mBlock);
+  addDatum(mPartCount);
 
   addDatum(mPathPosition);
 
@@ -100,18 +101,28 @@ void FanucAdapter::initialize(int aArgc, const char *aArgv[])
 {
   MTConnectService::initialize(aArgc, aArgv);
 
-  if (aArgc < 2) {
-    gLogger->error("Usage: fanuc.exe <command> <ip> <port>");
-    exit(1);
+  const char *iniFile = "adapter.ini";
+
+  if (aArgc > 1) {
+    strncpy(mDeviceIP, aArgv[0], MAX_HOST_LEN - 1);
+    mDeviceIP[MAX_HOST_LEN - 1] = '\0';
+    mDevicePort = atoi(aArgv[1]);
+    
+    int port = 7878;
+    if (aArgc > 2)
+      port = atoi(aArgv[2]);
+    mPort = port;
   }
-
-  mDeviceIP = aArgv[0];
-  mDevicePort = atoi(aArgv[1]);  
-
-  int port = 7878;
-  if (aArgc > 2)
-    port = atoi(aArgv[2]);
-  mPort = port; 
+  else
+  {
+    mDevicePort = 8193;
+    strcpy(mDeviceIP, "localhost");
+    mPort = 7878;
+    if (aArgc > 0)
+      iniFile = aArgv[0];
+  }
+  
+  configMacrosAndPMC(iniFile);
 }
 
 void FanucAdapter::start()
@@ -137,6 +148,7 @@ void FanucAdapter::gatherDeviceData()
     getMessages();
     getMacros();
     getPMC();
+    getCounts();
   }
 }
 
@@ -254,10 +266,16 @@ void FanucAdapter::configAxesNames()
   }
 }
 
-void FanucAdapter::configMacrosAndPMC()
+void FanucAdapter::configMacrosAndPMC(const char *aIniFile)
 {
-  static char *ini_file = "adapter.ini";
-          
+  // Read adapter configuration
+  mPort = ini_getl("adapter", "port",  mPort, aIniFile);
+  ini_gets("adapter", "service", "MTConnect Fanuc Adapter", mName,
+           SERVICE_NAME_LEN, aIniFile);
+
+  ini_gets("focus", "host", mDeviceIP, mDeviceIP, MAX_HOST_LEN, aIniFile);
+  mDevicePort = ini_getl("focus", "port", mDevicePort, aIniFile);
+
   // Read adapter.ini to get additional macro variables and
   // PMC registers
   char name[100];
@@ -269,12 +287,12 @@ void FanucAdapter::configMacrosAndPMC()
           
   // First look for macro variables
   for (idx = 0;
-       ini_getkey("macros", idx, name, sizeof(name), ini_file) > 0 &&
+       ini_getkey("macros", idx, name, sizeof(name), aIniFile) > 0 &&
              idx < MAX_MACROS;
        idx++)
   {
     char numbers[256];
-    ini_gets("macros", name, "", numbers, 256, ini_file);
+    ini_gets("macros", name, "", numbers, 256, aIniFile);
     if (numbers[0] == '[')
     {
       // We have a path macro.
@@ -325,11 +343,11 @@ void FanucAdapter::configMacrosAndPMC()
   }
 
   for (idx = 0;
-       ini_getkey("pmc", idx, name, sizeof(name), ini_file) > 0 &&
+       ini_getkey("pmc", idx, name, sizeof(name), aIniFile) > 0 &&
              idx < MAX_PMC;
        idx++)
   {
-    long v = ini_getl("pmc", name, 0, ini_file);
+    long v = ini_getl("pmc", name, 0, aIniFile);
     mPMCVariable[idx] = new IntEvent(name);
     mPMCAddress[idx] = v;
 
@@ -345,12 +363,11 @@ void FanucAdapter::configure()
   if (mConfigured || !mConnected)
     return;
 
-  printf("Configuring...\n");
+  gLogger->info("Configuring...\n");
   cnc_sysinfo(mFlibhndl, &mInfo);
 
   configAxesNames();
   configSpindleNames();
-  configMacrosAndPMC();
 
   mConfigured = true;
           
@@ -471,23 +488,26 @@ void FanucAdapter::getStatus()
 {
   if (!mConnected)
     return;
+  int ret;
 
   ODBST status;
-  int ret = cnc_statinfo(mFlibhndl, &status);
+  memset(&status, 0, sizeof(status));
+  ret = cnc_statinfo(mFlibhndl, &status);
   if (ret == EW_OK)
   {
-    if (status.aut == 5 || status.aut == 6) // other than no selection
+	// This will take care of JOG 
+	if (status.aut == 5 || status.aut == 6) 
       mMode.setValue(ControllerMode::eMANUAL);
-    else if (status.aut == 0) // MDI for aut
+    else if (status.aut == 0 ||status.aut == 3) // MDI and EDIT
       mMode.setValue(ControllerMode::eMANUAL_DATA_INPUT);
-    else // Other than MDI and Manual
+    else // Otherwise AUTOMATIC
       mMode.setValue(ControllerMode::eAUTOMATIC);
               
-    if (status.run == 3) // STaRT
+    if (status.run == 3 || status.run == 4) // STaRT
       mExecution.setValue(Execution::eACTIVE);
     else 
     {
-      if (status.run == 2 || status.run == 4 || status.motion == 2 || status.mstb != 0) // HOLD or motion is Wait
+      if (status.run == 2 || status.motion == 2 || status.mstb != 0) // HOLD or motion is Wait
         mExecution.setValue(Execution::eINTERRUPTED);
       else if (status.run == 0) // STOP
         mExecution.setValue(Execution::eSTOPPED);
@@ -609,6 +629,17 @@ void FanucAdapter::getMessages()
     char buf[32];
     sprintf(buf, "%04", messages->datano);
     mMessage.setValue(messages->data, buf);
+  }
+}
+
+void FanucAdapter::getCounts()
+{
+  // Should just be a parameter read
+  IODBPSD buf;
+  short ret = cnc_rdparam(mFlibhndl, 6711, 0, 8, &buf);
+  if (ret == EW_OK)
+  {
+	mPartCount.setValue(buf.u.idata);
   }
 }
 

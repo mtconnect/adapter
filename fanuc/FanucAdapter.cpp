@@ -39,6 +39,5 @@
 int main(int aArgc, const char *aArgv[])
 {  
   FanucAdapter *adapter = new FanucAdapter(7878);
-  adapter->setName("MTConnect Fanuc Adapter");
   return adapter->main(aArgc, aArgv);  
 }

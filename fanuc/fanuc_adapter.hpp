@@ -42,6 +42,7 @@
 
 #define MAX_MACROS 32
 #define MAX_PMC 32
+const int MAX_HOST_LEN = 64;
 
 class MacroSample : public Sample 
 {
@@ -96,6 +97,7 @@ protected:
   Event mProgram;
   Event mProgramInfo;
   Event mBlock;
+  IntEvent mPartCount;
 
   /* Macro variables */
   MacroSample         *mMacroSample[MAX_MACROS];
@@ -131,7 +133,7 @@ protected:
   unsigned short mFlibhndl;
   bool mConnected, mConfigured;
   int mDevicePort;
-  const char *mDeviceIP;
+  char mDeviceIP[MAX_HOST_LEN];
   int mProgramNum;
   ODBSYS mInfo;
   double mAxisDivisor[MAX_AXIS];
@@ -143,7 +145,7 @@ protected:
   void configure();
   void configAxesNames();
   void configSpindleNames();
-  void configMacrosAndPMC();
+  void configMacrosAndPMC(const char *aIniFile);
   
   void reconnect();
   void disconnect();
@@ -159,6 +161,8 @@ protected:
 
   void getMacros();
   void getPMC();
+
+  void getCounts();
 
 public:
   FanucAdapter(int aServerPort);
