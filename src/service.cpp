@@ -65,7 +65,6 @@ int MTConnectService::main(int argc, const char *argv[])
   if(argc > 1) {
     if (stricmp( argv[1], "debug") == 0 ) {
       mDebug = true;
-      gLogger->setLogLevel(Logger::eDEBUG);
     }
     initialize(argc - 2, argv + 2);
     if (stricmp( argv[1], "install") == 0 )
@@ -75,7 +74,11 @@ int MTConnectService::main(int argc, const char *argv[])
     } else if (stricmp( argv[1], "remove") == 0 ) {
       remove();
       return 0;
-    } else if (stricmp( argv[1], "debug") == 0 || stricmp( argv[1], "run") == 0) {
+	} else if (stricmp( argv[1], "debug") == 0) {
+	  gLogger->setLogLevel(Logger::eDEBUG);
+      start();
+      return 0;
+    } else if (stricmp( argv[1], "run") == 0) {
       start();
       return 0;
     }
@@ -293,6 +296,7 @@ VOID WINAPI SvcMain( DWORD dwArgc, LPTSTR *lpszArgv )
     SetCurrentDirectory(path);
   }
 
+  gService->setName(lpszArgv[0]);
   gSvcStatusHandle = RegisterServiceCtrlHandler( 
     gService->name(), 
     SvcCtrlHandler);
