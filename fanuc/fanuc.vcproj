@@ -42,7 +42,7 @@
 				Name="VCCLCompilerTool"
 				Optimization="0"
 				AdditionalIncludeDirectories="..\src;..\Fwlib;..\Fwlib\e1;..\minIni_07"
-				PreprocessorDefinitions="INI_ANSIONLY;DEBUG;FS30D;WIN32;$(NOINHERIT)"
+				PreprocessorDefinitions="INI_ANSIONLY;DEBUG;FS0IDD;WIN32;$(NOINHERIT)"
 				MinimalRebuild="true"
 				BasicRuntimeChecks="3"
 				RuntimeLibrary="3"

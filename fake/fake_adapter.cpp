@@ -36,10 +36,13 @@
 
 FakeAdapter::FakeAdapter(int aPort)
   : Adapter(aPort, 1000), 
-    mAvailability("avail"), mSystem("system")
+    mAvailability("avail"), mSystem("system"), mPos("pos"),
+	mExecution("exec")
 {
   addDatum(mAvailability);
   addDatum(mSystem);
+  addDatum(mPos);
+  addDatum(mExecution);
 }
 
 FakeAdapter::~FakeAdapter()
@@ -70,14 +73,17 @@ void FakeAdapter::gatherDeviceData()
   mAvailability.available();
 
   printf("Count: %d\n", count);
+  mPos.setValue(count);
   switch (count % 6)
   {
   case 0:
+	mExecution.setValue(Execution::eREADY);
     printf("Add 0\n");
     mSystem.add(Condition::eFAULT, "Fault 1", "0");
     break;
 
   case 1:
+	mExecution.setValue(Execution::eACTIVE);
     printf("Add 0, 1\n");
     mSystem.add(Condition::eFAULT, "Fault 1", "0");
     mSystem.add(Condition::eFAULT, "Fault 2", "1");
@@ -97,6 +103,7 @@ void FakeAdapter::gatherDeviceData()
     break;
     
   case 4:
+	mExecution.setValue(Execution::eSTOPPED);
     printf("Stay the same\n");
     mSystem.add(Condition::eFAULT, "Fault 2", "1");
     mSystem.add(Condition::eFAULT, "Fault 4", "3");

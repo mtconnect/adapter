@@ -80,6 +80,12 @@ ModbusAdapter::ModbusAdapter(int aPort)
         data = new ModbusDouble(address, 0, 1);
       }
     }
+    else 
+    {
+      cerr << "Invalid modbus type: " << type << endl;
+      cerr << "Must be: coil, register, or double" << endl;
+      exit(1);
+    }
     
     std::vector<std::string> nameList;
     const YAML::Node &names = node["names"];

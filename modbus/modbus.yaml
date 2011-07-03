@@ -1,28 +1,13 @@
 communications:
   type: serial
-  port: "COM1:"
+  port: "/dev/cu.PL2303-00001004"
   baud: 19200
   dataBits: 8
   stopBits: 1
   parity: none
 data:
-  - type: double
-    size: 2
-    address: 0
-    scalingAddress: 21
-    names: [power_sum, power_a, power_b, power_c]
-  - type: double
-    address: 10
+  - type: register
     size: 1
-    scaler: 10
-    names: [volt_avg, vola_a, volt_b, volt_b]
-  - type: double
-    address: 14
-    size: 2
-    scaler: 10
-    names: [frequency]
-  - type: double
-    address: 16
-    size: [1, 1, 2]
-    names: [current_a, current_b, current_c]
+    address: 425
+    names: [test]
   

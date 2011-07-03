@@ -47,6 +47,8 @@ protected:
   /* Events */
   Availability mAvailability; 
   Condition mSystem; 
+  Sample mPos;
+  Execution mExecution;
   
 public:
   FakeAdapter(int aPort);

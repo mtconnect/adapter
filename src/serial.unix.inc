@@ -292,8 +292,3 @@ bool Serial::flush()
 {
   return true;
 }
-
-void Serial::printCommStatus()
-{
-  
-}

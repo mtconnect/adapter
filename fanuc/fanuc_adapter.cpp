@@ -39,11 +39,12 @@ FanucAdapter::FanucAdapter(int aPort) :
   Adapter(aPort), 
   mAvail("avail"), mExecution("execution"), mLine("line"),
   mPathFeedrate("path_feedrate"), 
-  mProgram("program"), mBlock("block"), mProgramInfo("program_info"),
+  mProgram("program"), mBlock("block"), mProgramComment("program_comment"),
   mMode("mode"), mMessage("message"),
   mEstop("estop"), mPathPosition("path_pos"),
   mServo("servo"), mComms("comms"), mLogic("logic"),
-  mMotion("motion"), mSystem("system"), mSpindle("spindle"), mPartCount("part_count")
+  mMotion("motion"), mSystem("system"), mSpindle("spindle"), mPartCount("part_count"),
+  mProgramNum(-1)
 {
   /* Alarms */
   addDatum(mMessage);
@@ -56,7 +57,7 @@ FanucAdapter::FanucAdapter(int aPort) :
   addDatum(mSpindle);
 
   /* Controller */
-  //addDatum(mProgramInfo);
+  addDatum(mProgramComment);
   addDatum(mProgram);
   addDatum(mAvail);
   addDatum(mExecution);
@@ -445,10 +446,12 @@ void FanucAdapter::getPositions()
     mPathPosition.setValue(x, y, z);
     
     char buf[32];
+    if (dyn.prgnum != mProgramNum)
+      getHeader(dyn.prgnum);
+      
     mProgramNum = dyn.prgnum;
     sprintf(buf, "%d.%d", dyn.prgmnum, dyn.prgnum);
-    if (mProgram.setValue(buf))
-      getHeader();
+    mProgram.setValue(buf);
             
     mPathFeedrate.setValue(dyn.actf);
     if (mSpindleCount > 0)
@@ -639,7 +642,7 @@ void FanucAdapter::getCounts()
   short ret = cnc_rdparam(mFlibhndl, 6711, 0, 8, &buf);
   if (ret == EW_OK)
   {
-	mPartCount.setValue(buf.u.idata);
+	  mPartCount.setValue(buf.u.idata);
   }
 }
 
@@ -766,14 +769,13 @@ void FanucAdapter::getSpindleLoad()
   }
 }
 
-void FanucAdapter::getHeader()
+void FanucAdapter::getHeader(int aProg)
 {
   /* This is not needed since we're getting the codes from
      macros now. */
-  return;
   
   char program[2048];
-  short ret = cnc_upstart(mFlibhndl, mProgramNum);
+  short ret = cnc_upstart(mFlibhndl, aProg);
   if (ret == EW_OK)
   {
     long len = sizeof(program);
@@ -782,8 +784,23 @@ void FanucAdapter::getHeader()
       ret = cnc_upload3(mFlibhndl, &len, program);
       if (ret == EW_OK)
       {
-        program[len] = '\0';
-        mProgramInfo.setValue(program);
+		bool nl = false;
+		program[len] = '\0';
+		for (char *cp = program; *cp != '\0'; ++cp)
+		{
+		  if (*cp == '\n') 
+		  {
+			char *la = cp + 1;
+			while (*la != '\0' && (*la == ' ' || *la == '\r' || *la == ';'))
+			  la++;
+			if (*la == '\n') {
+			  *cp = '\0';
+			  break;
+			}
+			*cp = ' ';
+		  }
+		}
+        mProgramComment.setValue(program);
       }
     } while (ret == EW_BUFFER);
   }

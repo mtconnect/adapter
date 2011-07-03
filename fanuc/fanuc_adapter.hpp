@@ -95,7 +95,7 @@ protected:
   IntEvent mLine; 
   ControllerMode mMode;
   Event mProgram;
-  Event mProgramInfo;
+  Event mProgramComment;
   Event mBlock;
   IntEvent mPartCount;
 
@@ -111,7 +111,7 @@ protected:
   IntEvent *mPMCVariable[MAX_PMC];
   int       mPMCAddress[MAX_PMC];
   int       mPMCCount;
-  
+
   /* Samples */
   /* Linear Axis */
   Sample *mAxisAct[MAX_AXIS];
@@ -157,7 +157,7 @@ protected:
   void getCondition(long aAlarm);
   void getAxisLoad();
   void getSpindleLoad();
-  void getHeader();
+  void getHeader(int aProg);
 
   void getMacros();
   void getPMC();
