@@ -37,6 +37,8 @@
 #include <iostream>
 #include <fstream>
 
+using namespace std;
+
 ModbusAdapter::ModbusAdapter(int aPort)
   : Adapter(aPort, 1000)
 {
