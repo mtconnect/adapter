@@ -98,6 +98,8 @@ protected:
   Event mProgramComment;
   Event mBlock;
   IntEvent mPartCount;
+  IntEvent mToolId;
+  IntEvent mToolGroup;
 
   /* Macro variables */
   MacroSample         *mMacroSample[MAX_MACROS];
@@ -163,6 +165,8 @@ protected:
   void getPMC();
 
   void getCounts();
+
+  void getToolData();
 
 public:
   FanucAdapter(int aServerPort);

@@ -48,8 +48,33 @@ DeviceDatum::DeviceDatum(const char *aName)
   mHasValue = false;
 }
 
+
 DeviceDatum::~DeviceDatum()
 {
+}
+
+bool DeviceDatum::prefixName(const char *aName)
+{
+  // Check for overflow.
+  if (strlen(mName) + strlen(aName) >= NAME_LEN)
+    return false;
+
+  // Shift the current name right by the length of aName. Add one to
+  // make sure we copy the terminator.
+  memmove(mName + strlen(aName), mName, strlen(mName) + 1);
+  // Prepend mName with aName, no NULL terminator.
+  memcpy(mName, aName, strlen(aName));
+
+  // Make sure the whole thing is terminated
+  mName[NAME_LEN - 1] = '\0';
+
+  return true;
+}
+
+void DeviceDatum::setNativeUnits(const char *aUnits)
+{
+  strncpy(mNativeUnits, aUnits, UNITS_LEN);
+  mNativeUnits[UNITS_LEN - 1] = '\0';
 }
 
 bool DeviceDatum::append(StringBuffer &aBuffer)
@@ -70,6 +95,7 @@ bool DeviceDatum::requiresFlush()
   return false;
 }
 
+// Append text to the buffer and remove all <CR> and <NL> characters. 
 void DeviceDatum::appendText(char *aBuffer, char *aValue, int aMaxLen)
 {
   size_t len = strlen(aBuffer);
@@ -264,6 +290,7 @@ char *Execution::toString(char *aBuffer, int aMaxLen)
   case eREADY: text = "READY"; break;
   case eINTERRUPTED: text = "INTERRUPTED"; break;
   case eSTOPPED: text = "STOPPED"; break;
+  case eFEED_HOLD: text = "FEED_HOLD"; break;
   default: text = ""; break;
   }
   snprintf(aBuffer, aMaxLen, "|%s|%s", mName, text);

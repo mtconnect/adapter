@@ -44,7 +44,7 @@ FanucAdapter::FanucAdapter(int aPort) :
   mEstop("estop"), mPathPosition("path_pos"),
   mServo("servo"), mComms("comms"), mLogic("logic"),
   mMotion("motion"), mSystem("system"), mSpindle("spindle"), mPartCount("part_count"),
-  mProgramNum(-1)
+  mProgramNum(-1), mToolId("tool_id"), mToolGroup("tool_group")
 {
   /* Alarms */
   addDatum(mMessage);
@@ -66,6 +66,8 @@ FanucAdapter::FanucAdapter(int aPort) :
   addDatum(mMode);
   addDatum(mBlock);
   addDatum(mPartCount);
+  addDatum(mToolId);
+  addDatum(mToolGroup);
 
   addDatum(mPathPosition);
 
@@ -150,6 +152,7 @@ void FanucAdapter::gatherDeviceData()
     getMacros();
     getPMC();
     getCounts();
+	getToolData();
   }
 }
 
@@ -646,6 +649,17 @@ void FanucAdapter::getCounts()
   }
 }
 
+void FanucAdapter::getToolData()
+{
+  ODBTLIFE3 toolId;
+  short ret = cnc_rdntool(mFlibhndl, 0, &toolId);
+  if (ret == EW_OK && toolId.data != 0)
+  {
+	mToolId.setValue(toolId.data);
+	mToolGroup.setValue(toolId.datano);
+  }
+}
+
 Condition *FanucAdapter::translateAlarmNo(long aNum, int aAxis)
 {
   switch(aNum) 
@@ -770,39 +784,44 @@ void FanucAdapter::getSpindleLoad()
 }
 
 void FanucAdapter::getHeader(int aProg)
-{
-  /* This is not needed since we're getting the codes from
-     macros now. */
-  
-  char program[2048];
-  short ret = cnc_upstart(mFlibhndl, aProg);
-  if (ret == EW_OK)
   {
-    long len = sizeof(program);
-    do 
+    /* This is not needed since we're getting the codes from
+       macros now. */
+  
+    char program[2048];
+    short ret = cnc_upstart(mFlibhndl, aProg);
+    if (ret == EW_OK)
     {
-      ret = cnc_upload3(mFlibhndl, &len, program);
-      if (ret == EW_OK)
+      long len = sizeof(program);
+      do 
       {
-		bool nl = false;
-		program[len] = '\0';
-		for (char *cp = program; *cp != '\0'; ++cp)
-		{
-		  if (*cp == '\n') 
-		  {
-			char *la = cp + 1;
-			while (*la != '\0' && (*la == ' ' || *la == '\r' || *la == ';'))
-			  la++;
-			if (*la == '\n') {
-			  *cp = '\0';
-			  break;
-			}
-			*cp = ' ';
-		  }
-		}
-        mProgramComment.setValue(program);
-      }
-    } while (ret == EW_BUFFER);
-  }
-  cnc_upend3(mFlibhndl);
+        ret = cnc_upload3(mFlibhndl, &len, program);
+        if (ret == EW_OK)
+        {
+          bool nl = false;
+          program[len] = '\0';
+          int lineCount = 0;
+          for (char *cp = program; *cp != '\0' && lineCount < 5; ++cp)
+          {
+            // When we get a new line, check for the first empty line
+            // following with only spaces, ; or carriage returns. If 
+            // a new line follows, then terminate the header and set the
+            // program comment.
+            if (*cp == '\n') 
+            {
+			  char f = *(cp + 1);
+              if (lineCount > 0 && f != '(')
+			  {
+				*cp = '\0';
+                break;
+			  }
+              *cp = ' ';
+              lineCount++;
+            }
+          }
+          mProgramComment.setValue(program);
+        }
+      } while (ret == EW_BUFFER);
+    }
+    cnc_upend3(mFlibhndl);
 }

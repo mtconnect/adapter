@@ -40,6 +40,7 @@ class StringBuffer;
 /* Some constants for field lengths */
 const int NAME_LEN = 32;
 const int CODE_LEN = 32;
+const int UNITS_LEN = 32;
 const int NATIVE_CODE_LEN = 32;
 const int SEVERITY_LEN = 32;
 const int STATE_LEN = 32;
@@ -55,6 +56,7 @@ class DeviceDatum {
 protected:
   /* The name of the Data Value */
   char mName[NAME_LEN];
+  char mNativeUnits[UNITS_LEN];
   
   /* A changed flag to indicated that the value has changed since last append. */
   bool mChanged;
@@ -66,12 +68,18 @@ protected:
   void appendText(char *aBuffer, char *aValue, int aMaxLen);
 
 public:
+  // The name will be supplied later...
   DeviceDatum(const char *aName);
+
   virtual ~DeviceDatum();
   
   virtual bool changed() { return mChanged; }
   void reset() { mChanged = false; }
-  
+
+  const char *getNativeUnits() { return mNativeUnits; }
+  void setNativeUnits(const char *aNativeUnits);
+
+  bool prefixName(const char *aPrefix);
   char *getName() { return mName; }
   virtual char *toString(char *aBuffer, int aMaxLen) = 0;
   virtual bool append(StringBuffer &aBuffer);
@@ -173,7 +181,8 @@ public:
     eREADY,
     eINTERRUPTED,
     eSTOPPED,
-    eACTIVE
+    eACTIVE,
+    eFEED_HOLD
   };
   
 protected:
