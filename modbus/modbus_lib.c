@@ -458,7 +458,7 @@ static int compute_query_length_data(modbus_param_t *mb_param, uint8_t *msg)
 #else
 #define WAIT_DATA()                                                     \
   {                                                                     \
-    while ((select_ret = select(1, &rfds, NULL, NULL, &tv)) == -1) {    \
+    while ((select_ret = select(mb_param->fd + 1, &rfds, NULL, NULL, &tv)) == -1) {    \
       if (errno == EINTR) {                                             \
         printf("A non blocked signal was caught\n");                    \
       /* Necessary after an error */                                    \
@@ -514,7 +514,10 @@ static int receive_msg(modbus_param_t *mb_param,
 
   /* Add a file descriptor to the set */
   FD_ZERO(&rfds);
-  FD_SET(mb_param->sock, &rfds);
+  if (mb_param->type_com == RTU)
+    FD_SET(mb_param->fd, &rfds);
+  else
+    FD_SET(mb_param->sock, &rfds);
 
   if (msg_length_computed == MSG_LENGTH_UNDEFINED) {
     /* Wait for a message */
@@ -559,6 +562,8 @@ static int receive_msg(modbus_param_t *mb_param,
       }
 #else
       read_ret = read(mb_param->fd, p_msg, length_to_read);
+      if (read_ret < 0)
+	tcflush(mb_param->fd, TCIFLUSH); 
 #endif
     }
     else {
@@ -569,6 +574,7 @@ static int receive_msg(modbus_param_t *mb_param,
       printf("Connection closed\n");
       return CONNECTION_CLOSED;
     } else if (read_ret < 0) {
+      perror("read");
       /* The only negative possible value is -1 */
       error_treat(mb_param, PORT_SOCKET_FAILURE,
                   "Read port/socket failure");
@@ -1131,8 +1137,12 @@ static int read_registers(modbus_param_t *mb_param, int slave, int function,
       data_dest[i] = (response[offset + 3 + (i << 1)] << 8) | 
                      response[offset + 4 + (i << 1)];    
     }
+  } 
+
+  if (ret < 0) {
+    printf("An error occurred on address: %d - %d\n", 
+	   start_addr, start_addr + nb - 1);
   }
-        
   return ret;
 }
 
@@ -1641,7 +1651,7 @@ static int modbus_connect_rtu(modbus_param_t *mb_param)
     perror("cfsetispeed/cfsetospeed\n");
     return -1;
   }
-        
+
   /* C_CFLAG      Control options
      CLOCAL       Local line - do not change "owner" of port
      CREAD        Enable receiver
@@ -1807,6 +1817,7 @@ static int modbus_connect_rtu(modbus_param_t *mb_param)
   tios.c_cc[VMIN] = 0;
   tios.c_cc[VTIME] = 0;
 
+  tcflush(mb_param->fd, TCIFLUSH); 
   if (tcsetattr(mb_param->fd, TCSANOW, &tios) < 0) {
     perror("tcsetattr\n");
     return -1;

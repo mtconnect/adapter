@@ -67,6 +67,8 @@ ModbusAdapter::ModbusAdapter(int aPort)
       data = new ModbusCoil(address);
     } else if (type == "register") {
       data = new ModbusRegister(address);
+    } else if (type == "ieee_float") {
+      data = new ModbusFloat(address);
     } else if (type == "double") {
       int scaling;
       const YAML::Node *scaleNode = node.FindValue("scalingAddress");
