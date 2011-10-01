@@ -31,8 +31,8 @@
 * SUCH PARTY HAD ADVANCE NOTICE OF THE POSSIBILITY OF SUCH DAMAGES.
 */
 
-#ifndef FAKE_ADAPTER_HPP
-#define FAKE_ADAPTER_HPP
+#ifndef MODBUS_ADAPTER_HPP
+#define MODBUS_ADAPTER_HPP
 
 #include "adapter.hpp"
 #include "service.hpp"
@@ -46,7 +46,8 @@ public:
   typedef enum {
     eCOIL,
     eREGISTER,
-    eDOUBLE
+    eDOUBLE,
+    eFLOAT,
   } tType;
     
 public:
@@ -185,6 +186,33 @@ public:
 protected:
   int mScalerAddress;
 };
+
+struct ModbusFloat : public ModbusRegister {
+public:
+  ModbusFloat(int a) : ModbusRegister(a) {
+    mType = eFLOAT;
+  }
+  
+  virtual void createDataItems(std::vector<std::string> &aNames, std::vector<int> &aSize) {
+    std::vector<std::string>::iterator iter;
+    for (iter = aNames.begin(); iter != aNames.end(); iter++) {
+      mDataItems.push_back(new Sample(iter->c_str()));
+    }
+    mSize = aSize;
+    mData = new uint16_t[count()];
+  }
+
+  virtual void writeValues() {
+    int offset = 0;
+    for (int i = 0; i < mDataItems.size(); i++) {
+      uint32_t value;
+      value = (static_cast<uint32_t>(mData[offset]) << 16) + mData[offset + 1];
+      (static_cast<Sample*>(mDataItems[i]))->setValue(*((float*)&value));
+      offset += mSize[i];
+    }
+  }
+};
+
 
 class ModbusAdapter : public Adapter, public MTConnectService
 {

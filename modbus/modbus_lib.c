@@ -1137,8 +1137,12 @@ static int read_registers(modbus_param_t *mb_param, int slave, int function,
       data_dest[i] = (response[offset + 3 + (i << 1)] << 8) | 
                      response[offset + 4 + (i << 1)];    
     }
+  } 
+
+  if (ret < 0) {
+    printf("An error occurred on address: %d - %d\n", 
+	   start_addr, start_addr + nb - 1);
   }
-        
   return ret;
 }
 
