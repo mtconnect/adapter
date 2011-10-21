@@ -179,7 +179,7 @@ void Server::readFromClients()
             printf("Received: %s", buffer);
         }
         else 
-          removeClient(client);
+          removeClientInternal(client);
       }
     }
     
@@ -196,7 +196,7 @@ void Server::readFromClients()
       {
         gLogger->warning("Client has not sent heartbeat in over %d ms, disconnecting",
           mTimeout);
-        removeClient(client);
+        removeClientInternal(client);
       }
     }
   }
@@ -227,7 +227,10 @@ void Server::sendToClients(const char *aString)
 #endif
 
   for (int i = mNumClients - 1; i >= 0; i--)
-    sendToClient(mClients[i], aString);
+  {
+    if (mClients[i]->write(aString) < 0)
+      removeClientInternal(mClients[i]);
+  }
     
 #ifdef THREADED
 #ifdef WIN32
@@ -238,7 +241,7 @@ void Server::sendToClients(const char *aString)
 #endif
 }
 
-Client **Server::connectToClients()
+Client *Server::connectToClients()
 {
   fd_set rset;
   FD_ZERO(&rset);
@@ -252,8 +255,7 @@ Client **Server::connectToClients()
   struct timeval timeout;
   ::memset(&timeout, 0, sizeof(timeout));
 
-  Client **clients = mClients + mNumClients;
-  clients[0] = 0;
+  Client *client = NULL;
   bool added = false;
 
   if (::select(nfds, &rset, 0, 0, &timeout) > 0)
@@ -272,19 +274,37 @@ Client **Server::connectToClients()
     int flag = 1;
     ::setsockopt(socket, IPPROTO_TCP, TCP_NODELAY, (const char*) &flag, sizeof(int));
 
-    Client *client = new Client(socket);
-    addClient(client);
+    client = addClient(new Client(socket));
     added = true;
   }
 
-  if (added)
-    mClients[mNumClients] = 0;
-  else
-    clients = 0;
-
-  return clients;
+  return client;
 }
 
+
+void Server::removeClientInternal(Client *aClient)
+{
+  int pos = 0;
+  for (pos = 0; pos < mNumClients; pos++)
+  {
+    if (mClients[pos] == aClient)
+      break;
+  }
+  
+  if (pos < mNumClients)
+  {
+    mNumClients--;
+    if (pos < mNumClients)
+    {
+      /* Shift the array left to remove the item */
+      memmove(mClients + pos,
+              mClients + (pos + 1),
+              (mNumClients - pos) * sizeof(Client*));
+    }
+    delete aClient;
+    mClients[mNumClients + 1] = 0;
+  }
+}
 
 /* Removes a client from the client list.
 * Because the client can be removed during list iteration, lists
@@ -300,28 +320,8 @@ void Server::removeClient(Client *aClient)
 #endif
 #endif
   
-  int pos = 0;
-  for (pos = 0; pos < mNumClients; pos++)
-  {
-    if (mClients[pos] == aClient)
-      break;
-  }
+  removeClientInternal(aClient);
 
-  if (pos < mNumClients)
-  {
-    mNumClients--;
-    if (pos < mNumClients)
-    {
-      /* Shift the array left to remove the item */
-      memmove(mClients + pos,
-        mClients + (pos + 1),
-        (mNumClients - pos) * sizeof(Client*));
-    }
-    delete aClient;
-    mClients[mNumClients + 1] = 0;
-  }
-
-    
 #ifdef THREADED
 #ifdef WIN32
   LeaveCriticalSection(&mListLock);
@@ -331,7 +331,7 @@ void Server::removeClient(Client *aClient)
 #endif
 }
 
-void Server::addClient(Client *aClient)
+Client *Server::addClient(Client *aClient)
 {
 #ifdef THREADED
 #ifdef WIN32
@@ -349,6 +349,7 @@ void Server::addClient(Client *aClient)
   else
   {
     delete aClient;
+    aClient = NULL;
   }
 
 #ifdef THREADED
@@ -358,6 +359,8 @@ void Server::addClient(Client *aClient)
   pthread_mutex_unlock(&mListLock);
 #endif
 #endif
+  
+  return aClient;
 }
 
 unsigned int Server::getTimestamp()

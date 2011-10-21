@@ -48,13 +48,15 @@ protected:
   unsigned char mStopBit;
   
   /* Parity: "even", "odd", "none" */
-  char mParity[5];
-  
-  /* In error_treat with TCP, do a reconnect or just dump the error */
+  char mParity[5];  
   bool mErrorHandling;
-  
-  /* IP address */
-  char mIp[16];
+    
+  enum FlowControl {
+    eSOFT,
+    eHARD,
+    eNONE
+  };
+  FlowControl mFlow;
   
 #ifndef WIN32
   /* Save old termios settings */
@@ -63,11 +65,11 @@ protected:
 
   bool mConnected;
 
-private:
-  int read(char *aBuffer, int len);
-  int write(const char *aBuffer, int len);
-
 public:
+  enum WaitMode {
+    READ, WRITE
+  };
+  
   Serial(const char *aDevice,
 	 int aBaud, const char *aParity, int aDataBit,
 	 int aStopBit);
@@ -78,9 +80,12 @@ public:
 
   bool connect();
   bool disconnect();
+  int wait(int aTimeout, WaitMode mode = READ);
+  
+  // Raw internal read
+  int read(char *aBuffer, int len);
+  
   int  readUntil(const char *aUntil, char *aBuffer, int aLength);
-  int  write(char *aBuffer);
-  int print(char c) { char b[2]; b[0] = c; return write(b, 1); }
   int read(char &c) { 
     char buffer[2]; 
     int ret = read(buffer, 1);
@@ -93,6 +98,17 @@ public:
     b = (unsigned char) c;
     return ret;
   }
+  
+  int readFully(char *aBuffer, int len, uint32_t timeout = 1000);
+  
+  // Raw internal write
+  int write(const char *aBuffer, int len);
+  int writeFully(const char *aBuffer, int len, uint32_t timeout = 1000);
+  
+  // Write cover methods
+  int  write(const char *aBuffer);
+  int print(char c) { char b[2]; b[0] = c; return write(b, 1); }
+  
   bool flushInput();
   bool flush();
   bool printCommStatus();

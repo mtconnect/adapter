@@ -67,8 +67,13 @@ protected:
   
   
 protected:
+  // Assumes the mutex is already locked.
+  void removeClientInternal(Client *aClient);
+  
+  // Locks the mutex.
   void removeClient(Client *aClient);
-  void addClient(Client *aClient);
+  
+  Client *addClient(Client *aClient);
   unsigned int getTimestamp();
   unsigned int deltaTimestamp(unsigned int, unsigned int);
   
@@ -76,8 +81,8 @@ public:
   Server(int aPort, int aHeartbeatFreq);
   ~Server();
 
-  // Returns the list of new clients.
-  Client **connectToClients(); /* Client factory */
+  // Returns the new client.
+  Client *connectToClients(); /* Client factory */
 
   /* I/O methods */
   void readFromClients();         /* discard data on read side of

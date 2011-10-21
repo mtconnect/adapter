@@ -3,6 +3,22 @@
 #include "serial.hpp"
 #include "logger.hpp"
 
+#include <stdio.h>
+
+
+static uint64_t GetTimestamp()
+{
+  uint64_t ts;
+  timeval curtime;
+  gettimeofday(&curtime,0);       
+  
+  ts = curtime.tv_sec;
+  ts *= 1000;
+  ts += curtime.tv_usec / 1000;
+
+  return ts;
+}
+
 Serial::SerialError::SerialError(const char *aMessage)
 {
   strncpy(mMessage, aMessage, 1023);
@@ -20,6 +36,7 @@ Serial::Serial(const char *aDevice,
   mParity[sizeof(mParity) - 1] = '\0';
   mDataBit = aDataBit;
   mStopBit = aStopBit;
+  mFlow = eNONE;
 
 #ifdef WIN32
   mFd = INVALID_HANDLE_VALUE;
@@ -90,7 +107,7 @@ int Serial::readUntil(const char *aUntil, char *aBuffer, int aLength)
   return len;
 }
 
-int Serial::write(char *aBuffer)
+int Serial::write(const char *aBuffer)
 {
   gLogger->debug("Writing '%s'\n", aBuffer);
 
@@ -118,9 +135,57 @@ bool Serial::flushInput()
   DWORD errors;
   COMSTAT stat;
   ClearCommError(mFd, &errors, &stat);
+#else
+  tcflush(mFd, TCIFLUSH); 
 #endif
 
   return true;
+}
+
+int Serial::readFully(char *aBuffer, int len, uint32_t timeout)
+{
+  int consumed = 0;
+  uint64_t start = GetTimestamp();
+  while (consumed < len && (GetTimestamp() - start) < timeout) {
+    int res = wait(100);
+    if (res > 0) {
+      int cnt = read(aBuffer + consumed, len - consumed);
+      if (cnt < 0) {
+        gLogger->debug("Read returned: %d\n", res);
+        return -1;
+      }
+      consumed += cnt;
+    } else if (res < 0) {
+      gLogger->debug("Wait returned: %d\n", res);
+      return res;
+    }
+  }
+  
+  return consumed;
+}
+
+int Serial::writeFully(const char *aBuffer, int len, uint32_t timeout)
+{
+  int written = 0;
+  
+  uint64_t start = GetTimestamp();
+  while (written < len && (GetTimestamp() - start) < timeout) {
+    int res = wait(100, Serial::WRITE);
+    if (res > 0) {
+      int cnt = write(aBuffer + written, len - written);
+      if (cnt > 0) {
+        written += cnt;
+      } else {
+        gLogger->debug("Write returned: %d\n", res);
+        return -1;
+      }
+    } else if (res < 0) {
+      gLogger->debug("Wait returned: %d\n", res);
+      return res;
+    }
+  }  
+  
+  return written;
 }
 
 #ifdef WIN32

@@ -209,16 +209,9 @@ void Adapter::readFromClients()
 void Adapter::connectToClients()
 {
   /* Check if we have any new clients */
-  Client **clients = mServer->connectToClients();
-  if (clients != 0)
-  {
-    for (int i = 0; clients[i] != 0; i++)
-    {
-      /* If there are any new clients, send them the initial values for all the 
-       * data values */
-      sendInitialData(clients[i]);
-    }
-  }  
+  Client *client = mServer->connectToClients();
+  if (client != NULL)
+    sendInitialData(client);
 }
  
 /*  
@@ -380,5 +373,32 @@ void Adapter::initializeDeviceDatum()
     value->initialize();
   }
   flush();
+}
+
+void Adapter::addAsset(const char *aId, const char *aType, const char *aData)
+{
+  sendBuffer();
+  
+  mBuffer.append("|@ASSET@|");
+  mBuffer.append(aId);
+  mBuffer.append("|");
+  mBuffer.append(aType);
+  mBuffer.append("|--multiline--ABCD\n");
+  mBuffer.append(aData);
+  mBuffer.append("\n--multiline--ABCD");
+  
+  sendBuffer();
+}
+
+void Adapter::updateAsset(const char *aId, const char *aData)
+{
+  sendBuffer();
+
+  mBuffer.append("|@UPDATE_ASSET@|");
+  mBuffer.append(aId);
+  mBuffer.append("|");
+  mBuffer.append(aData);  
+
+  sendBuffer();
 }
 

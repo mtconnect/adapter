@@ -1,3 +1,4 @@
+
 bool Serial::connect()
 {
   if (mConnected)
@@ -197,7 +198,13 @@ bool Serial::connect()
   }
 
   /* Software flow control is enabled */
-  tios.c_iflag |= (IXON | IXOFF);
+  if (mFlow == eSOFT) {
+    tios.c_iflag |= (IXON | IXOFF);
+  } else if (mFlow == eHARD) {
+    tios.c_iflag &= ~(IXON | IXOFF | IXANY);    
+  } else { // NONE
+    tios.c_iflag &= ~(IXON | IXOFF | IXANY);
+  }
         
   /* C_OFLAG      Output options
      OPOST        Postprocess output (not set = raw output)
@@ -252,6 +259,7 @@ bool Serial::connect()
   tios.c_cc[VMIN] = 0;
   tios.c_cc[VTIME] = 5;
 
+  tcflush(mFd, TCIFLUSH); 
   if (tcsetattr(mFd, TCSANOW, &tios) < 0) {
     perror("tcsetattr\n");
     close(mFd);
@@ -278,6 +286,38 @@ bool Serial::disconnect()
   }
 }
 
+int Serial::wait(int aTimeout, Serial::WaitMode aMode)
+{
+  int ret;
+  fd_set fds;
+  FD_ZERO(&fds);
+  FD_SET(mFd, &fds);
+  
+  struct timeval tv;
+  tv.tv_usec = (aTimeout % 1000) * 1000;
+  tv.tv_sec = aTimeout / 1000;
+  
+  fd_set *rd = NULL, *wt = NULL;
+  if (aMode == READ)
+    rd = &fds;
+  else
+    wt = &fds;
+
+  while ((ret = select(mFd + 1, rd, wt, NULL, &tv)) == -1) {
+    if (errno == EINTR) {
+      gLogger->debug("A non blocked signal was caught\n");
+      /* Necessary after an error */
+      FD_ZERO(&fds);
+      FD_SET(mFd, &fds);
+    } else {
+      perror("wait - select");
+      return -1;
+    }
+  }
+  
+  return ret;
+}
+
 int Serial::read(char *aBuffer, int aLen)
 {
   return ::read(mFd, aBuffer, aLen);
@@ -290,5 +330,9 @@ int Serial::write(const char *aBuffer, int aLen)
 
 bool Serial::flush()
 {
+  tcflush(mFd, TCIFLUSH);
+  char buff[2];
+  while (wait(1) > 0)
+    read(buff, 1);
   return true;
 }

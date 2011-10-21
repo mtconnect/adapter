@@ -88,6 +88,9 @@ protected:
   void timestamp() { mBuffer.timestamp(); }
   virtual void unavailable();
   virtual void initializeDeviceDatum();
+  
+  virtual void addAsset(const char *aId, const char *aType, const char *aData);
+  virtual void updateAsset(const char *aId, const char *aData);
     
 public:
   Adapter(int aPort, int aScanDelay = 100);
