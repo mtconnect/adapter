@@ -1,0 +1,6 @@
+adapter:
+  port: 7880
+connection:
+  serialPort: /dev/tty.PL2303-00001004
+  deviceUuid: rfid1
+  agentUrl: http://localhost:5000/presetter
