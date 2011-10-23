@@ -38,11 +38,14 @@ public:
 	     int aBaud = 9600, const char *aParity = "none", int aDataBit = 8,
 	     int aStopBit = 1, bool aDebug = false);
   const char *translateError(EResult aError);
-  
+
+  EResult getStatus(char &aStatus);
   EResult selectHead(int aHead);
-  EResult readRFID(int aHead, int aSize, std::string &aText);
-  EResult writeRFID(int aHead, std::string aText);
-  EResult checkForData(int &aHead, int &aSize);
+  EResult readRFID(int aSize, std::string &aText);
+  EResult readHeader(int &aSize, uint32_t &aHash);
+  EResult writeRFID(std::string aKey, std::string aText);
+  EResult checkForData(int &aHead, std::string &aLead);
+  EResult reset();
   
   
 };

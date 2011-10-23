@@ -73,12 +73,53 @@ int BalluffSerial::readWithBCC(char *aBuffer, int aLen, int aTimeout)
   return count - 1;
 }
 
-
 BalluffSerial::EResult BalluffSerial::selectHead(int head)
 {
   char buffer[32];
   sprintf(buffer, "H%d", head);
   return sendCommand(buffer);
+}
+
+BalluffSerial::EResult BalluffSerial::getStatus(char &aStatus)
+{
+  char command[3];
+  command[0] = 'S';
+  command[1] = 'S';
+  command[2] = '\0';
+  
+  int count = writeFully(command, 2);
+  // Remove one for the bcc byte we added.
+  if (count != 2) return READ_ERROR;
+
+  EResult res = SUCCESS;
+  char response[3];
+  count = readWithBCC(response, 2);
+  if (count == 2 && response[0] == 'S')
+    aStatus = response[1];
+  else
+    res = READ_ERROR;
+  
+  return res;
+}
+
+BalluffSerial::EResult BalluffSerial::reset()
+{
+  char command[3];
+  command[0] = 'Q';
+  command[1] = 'Q';
+  command[2] = '\0';
+  
+  int count = writeFully(command, 2);
+  // Remove one for the bcc byte we added.
+  if (count != 2) return READ_ERROR;
+  
+  char response[3];
+  count = readWithBCC(response, 1);
+  if (count != 1 && response[0] != 'Q')
+    return READ_ERROR;
+  sleep(2);
+  
+  return SUCCESS;
 }
 
 BalluffSerial::EResult BalluffSerial::sendCommand(const char *aCommand)
@@ -99,9 +140,9 @@ BalluffSerial::EResult BalluffSerial::sendCommand(const char *aCommand)
   return res;
 }
 
-BalluffSerial::EResult BalluffSerial::checkForData(int &aHead, int &aSize)
+BalluffSerial::EResult BalluffSerial::checkForData(int &aHead, string &aText)
 {
-  aHead = aSize = 0;
+  aHead = 0;
   
   EResult res = sendCommand("H?");
   if (res != SUCCESS) return res;
@@ -116,7 +157,7 @@ BalluffSerial::EResult BalluffSerial::checkForData(int &aHead, int &aSize)
   if (reply[0] == 'H') {
     if (reply[1] != '?') {
       aHead = reply[1] - '0';
-      aSize = atoi(reply + 3);
+      aText = reply + 2;
     } else {
       aHead = 0;
     }
@@ -130,13 +171,12 @@ BalluffSerial::EResult BalluffSerial::checkForData(int &aHead, int &aSize)
   }
 }
 
-
-BalluffSerial::EResult BalluffSerial::readRFID(int aHead, int aSize, std::string &aText)
+BalluffSerial::EResult BalluffSerial::readRFID(int aSize, std::string &aText)
 {
-  char buffer[4 * 1024];
+  char buffer[8 * 1024];
   char command[32];
   
-  sprintf(command, "L0004%04d%1d1", aSize, aHead);
+  sprintf(command, "R0012%04d", aSize);
   EResult res = sendCommand(command);
   if (res != SUCCESS)
     return res;
@@ -157,23 +197,53 @@ BalluffSerial::EResult BalluffSerial::readRFID(int aHead, int aSize, std::string
   return SUCCESS;
 }
 
-BalluffSerial::EResult BalluffSerial::writeRFID(int aHead, std::string aText)
+
+BalluffSerial::EResult BalluffSerial::readHeader(int &aSize, uint32_t &aHash)
+{
+  char buffer[16];
+  char command[32];
+  
+  strcpy(command, "R00000012");
+  EResult res = sendCommand(command);
+  if (res != SUCCESS)
+    return res;
+  
+  print(STX);
+  int count = readWithBCC(buffer, 12);
+  if (count < 12)
+  {
+    gLogger->warning("Error reading, only got: %d", count);
+    return READ_ERROR;
+  }
+  
+  buffer[12] = '\0';  
+  gLogger->debug("Received: %s", buffer);
+
+  char *ep;
+  aHash = strtol(buffer + 4, &ep, 16);
+  buffer[4] = '\0';
+  aSize = atoi(buffer);
+  
+  return SUCCESS;
+}
+
+BalluffSerial::EResult BalluffSerial::writeRFID(std::string aKey, std::string aText)
 {
   char buffer[4 * 1024];
   char command[32];
   
   int len = (int) aText.length();
-  sprintf(buffer, "%c%04d", STX, len);
+  sprintf(buffer, "%c%04d%8s", STX, len, aKey.c_str());
   
-  // Add 5 for the leading size <STX><SIZE>.
-  len += 5;
+  // Add 13 for the leading size <STX><SIZE><KEY>.
+  len += 1 + 4 + 8;
   
   // Append the data after the size
-  memcpy(buffer + 5, aText.c_str(), aText.length());
+  memcpy(buffer + 13, aText.c_str(), aText.length());
   buffer[len] = '\0';
   
   // Create the command (length - 1 (-1 for <STX>))
-  sprintf(command, "P0000%04d%1d1", len - 1, aHead);
+  sprintf(command, "W0000%04d", len - 1);
   EResult res = sendCommand(command);
   if (res != SUCCESS) return res;
   

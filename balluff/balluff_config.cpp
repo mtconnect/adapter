@@ -29,16 +29,13 @@ void BalluffConfiguration::parse(YAML::Node &aDoc, int aPort, int aDelay, int aT
   connection["deviceUuid"] >> mDeviceUuid;
   connection["serialPort"] >> mSerialPort;
   connection["agentUrl"] >> mAgentUrl;
+  connection["myAgent"] >> mMyAgentUrl;
   
   SET_WITH_DEFAULT(connection, "baud", mBaud, 9600);
   SET_WITH_DEFAULT(connection, "stopBits", mStopBits, 1);
   SET_WITH_DEFAULT(connection, "dataBits", mDataBits, 8);
   SET_WITH_DEFAULT(connection, "parity", mParity, "none");
 
-  mBaseAgentUrl = mAgentUrl;
-  size_t p = mBaseAgentUrl.find("://");
-  if (p != string::npos) {
-    size_t n = mBaseAgentUrl.find('/', p + 3);
-    if (n != string::npos) mBaseAgentUrl.erase(n + 1);
-  }
+  mBaseAgentUrl = baseUrl(mAgentUrl);
+  mMyBaseAgentUrl = baseUrl(mMyAgentUrl);
 }

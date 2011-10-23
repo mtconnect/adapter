@@ -21,9 +21,31 @@
 #include "balluff_adapter.hpp"
 #include "balluff_serial.hpp"
 
+#include "MurmurHash3.hpp"
+
 using namespace std;
 
 #define CHUNK 16384
+
+inline char *intToHex(char *aBuffer, unsigned int aValue)
+{
+  static char table[] = {'0', '1', '2', '3', '4', '5', '6', '7', '8', 
+                         '9', 'A', 'B', 'C', 'D', 'E', 'F'};
+  for (int i = 7; i >= 0; i--) {
+    aBuffer[i] = table[aValue & 0xF];
+    aValue >>= 4;
+  }
+  aBuffer[8] = '\0';
+  return aBuffer;
+}
+
+uint32_t BalluffAdapter::computeHash(const std::string &aKey)
+{
+  uint32_t hash;
+  MurmurHash3_x86_32(aKey.c_str(), aKey.length(), 0, &hash);
+  return hash;
+}
+
 
 int BalluffAdapter::HandleXmlChunk(const char *xml, void *aObj)
 {
@@ -98,23 +120,47 @@ int BalluffAdapter::HandleXmlChunk(const char *xml, void *aObj)
   return 1;
 }
 
+string BalluffAdapter::getAsset(std::string &aUrl, const char *aId)
+{
+  // Get the XML for the asset from the server.
+  string str = aUrl + "assets/" + aId;
+  void *context = MTCWebRequest(str.c_str());
+  string xml;
+  const char *result;
+  if (MTCWebExecute(context, &result) == 0) {
+    xml = result;
+  }
+  MTCWebFree(context);
+
+  return xml;
+}
+
+
 void BalluffAdapter::sendAssetToAgent(const char *aId)
 {
   // Get the XML for the asset from the server.
-  string str = mBaseUrl + "assets/" + aId;
-  void *context = MTCWebRequest(str.c_str());
-  const char *result;
-  if (MTCWebExecute(context, &result) == 0) {
+  string result = getAsset(mBaseUrl, aId);
+  if (!result.empty()) {
     map<string,string> attrs = getAttributes(result, "//m:CuttingTool");
     
     if (attrs.count("deviceUuid") > 0 && mDevice != attrs["deviceUuid"]) {
-      char *encoded = encodeResult(result);
+      char *encoded = encodeResult(result.c_str());
+      
+      // Make sure we are writing back to the correct RFID, if it has changed, then
+      // skip this write. The one alternative is if we are overwriting this id
+      // in which case it will have a status of only new and the deviceUuid will be
+      // ???? (TODO: need to figure out what the uuid should be)
+      
       mOutgoing = encoded;
       mOutgoingId = aId;
-      addAsset(aId, attrs["element"].c_str(), result); 
+      mOutgoingTimestamp = attrs["timestamp"];
+      
+      if (attrs["deviceUuid"] == "NEW")
+        mForceOverwrite = true;
+      
+      addAsset(aId, attrs["element"].c_str(), result.c_str()); 
     }
   }
-  MTCWebFree(context);
 }
 
 map<string,string> BalluffAdapter::getAttributes(const string &aXml, 
@@ -171,6 +217,31 @@ map<string,string> BalluffAdapter::getAttributes(const string &aXml,
 
   return res;
 }
+
+BalluffAdapter::EChanged BalluffAdapter::hasAssetChanged(map<string,string> &aAttributes)
+{
+  if (aAttributes.count("assetId") < 1 || aAttributes.count("timestamp") < 1)
+    return ERROR;
+  
+  if (aAttributes["assetId"] == mCurrentAssetId && 
+      aAttributes["timestamp"] == mCurrentAssetTimestamp)
+    return SAME;
+  
+  string &id = aAttributes["assetId"];
+  string xml = getAsset(mMyBaseUrl, id.c_str());
+  if (!xml.empty()) {
+    map<string,string> attrs = getAttributes(xml, "//m:CuttingTool");
+    if (attrs.count("assetId") > 0 && attrs.count("timestamp") > 0 && 
+        attrs["timestamp"] == aAttributes["timestamp"] && 
+        attrs["assetId"] == aAttributes["assetId"])
+      return SAME;
+    else
+      return CHANGED;
+  }
+  
+  return ERROR;
+}
+
 
 static void StreamXMLErrorFunc(void *ctx ATTRIBUTE_UNUSED, const char *msg, ...)
 {
@@ -274,6 +345,7 @@ void BalluffAdapter::initialize(int aArgc, const char *aArgv[])
   mDevice = mConfiguration.getDeviceUuid();
   mUrl = mConfiguration.getAgentUrl();
   mBaseUrl = mConfiguration.getBaseAgentUrl();
+  mMyBaseUrl = mConfiguration.getMyBaseAgentUrl();
     
   mPort = mConfiguration.getPort();
   mScanDelay = mConfiguration.getScanDelay();
@@ -309,18 +381,167 @@ void BalluffAdapter::agentMonitor()
   xmlInitParser();
   xmlXPathInit();
   xmlSetGenericErrorFunc(NULL, StreamXMLErrorFunc);
-
-  string url = mUrl;
-  if (url[url.length() - 1] != '/') url.append("/");
-  url.append("sample?interval=10&path=//DataItem[@type=\"ASSET_CHANGED\"]");
-  void *context = MTCStreamInit(url.c_str(), HandleXmlChunk, this);
-  MTCStreamStart(context);
-  MTCStreamFree(context);
+  
+  // Start from the current position...
+  while (true)
+  {
+    void *currentContext = MTCWebRequest((mBaseUrl + "current").c_str());
+    const char *current;
+    if (MTCWebExecute(currentContext, &current) == 0)
+    {
+      // Get the last position we should start from...
+      map<string,string> attrs = getAttributes(current, "//m:Header");
+      if (attrs.count("nextSequence") > 0) 
+      {
+        string url = mUrl;
+        if (url[url.length() - 1] != '/') url.append("/");
+        url.append("sample?interval=10&path=//DataItem[@type=\"ASSET_CHANGED\"]&"
+                   "from=" + attrs["nextSequence"]);
+        void *context = MTCStreamInit(url.c_str(), HandleXmlChunk, this);
+        MTCStreamStart(context);
+        MTCStreamFree(context);
+      }
+    }
+    MTCWebFree(currentContext);      
+    sleepMs(1000);
+  }
 }
 
+bool BalluffAdapter::checkForNewAsset(int &aSize, uint32_t &aHash)
+{
+  bool ret = false;
+  if (mSerial->readHeader(aSize, aHash) == BalluffSerial::SUCCESS) {
+    if (aHash != mCurrentHash) {
+      mCurrentAssetId.clear();
+      mCurrentAssetTimestamp.clear();
+      mCurrentHash = 0;
+      mHasHash = false;
+      ret = true;
+    }
+  } else {
+    mSerial->reset();
+  }
+  
+  return ret;
+}
+
+bool BalluffAdapter::readAssetFromRFID(int aSize, uint32_t aHash)
+{
+  if (aSize > 8192 || aSize < 0)
+    return false;
+  
+  string incoming;
+  BalluffSerial::EResult res = mSerial->readRFID(aSize, incoming);
+  cout << "Read: " << incoming << endl;
+  mHasHash = false;
+
+  if (res == BalluffSerial::SUCCESS) {
+    char *decode = reconstitute(incoming.c_str());
+    if (decode != NULL && decode[0] == '<') {
+      // Check for XML
+      map<string,string> attrs = getAttributes(decode, "//m:CuttingTool");
+      EChanged chg = hasAssetChanged(attrs);
+      if (chg != ERROR) {
+        if (chg == CHANGED) {
+          addAsset(attrs["assetId"].c_str(), attrs["element"].c_str(), decode);
+        } else {
+          gLogger->debug("Asset has remained the same");
+        }                
+        mCurrentAssetId = attrs["assetId"];
+        mCurrentAssetTimestamp = attrs["timestamp"];
+        string key = mCurrentAssetId + mCurrentAssetTimestamp;
+        mCurrentHash = computeHash(key);
+        if (aHash != mCurrentHash)
+          gLogger->error("Hash codes don't match");
+        mHasHash = true;
+      } else {              
+        gLogger->warning("Asset data did not contain necessary data");
+      }
+    } else if (strncmp(incoming.c_str(), "http://", 7) == 0 && 
+               strncmp(incoming.c_str(), mBaseUrl.c_str(), mBaseUrl.length()) != 0) {
+      // We have a URI and the uri is different from our own...
+      //sendAssetToAgent(incoming.c_str());
+    }
+    
+    if (decode != NULL)
+      free(decode);
+  } else {
+    mSerial->reset();
+  }
+    
+  
+  return true;
+}
+
+bool BalluffAdapter::writeAssetToRFID(uint32_t aHash)
+{  
+  char buffer[16];
+  intToHex(buffer, aHash);
+  bool ret = false;
+  BalluffSerial::EResult res= mSerial->writeRFID(buffer, mOutgoing);
+  if (res == BalluffSerial::SUCCESS)
+  {
+    cout << "Succussfully wrote: " << mOutgoing << endl;
+    ret = true;
+  } else {
+    // We may not have had enough room...
+    
+    mOutgoing = mBaseUrl + "assets/" + mOutgoingId;
+    res= mSerial->writeRFID(buffer, mOutgoing);
+    if (res == BalluffSerial::SUCCESS) {
+      cout << "Succussfully wrote: " << mOutgoing << endl;
+      ret = true;
+    }    
+  } 
+  
+  mOutgoing.clear();
+  
+  return ret;
+}
+
+bool BalluffAdapter::checkNewOutgoingAsset(uint32_t &aHash)
+{
+  // Calculate our hash key
+  string key = mOutgoingId + mOutgoingTimestamp;
+  aHash = computeHash(key);
+  
+  // If we are forcing a new asset identity onto this tool,
+  // overwrite.
+  if (!mForceOverwrite) {
+    // Have we read the header yet?
+    if (!mHasHash)
+      return false;
+    
+    // Is this the same data that's already on the asset? Also make
+    // sure we are writing the same asset. the asset id must be the same.
+    if (aHash == mCurrentHash || mCurrentAssetId != mOutgoingId) {
+      mOutgoing.clear();
+      return false;
+    }
+  }
+  
+  return true;
+}
+
+bool BalluffAdapter::checkForDataCarrier()
+{
+  int head;
+  string lead;
+  bool ret = false;
+  BalluffSerial::EResult res = mSerial->checkForData(head, lead);
+  if (res == BalluffSerial::SUCCESS ) {      
+    cout << "Successfully read: " << head << " with size " << lead << endl;
+    // Read the size again, just to make sure...
+    ret = head != 0;
+  }
+  
+  return ret;
+}
 
 void BalluffAdapter::start()
 {
+  mForceOverwrite = false;
+  
   // Start agent heartbeat thread...
   startServerThread();
   
@@ -340,72 +561,31 @@ void BalluffAdapter::start()
   cleanup();
 
   // Lets try some simple communication...
-  while (mSerial->selectHead(1) != BalluffSerial::SUCCESS) {
+  while (mSerial->reset() != BalluffSerial::SUCCESS ||
+         mSerial->selectHead(1) != BalluffSerial::SUCCESS) {
     mSerial->flush();
     sleepMs(1000);
   }
 
-  bool readData = false;
   while (true)
   {
     mSerial->flush();
+    
+    if (checkForDataCarrier()) {
+      int size;
+      uint32_t hash;
+      if (checkForNewAsset(size, hash)) {
+        readAssetFromRFID(size, hash);
+      }
 
-    int head, size;
-    BalluffSerial::EResult res = mSerial->checkForData(head, size);
-    if (res == BalluffSerial::SUCCESS)
-    {
-      cout << "Successfully read: " << head << endl;
-      
-      if (head != 0)
-      {
-        if (size > 0 && !readData) {
-          string incoming;
-          res = mSerial->readRFID(head, size, incoming);
-          cout << "Read: " << incoming << endl;
-          if (res == BalluffSerial::SUCCESS) {
-            char *decode = reconstitute(incoming.c_str());
-            if (decode != NULL && decode[0] == '<') {
-            // Check for XML
-              map<string,string> attrs = getAttributes(decode, "//m:CuttingTool");
-              if (attrs.count("assetId") > 0)
-                addAsset(attrs["assetId"].c_str(), attrs["element"].c_str(), decode);
-              else
-                gLogger->warning("Could not find asset id in document");
-            } else if (strncmp(incoming.c_str(), "http://", 7) == 0 && 
-                       strncmp(incoming.c_str(), mBaseUrl.c_str(), mBaseUrl.length()) != 0) {
-              // We have a URI and the uri is different from our own...
-              sendAssetToAgent(incoming.c_str());
-            } else {
-              // Whatever else we will just assume is an ID...
-            }
-            if (decode != NULL)
-              free(decode);
-            readData = true;
-          }          
-        }
-        
-        if (!mOutgoing.empty() && (readData || size == 0)) {
-          res= mSerial->writeRFID(head, mOutgoing);
-          if (res == BalluffSerial::SUCCESS)
-          {
-            cout << "Succussfully wrote: " << mOutgoing << endl;
-            mOutgoing.clear();
-          } else {
-            // We may not have had enough room...
-            
-            mOutgoing = mBaseUrl + "assets/" + mOutgoingId;
-            res= mSerial->writeRFID(head, mOutgoing);
-            if (res == BalluffSerial::SUCCESS)
-            {
-              cout << "Succussfully wrote: " << mOutgoing << endl;
-              mOutgoing.clear();
-            }
-          }
-        }
-      } else {
-        readData = false;
+      if (!mOutgoing.empty() && (mForceOverwrite || mHasHash)) {
+        uint32_t hash;
+        if (checkNewOutgoingAsset(hash))
+          if (!writeAssetToRFID(hash))
+            mSerial->reset();
       }
     }
+    
     sleepMs(1000);
   }    
 }
