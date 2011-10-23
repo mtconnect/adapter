@@ -185,7 +185,7 @@ map<string,string> BalluffAdapter::getAttributes(const string &aXml,
       
       // Evaluate the xpath.
       nodes = xmlXPathEval(BAD_CAST aXPath.c_str(), xpathCtx);
-      if (nodes == NULL || nodes->nodesetval == NULL)
+      if (nodes == NULL || nodes->nodesetval == NULL || nodes->nodesetval->nodeTab == NULL)
       {
         printf("No nodes found matching XPath\n");
       } else {
@@ -515,6 +515,8 @@ bool BalluffAdapter::checkNewOutgoingAsset(uint32_t &aHash)
     // Is this the same data that's already on the asset? Also make
     // sure we are writing the same asset. the asset id must be the same.
     if (aHash == mCurrentHash || mCurrentAssetId != mOutgoingId) {
+      gLogger->info("Asset id %s skipped because it is not the current asset on the data carrier: %s",
+                    mOutgoingId.c_str(), mCurrentAssetId.c_str());
       mOutgoing.clear();
       return false;
     }
@@ -533,6 +535,8 @@ bool BalluffAdapter::checkForDataCarrier()
     cout << "Successfully read: " << head << " with size " << lead << endl;
     // Read the size again, just to make sure...
     ret = head != 0;
+  } else {
+    mSerial->reset();
   }
   
   return ret;
@@ -583,6 +587,7 @@ void BalluffAdapter::start()
         if (checkNewOutgoingAsset(hash))
           if (!writeAssetToRFID(hash))
             mSerial->reset();
+        mForceOverwrite = false;
       }
     }
     

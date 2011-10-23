@@ -122,7 +122,7 @@ BalluffSerial::EResult BalluffSerial::reset()
   return SUCCESS;
 }
 
-BalluffSerial::EResult BalluffSerial::sendCommand(const char *aCommand)
+BalluffSerial::EResult BalluffSerial::sendCommand(const char *aCommand, int aTimeout)
 {
   EResult res = SUCCESS;
   
@@ -130,7 +130,7 @@ BalluffSerial::EResult BalluffSerial::sendCommand(const char *aCommand)
   writeWithBCC(aCommand);
   
   char resp[2];
-  int count = readFully(resp, 2, 30000);
+  int count = readFully(resp, 2, aTimeout);
   if (resp[0] != ACK || count != 2) 
   {
     gLogger->debug("Send command '%s' failed: %s", aCommand, translateError((EResult) resp[1]));
@@ -177,12 +177,12 @@ BalluffSerial::EResult BalluffSerial::readRFID(int aSize, std::string &aText)
   char command[32];
   
   sprintf(command, "R0012%04d", aSize);
-  EResult res = sendCommand(command);
+  EResult res = sendCommand(command, 30000);
   if (res != SUCCESS)
     return res;
     
   print(STX);
-  int count = readWithBCC(buffer, aSize, 30000);
+  int count = readWithBCC(buffer, aSize, 10000);
   if (count < aSize)
   {
     gLogger->warning("Error reading, only got: %d", count);

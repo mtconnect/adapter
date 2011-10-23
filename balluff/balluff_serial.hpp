@@ -31,7 +31,7 @@ protected:
   char computeBCC(const std::string &aText);
   int writeWithBCC(const std::string &aData, int aTimeout = 1000);
   int readWithBCC(char *aBuffer, int aLen, int aTimeout = 1000);
-  EResult sendCommand(const char *aCommand);
+  EResult sendCommand(const char *aCommand, int aTimeout = 5000);
   
 public:  
   BalluffSerial(const char *aDevice,
