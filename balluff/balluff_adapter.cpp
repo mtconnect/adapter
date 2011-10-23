@@ -507,22 +507,30 @@ bool BalluffAdapter::checkNewOutgoingAsset(uint32_t &aHash)
   
   // If we are forcing a new asset identity onto this tool,
   // overwrite.
+  bool ret = true;
   if (!mForceOverwrite) {
     // Have we read the header yet?
-    if (!mHasHash)
-      return false;
     
-    // Is this the same data that's already on the asset? Also make
-    // sure we are writing the same asset. the asset id must be the same.
-    if (aHash == mCurrentHash || mCurrentAssetId != mOutgoingId) {
+    // Need to do a read first
+    if (!mHasHash) {
+      // Do nothing, return will be false. We'll come back here after the data is
+      // read and the hash code is populated.
+      ret = false;
+    } else if (aHash == mCurrentHash) {
+      // Is this the same data that's already on the asset? 
+      gLogger->info("Attempt to write identical data to the data carrier: %s", mOutgoingId.c_str());
+      mOutgoing.clear();
+      ret = false;
+    } else if (mCurrentAssetId != mOutgoingId) {
+      // Also make sure we are writing the same asset. the asset id must be the same.
       gLogger->info("Asset id %s skipped because it is not the current asset on the data carrier: %s",
                     mOutgoingId.c_str(), mCurrentAssetId.c_str());
       mOutgoing.clear();
-      return false;
+      ret = false;
     }
   }
   
-  return true;
+  return ret;
 }
 
 bool BalluffAdapter::checkForDataCarrier()
@@ -534,7 +542,10 @@ bool BalluffAdapter::checkForDataCarrier()
   if (res == BalluffSerial::SUCCESS ) {      
     cout << "Successfully read: " << head << " with size " << lead << endl;
     // Read the size again, just to make sure...
-    ret = head != 0;
+    if (head == 0)
+      mHasHash = false;
+    else
+      ret = true;
   } else {
     mSerial->reset();
   }
