@@ -157,6 +157,7 @@ void BalluffAdapter::sendAssetToAgent(const char *aId)
       if (attrs["deviceUuid"] == "NEW")
         mForceOverwrite = true;
       
+      gLogger->debug("Sending asset:\n %s", result.c_str());
       addAsset(aId, attrs["element"].c_str(), result.c_str()); 
     }
   }
@@ -271,13 +272,13 @@ uint16_t BalluffAdapter::encodeResult(const char *aData, uint8_t *aEncoded)
   // Add the lenght of the short length.
   len += sizeof(uint16_t);
 
-  FILE *o1 = fopen("t.xml", "w");
-  fwrite(aData, 1, strlen(aData), o1);
-  fclose(o1);
+  //FILE *o1 = fopen("t.xml", "w");
+  //fwrite(aData, 1, strlen(aData), o1);
+  //fclose(o1);
 
-  FILE *file = fopen("o.gz", "w");
-  fwrite(aEncoded, 1, len, file);
-  fclose(file);
+  //FILE *file = fopen("o.gz", "w");
+  //fwrite(aEncoded, 1, len, file);
+  //fclose(file);
       
   return (uint16_t) len;
 }
@@ -415,6 +416,7 @@ bool BalluffAdapter::readAssetFromRFID(uint16_t aSize, uint32_t aHash)
     return false;
   
   uint8_t incoming[MAX_RFID_SIZE];
+  memset(incoming, 0, sizeof(incoming));
   BalluffSerial::EResult res = mSerial->readRFID(incoming, aSize);
   mHasHash = false;
 
@@ -426,6 +428,9 @@ bool BalluffAdapter::readAssetFromRFID(uint16_t aSize, uint32_t aHash)
       EChanged chg = hasAssetChanged(attrs);
       if (chg != ERROR) {
         if (chg == CHANGED) {
+	  FILE *o1 = fopen("asset.xml", "w");
+	  fwrite(decode, 1, strlen(decode), o1);
+	  fclose(o1);
           gLogger->debug("Sending %s to agent", attrs["assetId"].c_str());
           addAsset(attrs["assetId"].c_str(), attrs["element"].c_str(), decode);
         } else {
