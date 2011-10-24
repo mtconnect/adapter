@@ -7,6 +7,8 @@
 #include <string>
 #include <iostream>
 
+#define MAX_RFID_SIZE 8192
+
 class BalluffSerial : public Serial {
 public:
   enum EResult {
@@ -28,9 +30,9 @@ public:
   };
 
 protected:
-  char computeBCC(const std::string &aText);
-  int writeWithBCC(const std::string &aData, int aTimeout = 1000);
-  int readWithBCC(char *aBuffer, int aLen, int aTimeout = 1000);
+  char computeBCC(const  uint8_t *aText, uint16_t aSize);
+  int writeWithBCC(const  uint8_t *aData, uint16_t aSize, int aTimeout = 1000);
+  int readWithBCC(uint8_t *aBuffer, uint16_t aLen, int aTimeout = 1000);
   EResult sendCommand(const char *aCommand, int aTimeout = 5000);
   
 public:  
@@ -41,10 +43,10 @@ public:
 
   EResult getStatus(char &aStatus);
   EResult selectHead(int aHead);
-  EResult readRFID(int aSize, std::string &aText);
-  EResult readHeader(int &aSize, uint32_t &aHash);
-  EResult writeRFID(std::string aKey, std::string aText);
-  EResult checkForData(int &aHead, std::string &aLead);
+  EResult readRFID(uint8_t *aText, uint16_t aSize);
+  EResult readHeader(uint16_t &aSize, uint32_t &aHash);
+  EResult writeRFID(uint32_t aKey, const uint8_t *aText, uint16_t aLen);
+  EResult checkForData(int &aHead, uint32_t &aLead);
   EResult reset();
   
   

@@ -17,12 +17,12 @@ BalluffSerial::BalluffSerial(const char *aDevice,
 {
 }
 
-char BalluffSerial::computeBCC(const string &aText)
+char BalluffSerial::computeBCC(const uint8_t *aText, uint16_t aSize)
 {
   unsigned char bcc = 0;
-  string::const_iterator i;
-  for (i = aText.begin(); i != aText.end(); i++)
-    bcc ^= *i;
+  uint16_t i;
+  for (i = 0; i < aSize; i++)
+    bcc ^= aText[i];
   return (char) bcc;
 }
 
@@ -48,25 +48,28 @@ const char *BalluffSerial::translateError(BalluffSerial::EResult aError)
   return "Unknown Result";
 }
 
-int BalluffSerial::writeWithBCC(const string &aData, int aTimeout)
+int BalluffSerial::writeWithBCC(const uint8_t *aData, uint16_t aSize, int aTimeout)
 {
-  string outgoing = aData + computeBCC(aData);
-  int count = writeFully(outgoing.c_str(), outgoing.length(), aTimeout);
+  uint8_t outgoing[MAX_RFID_SIZE];
+  memcpy(outgoing, aData, aSize);
+  outgoing[aSize] = computeBCC(aData, aSize);
+  aSize++;
+  
+  int count = writeFully((const char*) outgoing, aSize, aTimeout);
   // Remove one for the bcc byte we added.
   if (count > 0) count -= 1;
   return count;
 }
 
-int BalluffSerial::readWithBCC(char *aBuffer, int aLen, int aTimeout)
+int BalluffSerial::readWithBCC(uint8_t *aBuffer, uint16_t aLen, int aTimeout)
 {
   int len = aLen + 1;
-  int count = readFully(aBuffer, len, aTimeout);
+  int count = readFully((char*) aBuffer, len, aTimeout);
   if (count < len)
     return count;
   
   char bcc = aBuffer[aLen];
-  aBuffer[aLen] = '\0';
-  if (bcc != computeBCC(aBuffer))
+  if (bcc != computeBCC(aBuffer, aLen))
     return -1;
   
   // Remove one for the bcc
@@ -92,7 +95,7 @@ BalluffSerial::EResult BalluffSerial::getStatus(char &aStatus)
   if (count != 2) return READ_ERROR;
 
   EResult res = SUCCESS;
-  char response[3];
+  uint8_t response[3];
   count = readWithBCC(response, 2);
   if (count == 2 && response[0] == 'S')
     aStatus = response[1];
@@ -113,7 +116,7 @@ BalluffSerial::EResult BalluffSerial::reset()
   // Remove one for the bcc byte we added.
   if (count != 2) return READ_ERROR;
   
-  char response[3];
+  uint8_t response[3];
   count = readWithBCC(response, 1);
   if (count != 1 && response[0] != 'Q')
     return READ_ERROR;
@@ -127,10 +130,10 @@ BalluffSerial::EResult BalluffSerial::sendCommand(const char *aCommand, int aTim
   EResult res = SUCCESS;
   
   gLogger->debug("Sending: %s", aCommand);
-  writeWithBCC(aCommand);
+  writeWithBCC((const uint8_t*) aCommand, strlen(aCommand));
   
-  char resp[2];
-  int count = readFully(resp, 2, aTimeout);
+  uint8_t resp[2];
+  int count = readFully((char*) resp, 2, aTimeout);
   if (resp[0] != ACK || count != 2) 
   {
     gLogger->debug("Send command '%s' failed: %s", aCommand, translateError((EResult) resp[1]));
@@ -140,14 +143,14 @@ BalluffSerial::EResult BalluffSerial::sendCommand(const char *aCommand, int aTim
   return res;
 }
 
-BalluffSerial::EResult BalluffSerial::checkForData(int &aHead, string &aText)
+BalluffSerial::EResult BalluffSerial::checkForData(int &aHead, uint32_t &aText)
 {
   aHead = 0;
   
   EResult res = sendCommand("H?");
   if (res != SUCCESS) return res;
 
-  char reply[16];
+  uint8_t reply[16];
   int count = readWithBCC(reply, 6);
   if (count < 6) return READ_ERROR;
   
@@ -157,7 +160,7 @@ BalluffSerial::EResult BalluffSerial::checkForData(int &aHead, string &aText)
   if (reply[0] == 'H') {
     if (reply[1] != '?') {
       aHead = reply[1] - '0';
-      aText = reply + 2;
+      aText = *((uint32_t*) (reply + 2));
     } else {
       aHead = 0;
     }
@@ -171,83 +174,79 @@ BalluffSerial::EResult BalluffSerial::checkForData(int &aHead, string &aText)
   }
 }
 
-BalluffSerial::EResult BalluffSerial::readRFID(int aSize, std::string &aText)
+BalluffSerial::EResult BalluffSerial::readRFID(uint8_t *aText, uint16_t aSize)
 {
-  char buffer[8 * 1024];
   char command[32];
   
-  sprintf(command, "R0012%04d", aSize);
+  sprintf(command, "R0006%04d", aSize);
   EResult res = sendCommand(command, 30000);
   if (res != SUCCESS)
     return res;
     
   print(STX);
-  int count = readWithBCC(buffer, aSize, 10000);
+  int count = readWithBCC(aText, aSize, 10000);
   if (count < aSize)
   {
     gLogger->warning("Error reading, only got: %d", count);
     return READ_ERROR;
   }
   
-  buffer[aSize] = '\0';  
-  gLogger->debug("Received: %s", buffer);
+  //gLogger->debug("Received: %s", aText);
   
-  aText = buffer;
-    
   return SUCCESS;
 }
 
 
-BalluffSerial::EResult BalluffSerial::readHeader(int &aSize, uint32_t &aHash)
+BalluffSerial::EResult BalluffSerial::readHeader(uint16_t &aSize, uint32_t &aHash)
 {
-  char buffer[16];
+  uint8_t buffer[16];
   char command[32];
   
-  strcpy(command, "R00000012");
+  strcpy(command, "R00000006");
   EResult res = sendCommand(command);
   if (res != SUCCESS)
     return res;
   
   print(STX);
-  int count = readWithBCC(buffer, 12);
-  if (count < 12)
+  int count = readWithBCC(buffer, 7);
+  if (count < 7)
   {
     gLogger->warning("Error reading, only got: %d", count);
     return READ_ERROR;
   }
   
-  buffer[12] = '\0';  
-  gLogger->debug("Received: %s", buffer);
+  aSize = ntohs(*((uint16_t*) buffer));
+  aHash = ntohl(*((uint32_t*) (buffer + 2)));
 
-  char *ep;
-  aHash = strtol(buffer + 4, &ep, 16);
-  buffer[4] = '\0';
-  aSize = atoi(buffer);
+  gLogger->debug("Header: size: %d hash: %x", aSize, aHash);
   
   return SUCCESS;
 }
 
-BalluffSerial::EResult BalluffSerial::writeRFID(std::string aKey, std::string aText)
+BalluffSerial::EResult BalluffSerial::writeRFID(uint32_t aKey, const uint8_t *aText, 
+                                                uint16_t aLen)
 {
-  char buffer[4 * 1024];
+  uint8_t buffer[MAX_RFID_SIZE];
   char command[32];
   
-  int len = (int) aText.length();
-  sprintf(buffer, "%c%04d%8s", STX, len, aKey.c_str());
-  
+  buffer[0] = STX;
+  *((uint16_t*) (buffer + 1)) = htons(aLen);
+  *((uint32_t*) (buffer + 3)) = htonl(aKey);
+
   // Add 13 for the leading size <STX><SIZE><KEY>.
-  len += 1 + 4 + 8;
+  uint16_t offset = 1 + 2 + 4;
+  uint16_t len = aLen + offset;
+
   
   // Append the data after the size
-  memcpy(buffer + 13, aText.c_str(), aText.length());
-  buffer[len] = '\0';
-  
+  memcpy(buffer + offset, aText, aLen);  
+
   // Create the command (length - 1 (-1 for <STX>))
   sprintf(command, "W0000%04d", len - 1);
   EResult res = sendCommand(command);
   if (res != SUCCESS) return res;
   
-  int written = writeWithBCC(buffer, 10000);
+  int written = writeWithBCC(buffer, len, 10000);
   if (written != len)
     res = WRITE_ERROR;
   

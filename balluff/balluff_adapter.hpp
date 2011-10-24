@@ -27,7 +27,8 @@ protected:
   std::string mDevice;
 
   // Outgoing info...
-  std::string mOutgoing;
+  uint8_t mOutgoing[MAX_RFID_SIZE];
+  uint16_t mOutgoingSize;
   std::string mOutgoingId;
   std::string mOutgoingTimestamp;
   bool mForceOverwrite;
@@ -50,8 +51,8 @@ protected:
   };
   
   void startAgentMonitor();
-  char *reconstitute(const char *aData);
-  char *encodeResult(const char *aData);
+  char *reconstitute(const uint8_t *aData, uint16_t aSize);
+  uint16_t encodeResult(const char *aData, uint8_t *aEncoded);
   std::string getAsset(std::string &aUrl, const char *aId);
   EChanged hasAssetChanged(std::map<std::string,std::string> &aAttributes);
                     
@@ -66,8 +67,8 @@ protected:
                                                    const std::string &aXPath);
   
   bool checkForDataCarrier();
-  bool checkForNewAsset(int &aSize, uint32_t &aHash);
-  bool readAssetFromRFID(int aSize, uint32_t aHash);
+  bool checkForNewAsset(uint16_t &aSize, uint32_t &aHash);
+  bool readAssetFromRFID(uint16_t aSize, uint32_t aHash);
   bool checkNewOutgoingAsset(uint32_t &aHash);
   
   bool writeAssetToRFID(uint32_t aHash);

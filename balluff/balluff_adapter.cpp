@@ -144,14 +144,13 @@ void BalluffAdapter::sendAssetToAgent(const char *aId)
     map<string,string> attrs = getAttributes(result, "//m:CuttingTool");
     
     if (attrs.count("deviceUuid") > 0 && mDevice != attrs["deviceUuid"]) {
-      char *encoded = encodeResult(result.c_str());
+      mOutgoingSize = encodeResult(result.c_str(), mOutgoing);
       
       // Make sure we are writing back to the correct RFID, if it has changed, then
       // skip this write. The one alternative is if we are overwriting this id
       // in which case it will have a status of only new and the deviceUuid will be
       // ???? (TODO: need to figure out what the uuid should be)
       
-      mOutgoing = encoded;
       mOutgoingId = aId;
       mOutgoingTimestamp = attrs["timestamp"];
       
@@ -255,58 +254,43 @@ static void StreamXMLErrorFunc(void *ctx ATTRIBUTE_UNUSED, const char *msg, ...)
   gLogger->error("XML Error: %s\n", buffer);   
 }
 
-char *BalluffAdapter::encodeResult(const char *aData)
+uint16_t BalluffAdapter::encodeResult(const char *aData, uint8_t *aEncoded)
 {
-  char *encoded;
-  base64_encodestate state;
   int ret;
-  unsigned char *out;
   uLongf len;
 
-  len = compressBound(strlen(aData)) + sizeof(uint32_t);
-  out = (unsigned char*) malloc(len);
-  *((uint32_t*) out) = htonl(strlen(aData));
-  
-  len -= sizeof(uint32_t);
+  len = MAX_RFID_SIZE;
+  *((uint16_t*) aEncoded) = htons(strlen(aData));
+  len -= sizeof(uint16_t);
 
-  ret = compress2(out + sizeof(uint32_t), &len, 
-                  (Bytef*) aData, strlen(aData), 9);
+  ret = compress(aEncoded + sizeof(uint16_t), &len, 
+                 (Bytef*) aData, strlen(aData));
   if (ret != Z_OK)
-  {
-    free(out);
-    return NULL;
-  }
-    
-  encoded = (char*) calloc(1, (sizeof(uint32_t) + len) * 2);
+    return 0;
   
-  base64_init_encodestate(&state);
-  base64_encode_block((char*) out, len + sizeof(uint32_t), encoded, &state);
-  base64_encode_blockend(encoded + strlen(encoded), &state);
-  printf("encoded: \n%s\n", encoded); 
-  
-  free(out);
-  
-  return encoded;
+  // Add the lenght of the short length.
+  len += sizeof(uint16_t);
+
+  FILE *o1 = fopen("t.xml", "w");
+  fwrite(aData, 1, strlen(aData), o1);
+  fclose(o1);
+
+  FILE *file = fopen("o.gz", "w");
+  fwrite(aEncoded, 1, len, file);
+  fclose(file);
+      
+  return (uint16_t) len;
 }
 
-char *BalluffAdapter::reconstitute(const char *aText)
+char *BalluffAdapter::reconstitute(const uint8_t *aText, uint16_t aSize)
 {
-  char *decoded;
-  base64_decodestate state;
-  int ret, len;
   unsigned char *xml;
   uLongf size;
   
-  decoded = (char*) malloc(strlen(aText));
-  
-  base64_init_decodestate(&state);
-  len = base64_decode_block(aText, strlen(aText), decoded, &state);
-
-  size = ntohl(*((uint32_t*) decoded)) + 1;
+  size = ntohs(*((uint16_t*) aText)) + 32;
   xml = (unsigned char*) malloc(size);
 
-  ret = uncompress(xml, &size, (Bytef*) decoded + sizeof(uint32_t), len - 4);
-  free(decoded);
+  int ret = uncompress(xml, &size, (Bytef*) aText + sizeof(uint16_t), aSize - sizeof(uint16_t));
   
   if (ret != Z_OK)
   {
@@ -407,7 +391,7 @@ void BalluffAdapter::agentMonitor()
   }
 }
 
-bool BalluffAdapter::checkForNewAsset(int &aSize, uint32_t &aHash)
+bool BalluffAdapter::checkForNewAsset(uint16_t &aSize, uint32_t &aHash)
 {
   bool ret = false;
   if (mSerial->readHeader(aSize, aHash) == BalluffSerial::SUCCESS) {
@@ -425,24 +409,24 @@ bool BalluffAdapter::checkForNewAsset(int &aSize, uint32_t &aHash)
   return ret;
 }
 
-bool BalluffAdapter::readAssetFromRFID(int aSize, uint32_t aHash)
+bool BalluffAdapter::readAssetFromRFID(uint16_t aSize, uint32_t aHash)
 {
-  if (aSize > 8192 || aSize < 0)
+  if (aSize > MAX_RFID_SIZE)
     return false;
   
-  string incoming;
-  BalluffSerial::EResult res = mSerial->readRFID(aSize, incoming);
-  cout << "Read: " << incoming << endl;
+  uint8_t incoming[MAX_RFID_SIZE];
+  BalluffSerial::EResult res = mSerial->readRFID(incoming, aSize);
   mHasHash = false;
 
   if (res == BalluffSerial::SUCCESS) {
-    char *decode = reconstitute(incoming.c_str());
+    char *decode = reconstitute(incoming, aSize);
     if (decode != NULL && decode[0] == '<') {
       // Check for XML
       map<string,string> attrs = getAttributes(decode, "//m:CuttingTool");
       EChanged chg = hasAssetChanged(attrs);
       if (chg != ERROR) {
         if (chg == CHANGED) {
+          gLogger->debug("Sending %s to agent", attrs["assetId"].c_str());
           addAsset(attrs["assetId"].c_str(), attrs["element"].c_str(), decode);
         } else {
           gLogger->debug("Asset has remained the same");
@@ -457,8 +441,8 @@ bool BalluffAdapter::readAssetFromRFID(int aSize, uint32_t aHash)
       } else {              
         gLogger->warning("Asset data did not contain necessary data");
       }
-    } else if (strncmp(incoming.c_str(), "http://", 7) == 0 && 
-               strncmp(incoming.c_str(), mBaseUrl.c_str(), mBaseUrl.length()) != 0) {
+    } else if (strncmp((const char*) incoming, "http://", 7) == 0 && 
+               strncmp((const char*) incoming, mBaseUrl.c_str(), mBaseUrl.length()) != 0) {
       // We have a URI and the uri is different from our own...
       //sendAssetToAgent(incoming.c_str());
     }
@@ -475,10 +459,9 @@ bool BalluffAdapter::readAssetFromRFID(int aSize, uint32_t aHash)
 
 bool BalluffAdapter::writeAssetToRFID(uint32_t aHash)
 {  
-  char buffer[16];
-  intToHex(buffer, aHash);
   bool ret = false;
-  BalluffSerial::EResult res= mSerial->writeRFID(buffer, mOutgoing);
+  BalluffSerial::EResult res= mSerial->writeRFID(aHash, mOutgoing, 
+						 mOutgoingSize);
   if (res == BalluffSerial::SUCCESS)
   {
     cout << "Succussfully wrote: " << mOutgoing << endl;
@@ -486,15 +469,17 @@ bool BalluffAdapter::writeAssetToRFID(uint32_t aHash)
   } else {
     // We may not have had enough room...
     
-    mOutgoing = mBaseUrl + "assets/" + mOutgoingId;
-    res= mSerial->writeRFID(buffer, mOutgoing);
+    string url = mBaseUrl + "assets/" + mOutgoingId;
+    strcpy((char*) mOutgoing, url.c_str());
+    mOutgoingSize = strlen((char*) mOutgoing);
+    res= mSerial->writeRFID(aHash, mOutgoing, mOutgoingSize);
     if (res == BalluffSerial::SUCCESS) {
       cout << "Succussfully wrote: " << mOutgoing << endl;
       ret = true;
     }    
   } 
   
-  mOutgoing.clear();
+  mOutgoingSize = 0;
   
   return ret;
 }
@@ -519,13 +504,13 @@ bool BalluffAdapter::checkNewOutgoingAsset(uint32_t &aHash)
     } else if (aHash == mCurrentHash) {
       // Is this the same data that's already on the asset? 
       gLogger->info("Attempt to write identical data to the data carrier: %s", mOutgoingId.c_str());
-      mOutgoing.clear();
+      mOutgoingSize = 0;
       ret = false;
     } else if (mCurrentAssetId != mOutgoingId) {
       // Also make sure we are writing the same asset. the asset id must be the same.
       gLogger->info("Asset id %s skipped because it is not the current asset on the data carrier: %s",
                     mOutgoingId.c_str(), mCurrentAssetId.c_str());
-      mOutgoing.clear();
+      mOutgoingSize = 0;
       ret = false;
     }
   }
@@ -536,7 +521,7 @@ bool BalluffAdapter::checkNewOutgoingAsset(uint32_t &aHash)
 bool BalluffAdapter::checkForDataCarrier()
 {
   int head;
-  string lead;
+  uint32_t lead;
   bool ret = false;
   BalluffSerial::EResult res = mSerial->checkForData(head, lead);
   if (res == BalluffSerial::SUCCESS ) {      
@@ -556,6 +541,7 @@ bool BalluffAdapter::checkForDataCarrier()
 void BalluffAdapter::start()
 {
   mForceOverwrite = false;
+  mOutgoingSize = 0;
   
   // Start agent heartbeat thread...
   startServerThread();
@@ -587,13 +573,13 @@ void BalluffAdapter::start()
     mSerial->flush();
     
     if (checkForDataCarrier()) {
-      int size;
+      uint16_t size;
       uint32_t hash;
       if (checkForNewAsset(size, hash)) {
         readAssetFromRFID(size, hash);
       }
 
-      if (!mOutgoing.empty() && (mForceOverwrite || mHasHash)) {
+      if (mOutgoingSize != 0 && (mForceOverwrite || mHasHash)) {
         uint32_t hash;
         if (checkNewOutgoingAsset(hash))
           if (!writeAssetToRFID(hash))
