@@ -208,8 +208,8 @@ BalluffSerial::EResult BalluffSerial::readHeader(uint16_t &aSize, uint32_t &aHas
     return res;
   
   print(STX);
-  int count = readWithBCC(buffer, 7);
-  if (count < 7)
+  int count = readWithBCC(buffer, 6);
+  if (count < 6)
   {
     gLogger->warning("Error reading, only got: %d", count);
     return READ_ERROR;
@@ -229,23 +229,22 @@ BalluffSerial::EResult BalluffSerial::writeRFID(uint32_t aKey, const uint8_t *aT
   uint8_t buffer[MAX_RFID_SIZE];
   char command[32];
   
-  buffer[0] = STX;
-  *((uint16_t*) (buffer + 1)) = htons(aLen);
-  *((uint32_t*) (buffer + 3)) = htonl(aKey);
+  *((uint16_t*) (buffer + 0)) = htons(aLen);
+  *((uint32_t*) (buffer + 2)) = htonl(aKey);
 
-  // Add 13 for the leading size <STX><SIZE><KEY>.
-  uint16_t offset = 1 + 2 + 4;
+  // Add 13 for the leading size <SIZE><KEY>.
+  uint16_t offset = 2 + 4;
   uint16_t len = aLen + offset;
 
   
   // Append the data after the size
   memcpy(buffer + offset, aText, aLen);  
 
-  // Create the command (length - 1 (-1 for <STX>))
-  sprintf(command, "W0000%04d", len - 1);
+  sprintf(command, "W0000%04d", len);
   EResult res = sendCommand(command);
   if (res != SUCCESS) return res;
   
+  print(STX);
   int written = writeWithBCC(buffer, len, 10000);
   if (written != len)
     res = WRITE_ERROR;

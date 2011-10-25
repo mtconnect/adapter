@@ -157,7 +157,7 @@ void BalluffAdapter::sendAssetToAgent(const char *aId)
       if (attrs["deviceUuid"] == "NEW")
         mForceOverwrite = true;
       
-      gLogger->debug("Sending asset:\n %s", result.c_str());
+      //gLogger->debug("Sending asset:\n %s", result.c_str());
       addAsset(aId, attrs["element"].c_str(), result.c_str()); 
     }
   }
