@@ -271,14 +271,6 @@ uint16_t BalluffAdapter::encodeResult(const char *aData, uint8_t *aEncoded)
   
   // Add the lenght of the short length.
   len += sizeof(uint16_t);
-
-  //FILE *o1 = fopen("t.xml", "w");
-  //fwrite(aData, 1, strlen(aData), o1);
-  //fclose(o1);
-
-  //FILE *file = fopen("o.gz", "w");
-  //fwrite(aEncoded, 1, len, file);
-  //fclose(file);
       
   return (uint16_t) len;
 }
@@ -392,68 +384,69 @@ void BalluffAdapter::agentMonitor()
   }
 }
 
-bool BalluffAdapter::checkForNewAsset(uint16_t &aSize, uint32_t &aHash)
+bool BalluffAdapter::checkForNewAsset(uint32_t aHash)
 {
-  bool ret = false;
-  if (mSerial->readHeader(aSize, aHash) == BalluffSerial::SUCCESS) {
-    if (aHash != mCurrentHash) {
-      mCurrentAssetId.clear();
-      mCurrentAssetTimestamp.clear();
-      mCurrentHash = 0;
-      mHasHash = false;
-      ret = true;
-    }
+  bool ret;
+  if (aHash != mCurrentHash) {
+    mCurrentAssetId.clear();
+    mCurrentAssetTimestamp.clear();
+    mCurrentHash = 0;
+    mHasHash = false;
+    ret = true;
   } else {
-    mSerial->reset();
+    ret = false;
   }
   
   return ret;
 }
 
-bool BalluffAdapter::readAssetFromRFID(uint16_t aSize, uint32_t aHash)
+bool BalluffAdapter::readAssetFromRFID(uint32_t aHash)
 {
-  if (aSize > MAX_RFID_SIZE)
+  uint8_t type;
+  uint16_t size;
+  if (mSerial->readHeader(size, type) != BalluffSerial::SUCCESS)
+    return false;
+  
+  if (size > MAX_RFID_SIZE)
     return false;
   
   uint8_t incoming[MAX_RFID_SIZE];
   memset(incoming, 0, sizeof(incoming));
-  BalluffSerial::EResult res = mSerial->readRFID(incoming, aSize);
+  BalluffSerial::EResult res = mSerial->readRFID(incoming, size);
   mHasHash = false;
 
   if (res == BalluffSerial::SUCCESS) {
-    char *decode = reconstitute(incoming, aSize);
-    if (decode != NULL && decode[0] == '<') {
-      // Check for XML
-      map<string,string> attrs = getAttributes(decode, "//m:CuttingTool");
-      EChanged chg = hasAssetChanged(attrs);
-      if (chg != ERROR) {
-        if (chg == CHANGED) {
-	  FILE *o1 = fopen("asset.xml", "w");
-	  fwrite(decode, 1, strlen(decode), o1);
-	  fclose(o1);
-          gLogger->debug("Sending %s to agent", attrs["assetId"].c_str());
-          addAsset(attrs["assetId"].c_str(), attrs["element"].c_str(), decode);
-        } else {
-          gLogger->debug("Asset has remained the same");
-        }                
-        mCurrentAssetId = attrs["assetId"];
-        mCurrentAssetTimestamp = attrs["timestamp"];
-        string key = mCurrentAssetId + mCurrentAssetTimestamp;
-        mCurrentHash = computeHash(key);
-        if (aHash != mCurrentHash)
-          gLogger->error("Hash codes don't match");
-        mHasHash = true;
-      } else {              
-        gLogger->warning("Asset data did not contain necessary data");
+    if (type == 'G') {
+      char *decode = reconstitute(incoming, size);
+      if (decode != NULL) {
+        // Check for XML
+        map<string,string> attrs = getAttributes(decode, "//m:CuttingTool");
+        EChanged chg = hasAssetChanged(attrs);
+        if (chg != ERROR) {
+          if (chg == CHANGED) {
+            gLogger->debug("Sending %s to agent", attrs["assetId"].c_str());
+            addAsset(attrs["assetId"].c_str(), attrs["element"].c_str(), decode);
+          } else {
+            gLogger->debug("Asset has remained the same");
+          }                
+          mCurrentAssetId = attrs["assetId"];
+          mCurrentAssetTimestamp = attrs["timestamp"];
+          string key = mCurrentAssetId + mCurrentAssetTimestamp;
+          mCurrentHash = computeHash(key);
+          if (aHash != mCurrentHash)
+            gLogger->error("Hash codes don't match: %x != %x", mCurrentHash, aHash);
+          mHasHash = true;
+        } else {              
+          gLogger->warning("Asset data did not contain necessary data");
+        }
+        free(decode);
+      } else {
+        gLogger->error("Error decoding gzip data");
       }
-    } else if (strncmp((const char*) incoming, "http://", 7) == 0 && 
-               strncmp((const char*) incoming, mBaseUrl.c_str(), mBaseUrl.length()) != 0) {
+    } else if (type == 'U') {
       // We have a URI and the uri is different from our own...
       //sendAssetToAgent(incoming.c_str());
-    }
-    
-    if (decode != NULL)
-      free(decode);
+    }    
   } else {
     mSerial->reset();
   }
@@ -465,8 +458,8 @@ bool BalluffAdapter::readAssetFromRFID(uint16_t aSize, uint32_t aHash)
 bool BalluffAdapter::writeAssetToRFID(uint32_t aHash)
 {  
   bool ret = false;
-  BalluffSerial::EResult res= mSerial->writeRFID(aHash, mOutgoing, 
-						 mOutgoingSize);
+  BalluffSerial::EResult res= mSerial->writeRFID(aHash,'G', mOutgoing, 
+                                                 mOutgoingSize);
   if (res == BalluffSerial::SUCCESS)
   {
     cout << "Succussfully wrote: " << mOutgoing << endl;
@@ -477,7 +470,7 @@ bool BalluffAdapter::writeAssetToRFID(uint32_t aHash)
     string url = mBaseUrl + "assets/" + mOutgoingId;
     strcpy((char*) mOutgoing, url.c_str());
     mOutgoingSize = strlen((char*) mOutgoing);
-    res= mSerial->writeRFID(aHash, mOutgoing, mOutgoingSize);
+    res= mSerial->writeRFID(aHash, 'U', mOutgoing, mOutgoingSize);
     if (res == BalluffSerial::SUCCESS) {
       cout << "Succussfully wrote: " << mOutgoing << endl;
       ret = true;
@@ -523,20 +516,18 @@ bool BalluffAdapter::checkNewOutgoingAsset(uint32_t &aHash)
   return ret;
 }
 
-bool BalluffAdapter::checkForDataCarrier()
+bool BalluffAdapter::checkForDataCarrier(uint32_t &aHash)
 {
   int head;
-  uint32_t lead;
   bool ret = false;
-  BalluffSerial::EResult res = mSerial->checkForData(head, lead);
+  BalluffSerial::EResult res = mSerial->checkForData(head, aHash);
   if (res == BalluffSerial::SUCCESS ) {      
-    cout << "Successfully read: " << head << " with size " << lead << endl;
-    // Read the size again, just to make sure...
     if (head == 0)
       mHasHash = false;
-    else
+    else 
       ret = true;
   } else {
+    mHasHash = false;
     mSerial->reset();
   }
   
@@ -577,11 +568,10 @@ void BalluffAdapter::start()
   {
     mSerial->flush();
     
-    if (checkForDataCarrier()) {
-      uint16_t size;
-      uint32_t hash;
-      if (checkForNewAsset(size, hash)) {
-        readAssetFromRFID(size, hash);
+    uint32_t hash;
+    if (checkForDataCarrier(hash)) {      
+      if (checkForNewAsset(hash)) {
+        readAssetFromRFID(hash);
       }
 
       if (mOutgoingSize != 0 && (mForceOverwrite || mHasHash)) {

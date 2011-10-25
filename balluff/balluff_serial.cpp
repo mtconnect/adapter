@@ -160,7 +160,7 @@ BalluffSerial::EResult BalluffSerial::checkForData(int &aHead, uint32_t &aText)
   if (reply[0] == 'H') {
     if (reply[1] != '?') {
       aHead = reply[1] - '0';
-      aText = *((uint32_t*) (reply + 2));
+      aText = ntohl(*((uint32_t*) (reply + 2)));
     } else {
       aHead = 0;
     }
@@ -178,7 +178,7 @@ BalluffSerial::EResult BalluffSerial::readRFID(uint8_t *aText, uint16_t aSize)
 {
   char command[32];
   
-  sprintf(command, "R0006%04d", aSize);
+  sprintf(command, "R0007%04d", aSize);
   EResult res = sendCommand(command, 30000);
   if (res != SUCCESS)
     return res;
@@ -197,43 +197,44 @@ BalluffSerial::EResult BalluffSerial::readRFID(uint8_t *aText, uint16_t aSize)
 }
 
 
-BalluffSerial::EResult BalluffSerial::readHeader(uint16_t &aSize, uint32_t &aHash)
+BalluffSerial::EResult BalluffSerial::readHeader(uint16_t &aSize, uint8_t &aType)
 {
   uint8_t buffer[16];
   char command[32];
   
-  strcpy(command, "R00000006");
+  strcpy(command, "R00040003");
   EResult res = sendCommand(command);
   if (res != SUCCESS)
     return res;
   
   print(STX);
-  int count = readWithBCC(buffer, 6);
-  if (count < 6)
+  int count = readWithBCC(buffer, 3);
+  if (count < 3)
   {
     gLogger->warning("Error reading, only got: %d", count);
     return READ_ERROR;
   }
   
-  aSize = ntohs(*((uint16_t*) buffer));
-  aHash = ntohl(*((uint32_t*) (buffer + 2)));
+  aSize = ntohs(*((uint16_t*) (buffer)));
+  aType = buffer[2];
 
-  gLogger->debug("Header: size: %d hash: %x", aSize, aHash);
+  gLogger->debug("Header: size: %d hash: %x", aSize, aType);
   
   return SUCCESS;
 }
 
-BalluffSerial::EResult BalluffSerial::writeRFID(uint32_t aKey, const uint8_t *aText, 
-                                                uint16_t aLen)
+BalluffSerial::EResult BalluffSerial::writeRFID(uint32_t aKey, uint8_t aType, 
+                                                const uint8_t *aText, uint16_t aLen)
 {
   uint8_t buffer[MAX_RFID_SIZE];
   char command[32];
   
-  *((uint16_t*) (buffer + 0)) = htons(aLen);
-  *((uint32_t*) (buffer + 2)) = htonl(aKey);
+  *((uint32_t*) (buffer + 0)) = htonl(aKey);
+  *((uint16_t*) (buffer + 4)) = htons(aLen);
+  buffer[6] = aType;
 
-  // Add 13 for the leading size <SIZE><KEY>.
-  uint16_t offset = 2 + 4;
+  // Add 13 for the leading size <KEY><SIZE><TYPE>.
+  uint16_t offset = 2 + 4 + 1;
   uint16_t len = aLen + offset;
 
   

@@ -66,9 +66,9 @@ protected:
   std::map<std::string,std::string> getAttributes(const std::string &aXml, 
                                                    const std::string &aXPath);
   
-  bool checkForDataCarrier();
-  bool checkForNewAsset(uint16_t &aSize, uint32_t &aHash);
-  bool readAssetFromRFID(uint16_t aSize, uint32_t aHash);
+  bool checkForDataCarrier(uint32_t &aHash);
+  bool checkForNewAsset(uint32_t aHash);
+  bool readAssetFromRFID(uint32_t aHash);
   bool checkNewOutgoingAsset(uint32_t &aHash);
   
   bool writeAssetToRFID(uint32_t aHash);

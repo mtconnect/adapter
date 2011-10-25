@@ -44,8 +44,8 @@ public:
   EResult getStatus(char &aStatus);
   EResult selectHead(int aHead);
   EResult readRFID(uint8_t *aText, uint16_t aSize);
-  EResult readHeader(uint16_t &aSize, uint32_t &aHash);
-  EResult writeRFID(uint32_t aKey, const uint8_t *aText, uint16_t aLen);
+  EResult readHeader(uint16_t &aSize, uint8_t &aType);
+  EResult writeRFID(uint32_t aKey, uint8_t aType, const uint8_t *aText, uint16_t aLen);
   EResult checkForData(int &aHead, uint32_t &aLead);
   EResult reset();
   
