@@ -144,20 +144,10 @@ void BalluffAdapter::sendAssetToAgent(const char *aId)
     map<string,string> attrs = getAttributes(result, "//m:CuttingTool");
     
     if (attrs.count("deviceUuid") > 0 && mDevice != attrs["deviceUuid"]) {
-      mOutgoingSize = encodeResult(result.c_str(), mOutgoing);
-      
-      // Make sure we are writing back to the correct RFID, if it has changed, then
-      // skip this write. The one alternative is if we are overwriting this id
-      // in which case it will have a status of only new and the deviceUuid will be
-      // ???? (TODO: need to figure out what the uuid should be)
-      
       mOutgoingId = aId;
-      mOutgoingTimestamp = attrs["timestamp"];
-      
-      if (attrs["status"] == "NEW")
-        mForceOverwrite = true;
-      
-      //gLogger->debug("Sending asset:\n %s", result.c_str());
+      mOutgoingHash = computeHash(aId + attrs["timestamp"]);
+      mOutgoingIsNew = attrs["status"] == "NEW";
+
       addAsset(aId, attrs["element"].c_str(), result.c_str()); 
     }
   }
@@ -366,7 +356,7 @@ void BalluffAdapter::agentMonitor()
     if (MTCWebExecute(currentContext, &current) == 0)
     {
       // Get the last position we should start from...
-      map<string,string> attrs = getAttributes(current, "//m:Header");
+      Attributes attrs = getAttributes(current, "//m:Header");
       if (attrs.count("nextSequence") > 0) 
       {
         string url = mUrl;
@@ -387,10 +377,11 @@ bool BalluffAdapter::checkForNewAsset(uint32_t aHash)
 {
   bool ret;
   if (aHash != mCurrentHash) {
+    mLastAssetId = mCurrentAssetId;
     mCurrentAssetId.clear();
     mCurrentAssetTimestamp.clear();
     mCurrentHash = 0;
-    mHasHash = false;
+    mHasRead = false;
     ret = true;
   } else {
     ret = false;
@@ -439,24 +430,28 @@ void BalluffAdapter::updateAssetFromRFID(uint32_t aHash, const char *aXml)
   if (chg != ERROR) {
     // TODO: Need when newer we need to set the timestamp and the current asset id 
     // and hash
-    if (chg == OLDER) {
-      gLogger->debug("Sending %s to agent", mCurrentAssetId.c_str());
-      addAsset(mCurrentAssetId.c_str(), rfidAttrs["element"].c_str(), aXml);
-      mCurrentAssetTimestamp = rfidAttrs["timestamp"];
-    } else if (chg == NEWER) {
-      gLogger->debug("Asset on agent is newer");              
-      mOutgoingId = mCurrentAssetId;
-      mOutgoingSize = encodeResult(agentXml.c_str(), mOutgoing);
-      mCurrentAssetTimestamp = agentAttrs["timestamp"];
-    } else {
-      gLogger->debug("Asset has remained the same");
-    }                
+    mCurrentAssetId = rfidAttrs["assetId"];
+    mCurrentAssetTimestamp = rfidAttrs["timestamp"];
     string key = mCurrentAssetId + mCurrentAssetTimestamp;
     mCurrentHash = computeHash(key);
-    mCurrentAssetId = rfidAttrs["assetId"];
     if (aHash != mCurrentHash)
       gLogger->error("Hash codes don't match: %x != %x", mCurrentHash, aHash);
-    mHasHash = true;          
+
+    if (chg == NEWER) {
+      gLogger->debug("Asset on agent is newer");              
+      mOutgoingId = mCurrentAssetId;
+      mOutgoingHash = 0;
+    } else if (chg == SAME) {
+      gLogger->debug("Asset has remained the same");
+    } 
+    
+    // If we just switched assets, force a new asset changed event.
+    if (chg == OLDER || mLastAssetId != mCurrentAssetId) {
+      gLogger->debug("Sending %s to agent", mCurrentAssetId.c_str());
+      addAsset(mCurrentAssetId.c_str(), rfidAttrs["element"].c_str(), aXml);
+    }
+    
+    mHasRead = true;          
   } else {              
     gLogger->warning("Asset data did not contain necessary data");
   }
@@ -464,7 +459,7 @@ void BalluffAdapter::updateAssetFromRFID(uint32_t aHash, const char *aXml)
 
 bool BalluffAdapter::readAssetFromRFID(uint32_t aHash)
 {
-  mHasHash = false;
+  mHasRead = false;
   mCurrentHash = aHash;
 
   uint8_t type;
@@ -501,62 +496,66 @@ bool BalluffAdapter::readAssetFromRFID(uint32_t aHash)
   return true;
 }
 
-bool BalluffAdapter::writeAssetToRFID(uint32_t aHash)
+bool BalluffAdapter::writeAssetToRFID()
 {  
   bool ret = false;
-  BalluffSerial::EResult res= mSerial->writeRFID(aHash,'G', mOutgoing, 
-                                                 mOutgoingSize);
+  uint8_t outgoing[MAX_RFID_SIZE];
+  string result = getAsset(mMyBaseUrl, mOutgoingId.c_str());
+  uint16_t size = encodeResult(result.c_str(), outgoing);
+  Attributes attrs = getAttributes(result, "//m:CuttingTool");
+  string timestamp = attrs["timestamp"];
+  uint32_t hash = computeHash(mOutgoingId + timestamp);
+  
+  gLogger->debug("Sending asset: %s", mOutgoingId.c_str());
+  BalluffSerial::EResult res= mSerial->writeRFID(hash,'G', outgoing, size); 
   if (res == BalluffSerial::SUCCESS)
   {
-    mCurrentHash = computeHash(mOutgoingId + mOutgoingTimestamp);
+    mCurrentHash = hash;
     mCurrentAssetId = mOutgoingId;
-    mCurrentAssetTimestamp = mOutgoingTimestamp;
-    cout << "Succussfully wrote: " << mOutgoing << endl;
+    mCurrentAssetTimestamp = timestamp;
     ret = true;
   } else {
     // We may not have had enough room...
     string url = mBaseUrl + "assets/" + mOutgoingId;
-    strcpy((char*) mOutgoing, url.c_str());
-    mOutgoingSize = strlen((char*) mOutgoing);
-    res= mSerial->writeRFID(aHash, 'U', mOutgoing, mOutgoingSize);
+    strcpy((char*) outgoing, url.c_str());
+    size = strlen((char*) outgoing);
+    res= mSerial->writeRFID(mOutgoingHash, 'U', outgoing, size);
     if (res == BalluffSerial::SUCCESS) {
-      cout << "Succussfully wrote: " << mOutgoing << endl;
+      cout << "Succussfully wrote: " << outgoing << endl;
       ret = true;
     }    
   } 
   
-  mOutgoingSize = 0;
+  mOutgoingId.clear();
+  mOutgoingIsNew = false;
   
   return ret;
 }
 
-bool BalluffAdapter::checkNewOutgoingAsset(uint32_t &aHash)
+bool BalluffAdapter::checkNewOutgoingAsset()
 {
-  // Calculate our hash key
-  string key = mOutgoingId + mOutgoingTimestamp;
-  aHash = computeHash(key);
+  if (mOutgoingId.empty())
+    return false;
   
   // If we are forcing a new asset identity onto this tool,
   // overwrite.
   bool ret = true;
-  if (!mForceOverwrite) {
-    // Have we read the header yet?
-    
+  if (!mOutgoingIsNew) {
     // Need to do a read first
-    if (!mHasHash) {
+    if (!mHasRead) {
       // Do nothing, return will be false. We'll come back here after the data is
       // read and the hash code is populated.
       ret = false;
-    } else if (aHash == mCurrentHash) {
+    } else if (mOutgoingHash == mCurrentHash) {
       // Is this the same data that's already on the asset? 
       gLogger->info("Attempt to write identical data to the data carrier: %s", mOutgoingId.c_str());
-      mOutgoingSize = 0;
+      mOutgoingId.clear();
       ret = false;
     } else if (mCurrentAssetId != mOutgoingId) {
       // Also make sure we are writing the same asset. the asset id must be the same.
       gLogger->info("Asset id %s skipped because it is not the current asset on the data carrier: %s",
                     mOutgoingId.c_str(), mCurrentAssetId.c_str());
-      mOutgoingSize = 0;
+      mOutgoingId.clear();
       ret = false;
     }
   }
@@ -571,12 +570,11 @@ bool BalluffAdapter::checkForDataCarrier(uint32_t &aHash)
   BalluffSerial::EResult res = mSerial->checkForData(head, aHash);
   if (res == BalluffSerial::SUCCESS ) {      
     if (head == 0)
-      mHasHash = false;
+      mHasRead = false;
     else 
       ret = true;
-    if (mHasHash) gLogger->debug("Just read hash %x", aHash);
   } else {
-    mHasHash = false;
+    mHasRead = false;
     mSerial->reset();
   }
   
@@ -584,9 +582,8 @@ bool BalluffAdapter::checkForDataCarrier(uint32_t &aHash)
 }
 
 void BalluffAdapter::start()
-{
-  mForceOverwrite = false;
-  mOutgoingSize = 0;
+{  
+  mOutgoingIsNew = false;
   
   // Start agent heartbeat thread...
   startServerThread();
@@ -623,12 +620,9 @@ void BalluffAdapter::start()
         readAssetFromRFID(hash);
       }
 
-      if (mOutgoingSize != 0 && (mForceOverwrite || mHasHash)) {
-        uint32_t hash;
-        if (checkNewOutgoingAsset(hash))
-          if (!writeAssetToRFID(hash))
+      if (checkNewOutgoingAsset()) {
+          if (!writeAssetToRFID())
             mSerial->reset();
-        mForceOverwrite = false;
       }
     }
     

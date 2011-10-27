@@ -29,19 +29,18 @@ protected:
   std::string mDevice;
 
   // Outgoing info...
-  uint8_t mOutgoing[MAX_RFID_SIZE];
-  uint16_t mOutgoingSize;
   std::string mOutgoingId;
-  std::string mOutgoingTimestamp;
-  bool mForceOverwrite;
+  uint32_t mOutgoingHash;
+  bool mOutgoingIsNew;
   
   // Incoming info
   std::string mCurrentAssetId;
   std::string mCurrentAssetTimestamp;
+  std::string mLastAssetId;
   
   // Current asset checksum
   uint32_t mCurrentHash;
-  bool mHasHash;
+  bool mHasRead;
   
   BalluffConfiguration mConfiguration;
   
@@ -72,11 +71,11 @@ protected:
   
   bool checkForDataCarrier(uint32_t &aHash);
   bool checkForNewAsset(uint32_t aHash);
-  bool checkNewOutgoingAsset(uint32_t &aHash);
+  bool checkNewOutgoingAsset();
   bool readAssetFromRFID(uint32_t aHash);
   void updateAssetFromRFID(uint32_t aHash, const char *aXml);
   
-  bool writeAssetToRFID(uint32_t aHash);
+  bool writeAssetToRFID();
   
   uint32_t computeHash(const std::string &aKey);
 
