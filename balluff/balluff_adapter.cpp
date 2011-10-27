@@ -154,7 +154,7 @@ void BalluffAdapter::sendAssetToAgent(const char *aId)
       mOutgoingId = aId;
       mOutgoingTimestamp = attrs["timestamp"];
       
-      if (attrs["deviceUuid"] == "NEW")
+      if (attrs["status"] == "NEW")
         mForceOverwrite = true;
       
       //gLogger->debug("Sending asset:\n %s", result.c_str());
@@ -163,8 +163,9 @@ void BalluffAdapter::sendAssetToAgent(const char *aId)
   }
 }
 
-map<string,string> BalluffAdapter::getAttributes(const string &aXml, 
-                                                const string &aXPath)
+BalluffAdapter::Attributes 
+BalluffAdapter::getAttributes(const string &aXml, 
+                              const string &aXPath)
 {
   std::map<std::string,std::string> res;
   
@@ -201,6 +202,29 @@ map<string,string> BalluffAdapter::getAttributes(const string &aXml,
           }
         }
         
+        for (xmlNodePtr child = node->children; child != NULL; child = child->next) {
+          if (xmlStrcmp(child->name, BAD_CAST "CuttingToolLifeCycle") == 0) {
+            for (xmlNodePtr gchild = child->children; gchild != NULL; gchild = gchild->next) {
+              if (xmlStrcmp(gchild->name, BAD_CAST "CutterStatus") == 0) {
+                string statusStr;
+                for (xmlNodePtr status = gchild->children; status != NULL; status = status->next) {
+                  if (xmlStrcmp(status->name, BAD_CAST "Status") == 0) {
+                    xmlChar *text = xmlNodeGetContent(status);
+                    if (text != NULL) {                     
+                      if (!statusStr.empty()) statusStr.append(",");
+                      statusStr.append((const char*)text);
+                      xmlFree(text);
+                    }
+                  }
+                }
+                res["status"] = statusStr;
+                break;
+              }
+            }
+            break;
+          }
+        }
+        
         xmlXPathFreeObject(nodes);
       }
       
@@ -217,31 +241,6 @@ map<string,string> BalluffAdapter::getAttributes(const string &aXml,
 
   return res;
 }
-
-BalluffAdapter::EChanged BalluffAdapter::hasAssetChanged(map<string,string> &aAttributes)
-{
-  if (aAttributes.count("assetId") < 1 || aAttributes.count("timestamp") < 1)
-    return ERROR;
-  
-  if (aAttributes["assetId"] == mCurrentAssetId && 
-      aAttributes["timestamp"] == mCurrentAssetTimestamp)
-    return SAME;
-  
-  string &id = aAttributes["assetId"];
-  string xml = getAsset(mMyBaseUrl, id.c_str());
-  if (!xml.empty()) {
-    map<string,string> attrs = getAttributes(xml, "//m:CuttingTool");
-    if (attrs.count("assetId") > 0 && attrs.count("timestamp") > 0 && 
-        attrs["timestamp"] == aAttributes["timestamp"] && 
-        attrs["assetId"] == aAttributes["assetId"])
-      return SAME;
-    else
-      return CHANGED;
-  }
-  
-  return ERROR;
-}
-
 
 static void StreamXMLErrorFunc(void *ctx ATTRIBUTE_UNUSED, const char *msg, ...)
 {
@@ -400,45 +399,92 @@ bool BalluffAdapter::checkForNewAsset(uint32_t aHash)
   return ret;
 }
 
+BalluffAdapter::EChanged BalluffAdapter::hasAssetChanged(Attributes &aRFIDAttributes,
+                                                         Attributes &aAgentAttributes)
+{
+  if (aRFIDAttributes.count("assetId") < 1 || aRFIDAttributes.count("timestamp") < 1)
+    return ERROR;
+  
+  if (aRFIDAttributes["assetId"] == mCurrentAssetId && 
+      aRFIDAttributes["timestamp"] == mCurrentAssetTimestamp)
+    return SAME;
+  
+  if (aAgentAttributes.count("assetId") > 0 && aAgentAttributes.count("timestamp") > 0 && 
+      aAgentAttributes["assetId"] == aRFIDAttributes["assetId"]) {
+      string &agent = aAgentAttributes["timestamp"];
+      string &rfid = aRFIDAttributes["timestamp"];
+      
+      if (agent > rfid)
+        return NEWER;
+      else if (agent < rfid)
+        return OLDER;
+      else
+        return SAME;
+  }
+  
+  return ERROR;
+}
+
+void BalluffAdapter::updateAssetFromRFID(uint32_t aHash, const char *aXml)
+{
+  map<string,string> rfidAttrs = getAttributes(aXml, "//m:CuttingTool");
+  string &id = rfidAttrs["assetId"];
+  string agentXml = getAsset(mMyBaseUrl, id.c_str());
+  map<string,string> agentAttrs;
+  EChanged chg = OLDER;
+  if (!agentXml.empty()) {
+    agentAttrs = getAttributes(agentXml, "//m:CuttingTool");
+    chg = hasAssetChanged(rfidAttrs, agentAttrs);
+  }
+  if (chg != ERROR) {
+    // TODO: Need when newer we need to set the timestamp and the current asset id 
+    // and hash
+    if (chg == OLDER) {
+      gLogger->debug("Sending %s to agent", mCurrentAssetId.c_str());
+      addAsset(mCurrentAssetId.c_str(), rfidAttrs["element"].c_str(), aXml);
+      mCurrentAssetTimestamp = rfidAttrs["timestamp"];
+    } else if (chg == NEWER) {
+      gLogger->debug("Asset on agent is newer");              
+      mOutgoingId = mCurrentAssetId;
+      mOutgoingSize = encodeResult(agentXml.c_str(), mOutgoing);
+      mCurrentAssetTimestamp = agentAttrs["timestamp"];
+    } else {
+      gLogger->debug("Asset has remained the same");
+    }                
+    string key = mCurrentAssetId + mCurrentAssetTimestamp;
+    mCurrentHash = computeHash(key);
+    mCurrentAssetId = rfidAttrs["assetId"];
+    if (aHash != mCurrentHash)
+      gLogger->error("Hash codes don't match: %x != %x", mCurrentHash, aHash);
+    mHasHash = true;          
+  } else {              
+    gLogger->warning("Asset data did not contain necessary data");
+  }
+}
+
 bool BalluffAdapter::readAssetFromRFID(uint32_t aHash)
 {
+  mHasHash = false;
+  mCurrentHash = aHash;
+
   uint8_t type;
   uint16_t size;
   if (mSerial->readHeader(size, type) != BalluffSerial::SUCCESS)
     return false;
   
-  if (size > MAX_RFID_SIZE)
+  if (size > MAX_RFID_SIZE) {
     return false;
+  }
   
   uint8_t incoming[MAX_RFID_SIZE];
   memset(incoming, 0, sizeof(incoming));
   BalluffSerial::EResult res = mSerial->readRFID(incoming, size);
-  mHasHash = false;
 
   if (res == BalluffSerial::SUCCESS) {
     if (type == 'G') {
       char *decode = reconstitute(incoming, size);
       if (decode != NULL) {
-        // Check for XML
-        map<string,string> attrs = getAttributes(decode, "//m:CuttingTool");
-        EChanged chg = hasAssetChanged(attrs);
-        if (chg != ERROR) {
-          if (chg == CHANGED) {
-            gLogger->debug("Sending %s to agent", attrs["assetId"].c_str());
-            addAsset(attrs["assetId"].c_str(), attrs["element"].c_str(), decode);
-          } else {
-            gLogger->debug("Asset has remained the same");
-          }                
-          mCurrentAssetId = attrs["assetId"];
-          mCurrentAssetTimestamp = attrs["timestamp"];
-          string key = mCurrentAssetId + mCurrentAssetTimestamp;
-          mCurrentHash = computeHash(key);
-          if (aHash != mCurrentHash)
-            gLogger->error("Hash codes don't match: %x != %x", mCurrentHash, aHash);
-          mHasHash = true;
-        } else {              
-          gLogger->warning("Asset data did not contain necessary data");
-        }
+        updateAssetFromRFID(aHash, decode);
         free(decode);
       } else {
         gLogger->error("Error decoding gzip data");
@@ -462,11 +508,13 @@ bool BalluffAdapter::writeAssetToRFID(uint32_t aHash)
                                                  mOutgoingSize);
   if (res == BalluffSerial::SUCCESS)
   {
+    mCurrentHash = computeHash(mOutgoingId + mOutgoingTimestamp);
+    mCurrentAssetId = mOutgoingId;
+    mCurrentAssetTimestamp = mOutgoingTimestamp;
     cout << "Succussfully wrote: " << mOutgoing << endl;
     ret = true;
   } else {
     // We may not have had enough room...
-    
     string url = mBaseUrl + "assets/" + mOutgoingId;
     strcpy((char*) mOutgoing, url.c_str());
     mOutgoingSize = strlen((char*) mOutgoing);
@@ -526,6 +574,7 @@ bool BalluffAdapter::checkForDataCarrier(uint32_t &aHash)
       mHasHash = false;
     else 
       ret = true;
+    if (mHasHash) gLogger->debug("Just read hash %x", aHash);
   } else {
     mHasHash = false;
     mSerial->reset();

@@ -16,6 +16,8 @@
 class BalluffAdapter : public Adapter, public MTConnectService
 {
 protected:
+  typedef std::map<std::string,std::string> Attributes;
+  
   /* Define all the data values here */
   
   /* Events */
@@ -46,7 +48,8 @@ protected:
 protected:
   enum EChanged {
     SAME,
-    CHANGED,
+    OLDER,
+    NEWER,
     ERROR
   };
   
@@ -54,7 +57,8 @@ protected:
   char *reconstitute(const uint8_t *aData, uint16_t aSize);
   uint16_t encodeResult(const char *aData, uint8_t *aEncoded);
   std::string getAsset(std::string &aUrl, const char *aId);
-  EChanged hasAssetChanged(std::map<std::string,std::string> &aAttributes);
+  EChanged hasAssetChanged(Attributes &aRFIDAttributes,
+                           Attributes &aAgentAttributes);
                     
   static int HandleXmlChunk(const char *xml, void *aObj);
   
@@ -63,13 +67,14 @@ protected:
   static void *AgentMonitor(void *anAdapter);
   void agentMonitor();
   
-  std::map<std::string,std::string> getAttributes(const std::string &aXml, 
-                                                   const std::string &aXPath);
+  Attributes getAttributes(const std::string &aXml, 
+                           const std::string &aXPath);
   
   bool checkForDataCarrier(uint32_t &aHash);
   bool checkForNewAsset(uint32_t aHash);
-  bool readAssetFromRFID(uint32_t aHash);
   bool checkNewOutgoingAsset(uint32_t &aHash);
+  bool readAssetFromRFID(uint32_t aHash);
+  void updateAssetFromRFID(uint32_t aHash, const char *aXml);
   
   bool writeAssetToRFID(uint32_t aHash);
   
