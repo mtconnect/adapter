@@ -192,7 +192,7 @@ void Server::readFromClients()
     unsigned int now = getTimestamp();
     if (client->mHeartbeats)
     {
-      if (deltaTimestamp(now, client->mLastHeartbeat) > mTimeout)
+      if (deltaTimestamp(now, client->mLastHeartbeat) > (unsigned int) mTimeout)
       {
         gLogger->warning("Client has not sent heartbeat in over %d ms, disconnecting",
           mTimeout);

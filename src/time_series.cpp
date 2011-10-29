@@ -81,7 +81,7 @@ bool TimeSeries::append(StringBuffer &aStringBuffer)
     else
       snprintf(buffer, 1023, "|%s|%d||", mName, (int) mValues.size());
     aStringBuffer.append(buffer);
-    for (int i = 0; i < mValues.size(); i++)
+    for (size_t i = 0; i < mValues.size(); i++)
     {
       snprintf(buffer, 1023, "%.10g ", mValues[i]);
       aStringBuffer.append(buffer);

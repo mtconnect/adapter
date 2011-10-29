@@ -234,7 +234,7 @@ char *Condition::ActiveCondition::toString(char *aBuffer, int aMaxLen)
   case eNORMAL: text = "NORMAL"; break;
   case eWARNING: text = "WARNING"; break;
   case eFAULT: text = "FAULT"; break;
-  default: ""; break;
+  default: text = ""; break;
   }
   snprintf(aBuffer, aMaxLen, "|%s|%s|%s|%s|", text, mNativeCode, mNativeSeverity,
 	        mQualifier);

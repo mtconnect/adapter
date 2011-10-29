@@ -56,7 +56,7 @@ DeviceDatum::~DeviceDatum()
 bool DeviceDatum::prefixName(const char *aName)
 {
   // Check for overflow.
-  if (strlen(mName) + strlen(aName) >= NAME_LEN)
+  if (strlen(mName) + strlen(aName) >= (size_t) NAME_LEN)
     return false;
 
   // Shift the current name right by the length of aName. Add one to
@@ -99,9 +99,8 @@ bool DeviceDatum::requiresFlush()
 void DeviceDatum::appendText(char *aBuffer, char *aValue, int aMaxLen)
 {
   size_t len = strlen(aBuffer);
-  size_t max = aMaxLen - len;
   char *cp = aValue, *dp = aBuffer + len;
-  for (size_t i = len; i < aMaxLen && *cp != '\0'; i++)
+  for (size_t i = len; i < (size_t) aMaxLen && *cp != '\0'; i++)
   {
 	if (*cp == '\n' || *cp == '\r')
 		*dp = ' ';
@@ -347,7 +346,7 @@ char *Direction::toString(char *aBuffer, int aMaxLen)
   case eUNAVAILABLE: text = sUnavailable; break;
   case eCLOCKWISE: text = "CLOCKWISE"; break;
   case eCOUNTER_CLOCKWISE: text = "COUNTER_CLOCKWISE"; break;
-  default: ""; break;
+  default: text = ""; break;
   }
   snprintf(aBuffer, aMaxLen, "|%s|%s", mName, text);
   return aBuffer;
@@ -380,7 +379,7 @@ char *EmergencyStop::toString(char *aBuffer, int aMaxLen)
   case eUNAVAILABLE: text = sUnavailable; break;
   case eTRIGGERED: text = "TRIGGERED"; break;
   case eARMED: text = "ARMED"; break;
-  default: ""; break;
+  default: text = ""; break;
   }
   snprintf(aBuffer, aMaxLen, "|%s|%s", mName, text);
   return aBuffer;
@@ -415,7 +414,7 @@ char *AxisCoupling::toString(char *aBuffer, int aMaxLen)
   case eSYNCHRONOUS: text = "SYNCHRONOUS"; break;
   case eMASTER: text = "MASTER"; break;
   case eSLAVE: text = "SLAVE"; break;
-  default: ""; break;
+  default: text = ""; break;
   }
   snprintf(aBuffer, aMaxLen, "|%s|%s", mName, text);
   return aBuffer;
@@ -447,7 +446,7 @@ char *DoorState::toString(char *aBuffer, int aMaxLen)
   case eUNAVAILABLE: text = sUnavailable; break;
   case eOPEN: text = "CLOSED"; break;
   case eCLOSED: text = "OPEN"; break;
-  default: ""; break;
+  default: text = ""; break;
   }
   snprintf(aBuffer, aMaxLen, "|%s|%s", mName, text);
   return aBuffer;
@@ -480,7 +479,7 @@ char *PathMode::toString(char *aBuffer, int aMaxLen)
   case eINDEPENDENT: text = "INDEPENDENT"; break;
   case eSYNCHRONOUS: text = "SYNCHRONOUS"; break;
   case eMIRROR: text = "MIRROR"; break;
-  default: ""; break;
+  default: text = ""; break;
   }
   snprintf(aBuffer, aMaxLen, "|%s|%s", mName, text);
   return aBuffer;
@@ -513,7 +512,7 @@ char *RotaryMode::toString(char *aBuffer, int aMaxLen)
   case eSPINDLE: text = "SPINDLE"; break;
   case eINDEX: text = "INDEX"; break;
   case eCONTOUR: text = "CONTOUR"; break;
-  default: ""; break;
+  default: text = ""; break;
   }
   snprintf(aBuffer, aMaxLen, "|%s|%s", mName, text);
   return aBuffer;
