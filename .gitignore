@@ -6,3 +6,9 @@ Release
 *.suo
 *.ncb
 *.user
+Fwlib
+build
+*.sln
+*.vcproj
+CMakeFiles
+*.dir

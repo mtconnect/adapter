@@ -146,12 +146,21 @@ BalluffSerial::EResult BalluffSerial::sendCommand(const char *aCommand, int aTim
 BalluffSerial::EResult BalluffSerial::checkForData(int &aHead, uint32_t &aText)
 {
   aHead = 0;
-  
-  EResult res = sendCommand("H?");
-  if (res != SUCCESS) return res;
-
+  int times = 0;
+  int count;  
   uint8_t reply[16];
-  int count = readWithBCC(reply, 6);
+  EResult res;
+  do {
+    res = sendCommand("H?");
+    if (res != SUCCESS) return res;
+    count = readWithBCC(reply, 6, 3000);
+    if (count < 6) {
+      times++;
+      gLogger->debug("Read of header content failed: %d times", times);
+      flush();
+      wait(200);
+    }
+  } while (times < 2 && count < 6);
   if (count < 6) return READ_ERROR;
   
   reply[6] = '\0';
@@ -160,7 +169,9 @@ BalluffSerial::EResult BalluffSerial::checkForData(int &aHead, uint32_t &aText)
   if (reply[0] == 'H') {
     if (reply[1] != '?') {
       aHead = reply[1] - '0';
-      aText = ntohl(*((uint32_t*) (reply + 2)));
+      uint32_t hash;
+      memcpy(&hash, reply + 2, sizeof(hash));
+      aText = ntohl(hash);
     } else {
       aHead = 0;
     }
@@ -215,10 +226,12 @@ BalluffSerial::EResult BalluffSerial::readHeader(uint16_t &aSize, uint8_t &aType
     return READ_ERROR;
   }
   
-  aSize = ntohs(*((uint16_t*) (buffer)));
+  uint16_t size;
+  memcpy(&size, buffer, sizeof(size));
+  aSize = ntohs(size);
   aType = buffer[2];
 
-  gLogger->debug("Header: size: %d hash: %x", aSize, aType);
+  gLogger->debug("Header: size: %d type: %c", aSize, aType);
   
   return SUCCESS;
 }
@@ -229,23 +242,27 @@ BalluffSerial::EResult BalluffSerial::writeRFID(uint32_t aKey, uint8_t aType,
   uint8_t buffer[MAX_RFID_SIZE];
   char command[32];
   
-  *((uint32_t*) (buffer + 0)) = htonl(aKey);
-  *((uint16_t*) (buffer + 4)) = htons(aLen);
-  buffer[6] = aType;
+  buffer[0] = STX;
+  
+  uint32_t kno = htonl(aKey);
+  uint16_t lno = htons(aLen);
+  memcpy(buffer + 1, &kno, sizeof(kno));
+  memcpy(buffer + 5, &lno, sizeof(lno));
+  buffer[7] = aType;
 
-  // Add 13 for the leading size <KEY><SIZE><TYPE>.
-  uint16_t offset = 2 + 4 + 1;
+  // Add 13 for the leading size <STX><KEY><SIZE><TYPE>.
+  uint16_t offset = 1 + 2 + 4 + 1;
   uint16_t len = aLen + offset;
 
   
   // Append the data after the size
   memcpy(buffer + offset, aText, aLen);  
 
-  sprintf(command, "W0000%04d", len);
+  // Remove one for <STX>
+  sprintf(command, "W0000%04d", len - 1);
   EResult res = sendCommand(command);
   if (res != SUCCESS) return res;
   
-  print(STX);
   int written = writeWithBCC(buffer, len, 10000);
   if (written != len)
     res = WRITE_ERROR;

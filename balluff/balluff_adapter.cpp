@@ -34,9 +34,10 @@ static pthread_mutex_t sWriteLock;
 #define UNLOCK(s) pthread_mutex_unlock(&s)
 
 BalluffAdapter::BalluffAdapter(int aPort)
-: Adapter(aPort, 1000), mAvailability("avail")
+: Adapter(aPort, 1000), mAvailability("avail"), mTool("tool")
 {
   addDatum(mAvailability);
+  addDatum(mTool);
   pthread_mutex_init(&sWriteLock, NULL);
 }
 
@@ -107,6 +108,10 @@ void BalluffAdapter::start()
   
   while (true)
   {
+    begin();
+    mBuffer.reset();
+    mBuffer.timestamp();
+
     mSerial->flush();
     
     uint32_t hash;
@@ -124,6 +129,9 @@ void BalluffAdapter::start()
       mCurrentAssetId.clear();
     }
     
+    sendChangedData();
+    cleanup();
+
     sleepMs(1000);
   }    
 }
@@ -299,11 +307,10 @@ BalluffAdapter::getAttributes(const string &aXml,
   return res;
 }
 
-string BalluffAdapter::getAsset(std::string &aUrl, const char *aId)
+string BalluffAdapter::getContent(std::string &aUrl)
 {
   // Get the XML for the asset from the server.
-  string str = aUrl + "assets/" + aId;
-  void *context = MTCWebRequest(str.c_str());
+  void *context = MTCWebRequest(aUrl.c_str());
   string xml;
   const char *result;
   if (MTCWebExecute(context, &result) == 0) {
@@ -312,6 +319,14 @@ string BalluffAdapter::getAsset(std::string &aUrl, const char *aId)
   MTCWebFree(context);
   
   return xml;
+}
+
+
+string BalluffAdapter::getAsset(std::string &aUrl, const char *aId)
+{
+  // Get the XML for the asset from the server.
+  string str = aUrl + "assets/" + aId;
+  return getContent(str);
 }
 
 // Methods to receive streaming data from the MTConnect agent
@@ -402,6 +417,7 @@ void BalluffAdapter::sendAssetToAgent(const char *aId)
         mOutgoingHash = hash;
         mOutgoingIsNew = attrs["status"] == "NEW";
         addAsset(aId, attrs["element"].c_str(), result.c_str()); 
+        mTool.setValue(aId);
         
         // Use the outgoing id as a signal that a new asset needs to be written.
         LOCK(sWriteLock);
@@ -455,6 +471,10 @@ bool BalluffAdapter::writeAssetToRFID()
     mCurrentAssetTimestamp = timestamp;
     ret = true;
   } else {
+    mSerial->flush();
+    mSerial->reset();
+    
+    
     // We may not have had enough room...
     string url = mBaseUrl + "assets/" + mOutgoingId;
     strcpy((char*) outgoing, url.c_str());
@@ -612,10 +632,12 @@ void BalluffAdapter::updateAssetFromRFID(uint32_t aHash, const char *aXml)
       gLogger->debug("Asset has remained the same");
     } 
     
-    // If we just switched assets, force a new asset changed event.
+    // If we just switched assets, force a new asset changed event. Eventually
+    // just use the tool id.
     if (chg == OLDER || mLastAssetId != mCurrentAssetId) {
       gLogger->debug("Sending %s to agent", mCurrentAssetId.c_str());
       addAsset(mCurrentAssetId.c_str(), rfidAttrs["element"].c_str(), aXml);
+      mTool.setValue(mCurrentAssetId.c_str());
     }
     
     mHasRead = true;          
@@ -654,8 +676,14 @@ bool BalluffAdapter::readAssetFromRFID(uint32_t aHash)
         gLogger->error("Error decoding gzip data");
       }
     } else if (type == 'U') {
-      // We have a URI and the uri is different from our own...
-      //sendAssetToAgent(incoming.c_str());
+      incoming[size] = '\0';
+      string url = (char*) incoming;
+      string xml = getContent(url);
+      if (!xml.empty()) {
+        updateAssetFromRFID(aHash, xml.c_str());
+      } else {
+        gLogger->error("Unable to get asset data for %s", url.c_str());
+      }
     }    
   } else {
     mSerial->reset();

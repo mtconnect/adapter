@@ -22,6 +22,8 @@ protected:
   
   /* Events */
   Availability mAvailability; 
+  Event        mTool;
+  
   BalluffSerial *mSerial;
   std::string mUrl;
   std::string mBaseUrl;
@@ -56,6 +58,7 @@ protected:
   char *reconstitute(const uint8_t *aData, uint16_t aSize);
   uint16_t encodeResult(const char *aData, uint8_t *aEncoded);
   std::string getAsset(std::string &aUrl, const char *aId);
+  std::string getContent(std::string &aUrl);
   EChanged hasAssetChanged(Attributes &aRFIDAttributes,
                            Attributes &aAgentAttributes);
                     
