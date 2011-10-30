@@ -39,6 +39,7 @@ protected:
   std::string mCurrentAssetId;
   std::string mCurrentAssetTimestamp;
   std::string mLastAssetId;
+  uint8_t mCurrentType;
   
   // Current asset checksum
   uint32_t mCurrentHash;
@@ -56,7 +57,7 @@ protected:
   
   void startAgentMonitor();
   char *reconstitute(const uint8_t *aData, uint16_t aSize);
-  uint16_t encodeResult(const char *aData, uint8_t *aEncoded);
+  uint16_t compressResult(const char *aData, uint8_t *aEncoded);
   std::string getAsset(std::string &aUrl, const char *aId);
   std::string getContent(std::string &aUrl);
   EChanged hasAssetChanged(Attributes &aRFIDAttributes,

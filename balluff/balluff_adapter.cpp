@@ -15,6 +15,7 @@
 #include <libxml/parser.h>
 #include <libxml/xpath.h>
 #include <libxml/xpathInternals.h>
+#include <libxml/xmlwriter.h>
 #include <b64/cencode.h>
 #include <b64/cdecode.h>
 #include <zlib.h>
@@ -80,6 +81,7 @@ void BalluffAdapter::initialize(int aArgc, const char *aArgv[])
 void BalluffAdapter::start()
 {  
   mOutgoingIsNew = false;
+  mCurrentType = 0;
   
   // Start agent heartbeat thread...
   startServerThread();
@@ -202,6 +204,8 @@ void BalluffAdapter::agentMonitor()
         MTCStreamStart(context);
         MTCStreamFree(context);
       }
+    } else {
+      gLogger->warning("Could not connect to server: %s, will try again in 1 second", mUrl.c_str());
     }
     MTCWebFree(currentContext);      
     sleepMs(1000);
@@ -233,6 +237,7 @@ BalluffAdapter::getAttributes(const string &aXml,
                               const string &aXPath)
 {
   std::map<std::string,std::string> res;
+  string path = aXPath;
   
   xmlDocPtr document = xmlReadDoc(BAD_CAST aXml.c_str(), "file://node.xml",
                                   NULL, XML_PARSE_NOBLANKS);
@@ -245,65 +250,63 @@ BalluffAdapter::getAttributes(const string &aXml,
     if (root->ns != NULL)
     {
       xmlXPathRegisterNs(xpathCtx, BAD_CAST "m", root->ns->href);
+    } else {
+      size_t loc = path.find("m:");
+      if (loc != string::npos)
+        path.erase(loc, 2);
+    }
       
-      xmlXPathObjectPtr nodes;
-      xmlNodeSetPtr nodeset;
+    xmlXPathObjectPtr nodes;
+    xmlNodeSetPtr nodeset;
+    
+    // Evaluate the xpath.
+    nodes = xmlXPathEval(BAD_CAST path.c_str(), xpathCtx);
+    if (nodes == NULL || nodes->nodesetval == NULL || nodes->nodesetval->nodeTab == NULL)
+    {
+      printf("No nodes found matching XPath\n");
+    } else {
+      // Spin through all the events, samples and conditions.
+      nodeset = nodes->nodesetval;
+      xmlNodePtr node = nodeset->nodeTab[0];
       
-      // Evaluate the xpath.
-      nodes = xmlXPathEval(BAD_CAST aXPath.c_str(), xpathCtx);
-      if (nodes == NULL || nodes->nodesetval == NULL || nodes->nodesetval->nodeTab == NULL)
+      res["element"] = (const char*) (node->name);
+      for (xmlAttrPtr attr = node->properties; attr != NULL; attr = attr->next)
       {
-        printf("No nodes found matching XPath\n");
-      } else {
-        // Spin through all the events, samples and conditions.
-        nodeset = nodes->nodesetval;
-        xmlNodePtr node = nodeset->nodeTab[0];
-        
-        res["element"] = (const char*) (node->name);
-        for (xmlAttrPtr attr = node->properties; attr != NULL; attr = attr->next)
-        {
-          if (attr->type == XML_ATTRIBUTE_NODE) {
-            res[(const char *) attr->name] = (const char*) attr->children->content;
-          }
+        if (attr->type == XML_ATTRIBUTE_NODE) {
+          res[(const char *) attr->name] = (const char*) attr->children->content;
         }
-        
-        for (xmlNodePtr child = node->children; child != NULL; child = child->next) {
-          if (xmlStrcmp(child->name, BAD_CAST "CuttingToolLifeCycle") == 0) {
-            for (xmlNodePtr gchild = child->children; gchild != NULL; gchild = gchild->next) {
-              if (xmlStrcmp(gchild->name, BAD_CAST "CutterStatus") == 0) {
-                string statusStr;
-                for (xmlNodePtr status = gchild->children; status != NULL; status = status->next) {
-                  if (xmlStrcmp(status->name, BAD_CAST "Status") == 0) {
-                    xmlChar *text = xmlNodeGetContent(status);
-                    if (text != NULL) {                     
-                      if (!statusStr.empty()) statusStr.append(",");
-                      statusStr.append((const char*)text);
-                      xmlFree(text);
-                    }
-                  }
-                }
-                res["status"] = statusStr;
-                break;
-              }
-            }
-            break;
-          }
-        }
-        
-        xmlXPathFreeObject(nodes);
       }
       
-      xmlXPathFreeContext(xpathCtx);
+      for (xmlNodePtr child = node->children; child != NULL; child = child->next) {
+        if (xmlStrcmp(child->name, BAD_CAST "CuttingToolLifeCycle") == 0) {
+          for (xmlNodePtr gchild = child->children; gchild != NULL; gchild = gchild->next) {
+            if (xmlStrcmp(gchild->name, BAD_CAST "CutterStatus") == 0) {
+              string statusStr;
+              for (xmlNodePtr status = gchild->children; status != NULL; status = status->next) {
+                if (xmlStrcmp(status->name, BAD_CAST "Status") == 0) {
+                  xmlChar *text = xmlNodeGetContent(status);
+                  if (text != NULL) {                     
+                    if (!statusStr.empty()) statusStr.append(",");
+                    statusStr.append((const char*)text);
+                    xmlFree(text);
+                  }
+                }
+              }
+              res["status"] = statusStr;
+              break;
+            }
+          }
+          break;
+        }
+      }
+      
+      xmlXPathFreeObject(nodes);
     }
-    else
-    {
-      gLogger->error("Document does not have a namespace: %s\n", aXml.c_str());
-    }
-  }
-  
-  if (document != NULL)    
+    
+    xmlXPathFreeContext(xpathCtx);
     xmlFreeDoc(document);
-  
+  }
+    
   return res;
 }
 
@@ -432,17 +435,65 @@ void BalluffAdapter::sendAssetToAgent(const char *aId)
 
 // Outgoing to RFID
 
-uint16_t BalluffAdapter::encodeResult(const char *aData, uint8_t *aEncoded)
+uint16_t BalluffAdapter::compressResult(const char *aData, uint8_t *aEncoded)
 {
   int ret;
   uLongf len;
+  
+  xmlBufferPtr buf = NULL;
+  xmlDocPtr document = xmlReadDoc(BAD_CAST aData, "file://node.xml",
+                                  NULL, XML_PARSE_NOBLANKS);
+  if (document == NULL) {
+    gLogger->error("Cannot parse document: %s\n", aData);
+  } else {
+    xmlXPathContextPtr xpathCtx = xmlXPathNewContext(document);
+    
+    xmlNodePtr root = xmlDocGetRootElement(document);
+    if (root->ns != NULL)
+    {
+      xmlXPathRegisterNs(xpathCtx, BAD_CAST "m", root->ns->href);
+      
+      xmlXPathObjectPtr nodes;
+      xmlNodeSetPtr nodeset;
+      
+      // Evaluate the xpath.
+      nodes = xmlXPathEval(BAD_CAST "//m:CuttingTool", xpathCtx);
+      if (nodes == NULL || nodes->nodesetval == NULL || nodes->nodesetval->nodeTab == NULL)
+      {
+        printf("No nodes found matching XPath\n");
+      } else {
+        // Spin through all the events, samples and conditions.
+        nodeset = nodes->nodesetval;
+        xmlNodePtr node = nodeset->nodeTab[0];
+
+        xmlTextWriterPtr writer;
+        
+        buf = xmlBufferCreate();
+        writer = xmlNewTextWriterMemory(buf, 0);
+        xmlTextWriterSetIndent(writer, 0);
+        int count = xmlNodeDump(buf, document, node, 0, 0);
+        if (count > 0) {
+          aData = (char*) buf->content;
+        }
+        xmlFreeTextWriter(writer);        
+        xmlXPathFreeObject(nodes);
+      }
+    }
+    xmlXPathFreeContext(xpathCtx);
+    xmlFreeDoc(document);
+  }
 
   len = MAX_RFID_SIZE;
-  *((uint16_t*) aEncoded) = htons(strlen(aData));
+  uint16_t lno = htons(strlen(aData));
+  memcpy(aEncoded, &lno, sizeof(lno));
   len -= sizeof(uint16_t);
 
   ret = compress(aEncoded + sizeof(uint16_t), &len, 
                  (Bytef*) aData, strlen(aData));
+  
+  if (buf != NULL)
+    xmlBufferFree(buf);
+  
   if (ret != Z_OK)
     return 0;
   
@@ -457,33 +508,44 @@ bool BalluffAdapter::writeAssetToRFID()
   bool ret = false;
   uint8_t outgoing[MAX_RFID_SIZE];
   string result = getAsset(mMyBaseUrl, mOutgoingId.c_str());
-  uint16_t size = encodeResult(result.c_str(), outgoing);
+  uint16_t size = compressResult(result.c_str(), outgoing);
   Attributes attrs = getAttributes(result, "//m:CuttingTool");
   string timestamp = attrs["timestamp"];
   uint32_t hash = computeHash(mOutgoingId + timestamp);
   
   gLogger->debug("Sending asset: %s", mOutgoingId.c_str());
-  BalluffSerial::EResult res= mSerial->writeRFID(hash,'G', outgoing, size); 
-  if (res == BalluffSerial::SUCCESS)
-  {
-    mCurrentHash = hash;
-    mCurrentAssetId = mOutgoingId;
-    mCurrentAssetTimestamp = timestamp;
-    ret = true;
-  } else {
-    mSerial->flush();
-    mSerial->reset();
-    
-    
+  bool useUrl = mCurrentType == 'U';
+  
+  BalluffSerial::EResult res;
+  if (!useUrl) {
+    res = mSerial->writeRFID(hash,'G', outgoing, size); 
+    if (res != BalluffSerial::SUCCESS) {
+      gLogger->debug("Write failed, switching to URL");
+      useUrl = true;
+      
+      mSerial->flush();
+      mSerial->reset();
+    } else {
+      ret = true;
+    }
+  }
+  
+  if (useUrl) {
     // We may not have had enough room...
     string url = mBaseUrl + "assets/" + mOutgoingId;
     strcpy((char*) outgoing, url.c_str());
     size = strlen((char*) outgoing);
-    res= mSerial->writeRFID(mOutgoingHash, 'U', outgoing, size);
+    res= mSerial->writeRFID(hash, 'U', outgoing, size);
     if (res == BalluffSerial::SUCCESS) {
       cout << "Succussfully wrote: " << outgoing << endl;
       ret = true;
     }    
+  }
+  
+  if (ret) {
+    mCurrentHash = hash;
+    mCurrentAssetId = mOutgoingId;
+    mCurrentAssetTimestamp = timestamp;
   } 
   
   mOutgoingId.clear();
@@ -534,7 +596,9 @@ char *BalluffAdapter::reconstitute(const uint8_t *aText, uint16_t aSize)
   unsigned char *xml;
   uLongf size;
   
-  size = ntohs(*((uint16_t*) aText)) + 32;
+  uint16_t lno;
+  memcpy(&lno, aText, sizeof(lno));
+  size = ntohs(lno) + 32;
   xml = (unsigned char*) malloc(size);
 
   int ret = uncompress(xml, &size, (Bytef*) aText + sizeof(uint16_t), aSize - sizeof(uint16_t));
@@ -667,6 +731,7 @@ bool BalluffAdapter::readAssetFromRFID(uint32_t aHash)
   BalluffSerial::EResult res = mSerial->readRFID(incoming, size);
 
   if (res == BalluffSerial::SUCCESS) {
+    mCurrentType = type;
     if (type == 'G') {
       char *decode = reconstitute(incoming, size);
       if (decode != NULL) {

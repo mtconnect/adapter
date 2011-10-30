@@ -8,6 +8,8 @@ require 'readline'
 Encoding.default_internal, Encoding.default_external = ['BINARY'] * 2
 
 class RFID 
+  attr_reader :length
+  
   def initialize(name, length = 1024)
     @name = name
     @length = length
@@ -42,6 +44,7 @@ class RFID
   
   def read
     @data = pad(File.read(@name))
+    @length = @data.size
   end
 end
 
@@ -121,13 +124,17 @@ class Reader
           data << @client.read(length - data.length)
           puts "Received: #{data.length} bytes"
         end
-        File.open("t.bin", 'w') { |f| f.write(data) }
-        if (checkBCC(data))
-          @rfid.set_region(address, data.slice(0, length))
-          @rfid.write
-          ack
+        if (length > @rfid.length)
+          nak('7')
         else
-          nak('8')
+          File.open("t.bin", 'w') { |f| f.write(data) }
+          if (checkBCC(stx + data))
+            @rfid.set_region(address, data.slice(0, length))
+            @rfid.write
+            ack
+          else
+            nak('8')
+          end
         end
       end
     else
@@ -208,7 +215,12 @@ class Reader
   end
 end
 
-reader =Reader.new(ARGV[0])
+if ARGV.length < 1
+  puts "Usage: ruby simulator.rb <socket>"
+  exit 1
+end
+
+reader = Reader.new(ARGV[0])
 reader.start
 
 loop do
@@ -222,11 +234,12 @@ loop do
   when /^n/i
     reader.rfid = nil
     
-  when /^[a-z1-9_]+/
+  when /^([a-z1-9_]+)([ ]+\d+)?/
     # File name...
-    file = "rfid#{line}.bin"
-    puts "Creating RFID for file: #{file}"
-    reader.rfid = RFID.new(file)
+    file = "rfid#{$1}.bin"
+    puts "Creating RFID for file: #{file} #{$2}"
+    size = ($2 || 1024).to_i
+    reader.rfid = RFID.new(file, size)
     
   else
     puts "Invalid command: #{line}"
