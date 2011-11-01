@@ -44,7 +44,7 @@ protected:
   // Current asset checksum
   uint32_t mCurrentHash;
   bool mHasRead;
-  
+      
   BalluffConfiguration mConfiguration;
   
 protected:
@@ -82,6 +82,15 @@ protected:
   bool writeAssetToRFID();
   
   uint32_t computeHash(const std::string &aKey);
+  
+  // Progress indicator
+  enum EIndicator {
+    IDLE,
+    WORKING,
+    SUCCESS,
+    FAIL
+  };
+  void indicator(EIndicator aIndicator);
 
 public:
   BalluffAdapter(int aPort);

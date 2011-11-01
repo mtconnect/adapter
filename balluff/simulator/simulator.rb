@@ -102,6 +102,8 @@ class Reader
       else
         respond('H?0000')
       end
+    when '!'
+      
     when '1'
       ack('1')
     when '2'
@@ -175,7 +177,7 @@ class Reader
       
       when /^H(.)/
         readHead($1)
-      
+        
       when /^S/
         respond("S ")
       

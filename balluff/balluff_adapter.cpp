@@ -10,6 +10,7 @@
 #include <sstream>
 #include <internal.hpp>
 #include <stdio.h>
+#include <sys/ioctl.h>
 #include <string.h>
 #include "stream.h"
 #include <libxml/parser.h>
@@ -22,6 +23,7 @@
 #include "balluff_adapter.hpp"
 #include "balluff_serial.hpp"
 #include <pthread.h>
+#include "onrisc.h"
 
 #include "MurmurHash3.hpp"
 
@@ -33,6 +35,8 @@ using namespace std;
 static pthread_mutex_t sWriteLock;
 #define LOCK(s) pthread_mutex_lock(&s)
 #define UNLOCK(s) pthread_mutex_unlock(&s)
+
+
 
 BalluffAdapter::BalluffAdapter(int aPort)
 : Adapter(aPort, 1000), mAvailability("avail"), mTool("tool")
@@ -310,6 +314,55 @@ BalluffAdapter::getAttributes(const string &aXml,
   return res;
 }
 
+void BalluffAdapter::indicator(EIndicator aIndicator)
+{
+  int fd = ::open("/dev/gpio", O_RDWR);
+  if (fd >= 0)
+  {
+    // Always keep the power on...
+    int reset = 0;
+    unsigned long led = 0x01;
+    unsigned long buzz = 0x0;
+    
+    switch (aIndicator) {
+      case IDLE:
+        // Default state
+        break;
+        
+      case WORKING:
+        led |= 0x03;
+        break;
+          
+      case SUCCESS:
+        led |= 0x05;
+        reset = 500;
+        break;
+        
+      case FAIL:
+        led |= 0x07;
+        reset = 500;
+        buzz = 100;
+        ioctl(fd, GPIO_CMD_SET_BUZZER_FRQ, &buzz);
+        break;
+    }
+    
+    ioctl(fd, GPIO_CMD_SET_LEDS, &led);
+    
+    if (reset > 0) {
+      sleepMs(reset);
+      led = 0x01;
+      ioctl(fd, GPIO_CMD_SET_LEDS, &led);
+      if (buzz > 0) {
+        buzz = 0;
+        ioctl(fd, GPIO_CMD_SET_BUZZER, &buzz);        
+      }
+    }
+    
+    close(fd);
+  }
+  
+}
+
 string BalluffAdapter::getContent(std::string &aUrl)
 {
   // Get the XML for the asset from the server.
@@ -460,7 +513,7 @@ uint16_t BalluffAdapter::compressResult(const char *aData, uint8_t *aEncoded)
       nodes = xmlXPathEval(BAD_CAST "//m:CuttingTool", xpathCtx);
       if (nodes == NULL || nodes->nodesetval == NULL || nodes->nodesetval->nodeTab == NULL)
       {
-        printf("No nodes found matching XPath\n");
+        gLogger->info("Encoding result that is not a cutting tool XML doc");
       } else {
         // Spin through all the events, samples and conditions.
         nodeset = nodes->nodesetval;
@@ -516,6 +569,8 @@ bool BalluffAdapter::writeAssetToRFID()
   gLogger->debug("Sending asset: %s", mOutgoingId.c_str());
   bool useUrl = mCurrentType == 'U';
   
+  indicator(WORKING);
+
   BalluffSerial::EResult res;
   if (!useUrl) {
     res = mSerial->writeRFID(hash,'G', outgoing, size); 
@@ -551,6 +606,11 @@ bool BalluffAdapter::writeAssetToRFID()
   mOutgoingId.clear();
   mOutgoingIsNew = false;
   
+  if (ret)
+    indicator(SUCCESS);
+  else
+    indicator(FAIL);
+  
   return ret;
 }
 
@@ -572,7 +632,7 @@ bool BalluffAdapter::checkNewOutgoingAsset()
       // Do nothing, return will be false. We'll come back here after the data is
       // read and the hash code is populated.
       ret = false;
-    } else if (mOutgoingHash == mCurrentHash) {
+    } else if (mOutgoingHash == mCurrentHash && mCurrentType != 'U') {
       // Is this the same data that's already on the asset? 
       gLogger->info("Attempt to write identical data to the data carrier: %s", mOutgoingId.c_str());
       mOutgoingId.clear();
@@ -680,7 +740,7 @@ void BalluffAdapter::updateAssetFromRFID(uint32_t aHash, const char *aXml)
     mCurrentAssetTimestamp = rfidAttrs["timestamp"];
     string key = mCurrentAssetId + mCurrentAssetTimestamp;
     mCurrentHash = computeHash(key);
-    if (aHash != mCurrentHash)
+    if (aHash != mCurrentHash && mCurrentType != 'U')
       gLogger->error("Hash codes don't match: %x != %x", mCurrentHash, aHash);
 
     if (chg == NEWER) {
@@ -716,16 +776,21 @@ bool BalluffAdapter::readAssetFromRFID(uint32_t aHash)
 {
   mHasRead = false;
   mCurrentHash = aHash;
-
+  
+  indicator(WORKING);
+  
   uint8_t type;
   uint16_t size;
-  if (mSerial->readHeader(size, type) != BalluffSerial::SUCCESS)
-    return false;
-  
-  if (size > MAX_RFID_SIZE) {
+  if (mSerial->readHeader(size, type) != BalluffSerial::SUCCESS) {
+    indicator(FAIL);
     return false;
   }
   
+  if (size > MAX_RFID_SIZE) {
+    indicator(FAIL);
+    return false;
+  }
+
   uint8_t incoming[MAX_RFID_SIZE];
   memset(incoming, 0, sizeof(incoming));
   BalluffSerial::EResult res = mSerial->readRFID(incoming, size);
@@ -750,10 +815,11 @@ bool BalluffAdapter::readAssetFromRFID(uint32_t aHash)
         gLogger->error("Unable to get asset data for %s", url.c_str());
       }
     }    
+    indicator(SUCCESS);
   } else {
     mSerial->reset();
+    indicator(FAIL);
   }
-    
   
   return true;
 }
