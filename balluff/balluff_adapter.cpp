@@ -138,7 +138,7 @@ void BalluffAdapter::start()
     sendChangedData();
     cleanup();
 
-    sleepMs(1000);
+    sleepMs(250);
   }    
 }
 

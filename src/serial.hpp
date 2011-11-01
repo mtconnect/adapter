@@ -81,6 +81,7 @@ public:
   bool connect();
   bool disconnect();
   int wait(int aTimeout, WaitMode mode = READ);
+  static uint64_t getTimestamp();
   
   // Raw internal read
   int read(char *aBuffer, int len);

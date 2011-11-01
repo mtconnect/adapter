@@ -1,4 +1,17 @@
 
+uint64_t Serial::getTimestamp()
+{
+  uint64_t ts;
+  timeval curtime;
+  gettimeofday(&curtime,0);       
+
+  ts = curtime.tv_sec;
+  ts *= 1000;
+  ts += curtime.tv_usec / 1000;
+
+  return ts;
+}
+
 bool Serial::connect()
 {
   if (mConnected)

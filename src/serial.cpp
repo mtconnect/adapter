@@ -5,20 +5,6 @@
 
 #include <stdio.h>
 
-
-static uint64_t GetTimestamp()
-{
-  uint64_t ts;
-  timeval curtime;
-  gettimeofday(&curtime,0);       
-  
-  ts = curtime.tv_sec;
-  ts *= 1000;
-  ts += curtime.tv_usec / 1000;
-
-  return ts;
-}
-
 Serial::SerialError::SerialError(const char *aMessage)
 {
   strncpy(mMessage, aMessage, 1023);
@@ -145,8 +131,8 @@ bool Serial::flushInput()
 int Serial::readFully(char *aBuffer, int len, uint32_t timeout)
 {
   int consumed = 0;
-  uint64_t start = GetTimestamp();
-  while (consumed < len && (GetTimestamp() - start) < timeout) {
+  uint64_t start = getTimestamp();
+  while (consumed < len && (getTimestamp() - start) < timeout) {
     int res = wait(100);
     if (res > 0) {
       int cnt = read(aBuffer + consumed, len - consumed);
@@ -168,8 +154,8 @@ int Serial::writeFully(const char *aBuffer, int len, uint32_t timeout)
 {
   int written = 0;
   
-  uint64_t start = GetTimestamp();
-  while (written < len && (GetTimestamp() - start) < timeout) {
+  uint64_t start = getTimestamp();
+  while (written < len && (getTimestamp() - start) < timeout) {
     int res = wait(100, Serial::WRITE);
     if (res > 0) {
       int cnt = write(aBuffer + written, len - written);
