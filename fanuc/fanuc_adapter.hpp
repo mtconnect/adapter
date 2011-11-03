@@ -139,8 +139,15 @@ protected:
   int mProgramNum;
   ODBSYS mInfo;
   double mAxisDivisor[MAX_AXIS];
+  int mNode;
 
   short mAxisCount, mSpindleCount;
+  
+  enum EConnectionType {
+    ETHERNET,
+    HSSB
+  };
+  EConnectionType mConnectionType;
 
 protected:
   void connect();

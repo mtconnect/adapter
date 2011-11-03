@@ -36,7 +36,7 @@
 #include "minIni.h"
 
 FanucAdapter::FanucAdapter(int aPort) : 
-  Adapter(aPort), 
+  Adapter(aPort, 500), 
   mAvail("avail"), mExecution("execution"), mLine("line"),
   mPathFeedrate("path_feedrate"), 
   mProgram("program"), mBlock("block"), mProgramComment("program_comment"),
@@ -44,7 +44,8 @@ FanucAdapter::FanucAdapter(int aPort) :
   mEstop("estop"), mPathPosition("path_pos"),
   mServo("servo"), mComms("comms"), mLogic("logic"),
   mMotion("motion"), mSystem("system"), mSpindle("spindle"), mPartCount("part_count"),
-  mProgramNum(-1), mToolId("tool_id"), mToolGroup("tool_group")
+  mProgramNum(-1), mToolId("tool_id"), mToolGroup("tool_group"),
+  mNode(0), mConnectionType(ETHERNET)
 {
   /* Alarms */
   addDatum(mMessage);
@@ -274,11 +275,22 @@ void FanucAdapter::configMacrosAndPMC(const char *aIniFile)
 {
   // Read adapter configuration
   mPort = ini_getl("adapter", "port",  mPort, aIniFile);
+  mScanDelay = ini_getl("adapter", "scan_delay",  mScanDelay, aIniFile);
   ini_gets("adapter", "service", "MTConnect Fanuc Adapter", mName,
            SERVICE_NAME_LEN, aIniFile);
 
-  ini_gets("focus", "host", mDeviceIP, mDeviceIP, MAX_HOST_LEN, aIniFile);
-  mDevicePort = ini_getl("focus", "port", mDevicePort, aIniFile);
+  // Read focus configuration...
+  char connection[30];
+  ini_gets("focus", "connection", "ethernet", connection, 29, aIniFile);
+  connection[29] = '\0';
+  if (stricmp(connection, "hssb") == 0) {
+    mNode = ini_getl("focus", "node",  mNode, aIniFile);
+    mConnectionType = HSSB;
+  } else { // Default to ETHERNET
+    ini_gets("focus", "host", mDeviceIP, mDeviceIP, MAX_HOST_LEN, aIniFile);
+    mDevicePort = ini_getl("focus", "port", mDevicePort, aIniFile);
+    mConnectionType = ETHERNET;
+  }
 
   // Read adapter.ini to get additional macro variables and
   // PMC registers
@@ -342,8 +354,6 @@ void FanucAdapter::configMacrosAndPMC(const char *aIniFile)
       if (v > mMacroMax) mMacroMax = v;
       if (v < mMacroMin) mMacroMin = v;
     }
-    
-    
   }
 
   for (idx = 0;
@@ -381,10 +391,16 @@ void FanucAdapter::connect()
 {
   if (mConnected)
     return;
-          
-  printf("Connecting to Machine at %s and port %d\n", mDeviceIP, mDevicePort);
-  short ret = ::cnc_allclibhndl3(mDeviceIP, mDevicePort, 10, &mFlibhndl);
-  printf("Result: %d\n", ret);
+  
+  short ret;
+  if (mConnectionType == HSSB) {
+    gLogger->info("Connecting to Machine at node %d\n", mNode);
+    ret = ::cnc_allclibhndl2(mNode, &mFlibhndl);
+  } else {
+    gLogger->info("Connecting to Machine at %s and port %d\n", mDeviceIP, mDevicePort);
+    ret = ::cnc_allclibhndl3(mDeviceIP, mDevicePort, 10, &mFlibhndl);
+  }
+  gLogger->info("Result: %d\n", ret);
   if (ret == EW_OK) 
   { 
     mAvail.available();
@@ -431,8 +447,13 @@ void FanucAdapter::getPositions()
   if (!mConnected)
     return;
 
+#ifdef USE_DYNAMIC2
   ODBDY2 dyn;
   short ret = cnc_rddynamic2(mFlibhndl, -1, sizeof(dyn), &dyn);
+#else
+  ODBDY dyn;
+  short ret = cnc_rddynamic(mFlibhndl, -1, sizeof(dyn), &dyn);
+#endif
   if (ret == EW_OK)
   {
     for (int i = 0; i < mAxisCount; i++)
@@ -449,12 +470,10 @@ void FanucAdapter::getPositions()
     mPathPosition.setValue(x, y, z);
     
     char buf[32];
-    if (dyn.prgnum != mProgramNum)
-      getHeader(dyn.prgnum);
-      
     mProgramNum = dyn.prgnum;
     sprintf(buf, "%d.%d", dyn.prgmnum, dyn.prgnum);
-    mProgram.setValue(buf);
+    if (mProgram.setValue(buf))
+      getHeader(dyn.prgnum);
             
     mPathFeedrate.setValue(dyn.actf);
     if (mSpindleCount > 0)
@@ -494,31 +513,29 @@ void FanucAdapter::getStatus()
 {
   if (!mConnected)
     return;
-  int ret;
 
   ODBST status;
   memset(&status, 0, sizeof(status));
-  ret = cnc_statinfo(mFlibhndl, &status);
+  int ret = cnc_statinfo(mFlibhndl, &status);
   if (ret == EW_OK)
   {
-	// This will take care of JOG 
-	if (status.aut == 5 || status.aut == 6) 
+    if (status.aut == 5 || status.aut == 6) // other than no selection
       mMode.setValue(ControllerMode::eMANUAL);
-    else if (status.aut == 0 ||status.aut == 3) // MDI and EDIT
+    else if (status.aut == 0) // MDI for aut
       mMode.setValue(ControllerMode::eMANUAL_DATA_INPUT);
-    else // Otherwise AUTOMATIC
+    else // Other than MDI and Manual
       mMode.setValue(ControllerMode::eAUTOMATIC);
               
-    if (status.run == 3 || status.run == 4) // STaRT
+    if (status.run == 3) // STaRT
       mExecution.setValue(Execution::eACTIVE);
     else 
     {
-      if (status.run == 2 || status.motion == 2 || status.mstb != 0) // HOLD or motion is Wait
+      if (status.run == 2 || status.run == 4 || status.motion == 2 || status.mstb != 0) // HOLD or motion is Wait
         mExecution.setValue(Execution::eINTERRUPTED);
-      else if (status.run == 0) // STOP
-        mExecution.setValue(Execution::eSTOPPED);
+      else if (status.aut == 1) // READY  //Modified to fix error at Jet DAW 6/27/2011
+        mExecution.setValue(Execution::eREADY);  //Modified to fix error at Jet DAW 6/27/2011
       else
-        mExecution.setValue(Execution::eREADY);
+        mExecution.setValue(Execution::eSTOPPED);  //Modified to fix error at Jet DAW 6/27/2011
     }
     if (status.emergency == 1)
       mEstop.setValue(EmergencyStop::eTRIGGERED);
@@ -711,28 +728,34 @@ void FanucAdapter::getCondition(long aAlarm)
 {
   if (aAlarm != 0) 
   {
-    for (int i = 0; i < 31; i++) 
+    for (int i = 0; i < 16; i++) //ODBY only has 16 alarms
     {
       if (aAlarm & (0x1 << i))
       {
-        ODBALMMSG2 alarms[MAX_AXIS];
+//        ODBALMMSG2 alarms[MAX_AXIS];
+		ALMINFO alarms[MAX_AXIS];
         short num = MAX_AXIS;
         
-        short ret = cnc_rdalmmsg2(mFlibhndl, i, &num, alarms);
+//        short ret = cnc_rdalmmsg2(mFlibhndl, i, &num, alarms);
+        short ret = cnc_rdalminfo(mFlibhndl,1, i, sizeof(alarms), alarms);
         if (ret != EW_OK)
           continue;
 
         for (int j = 0; j < num; j++) 
         {
-          ODBALMMSG2 &alarm = alarms[j];
+//          ODBALMMSG2 &alarm = alarms[j];
+          ALMINFO &alarm = alarms[j];
           char num[16];
           
-          Condition *cond = translateAlarmNo(i, alarm.axis);
+//		  Condition *cond = translateAlarmNo(i, alarm.axis);
+		  Condition *cond = translateAlarmNo(i, alarm.u.alm2.alm[j].axis);
           if (cond == NULL)
             continue;
 
-          sprintf(num, "%d", alarm.alm_no);
-          cond->add(Condition::eFAULT, alarm.alm_msg, num);
+		  sprintf(num, "%d", alarm.u.alm2.alm[j].alm_no);
+		  
+//          cond->add(Condition::eFAULT, alarm.alm_msg, num);
+          cond->add(Condition::eFAULT, alarm.u.alm2.alm[j].alm_msg, num);
         }
       }
     }       
