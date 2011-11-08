@@ -40,6 +40,7 @@ protected:
   std::string mCurrentAssetTimestamp;
   std::string mLastAssetId;
   uint8_t mCurrentType;
+  std::string mNextSequence;
   
   // Current asset checksum
   uint32_t mCurrentHash;

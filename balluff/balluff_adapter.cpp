@@ -190,6 +190,7 @@ void BalluffAdapter::agentMonitor()
   xmlSetGenericErrorFunc(NULL, StreamXMLErrorFunc);
   
   // Start from the current position...
+  string instance;
   while (true)
   {
     void *currentContext = MTCWebRequest((mBaseUrl + "current").c_str());
@@ -200,10 +201,16 @@ void BalluffAdapter::agentMonitor()
       Attributes attrs = getAttributes(current, "//m:Header");
       if (attrs.count("nextSequence") > 0) 
       {
+        // If the next instance has a value 
+        string currentInst = attrs["instanceId"];
+        if (instance != currentInst) {
+          mNextSequence = attrs["nextSequence"];
+          instance = currentInst;
+        }
         string url = mUrl;
         if (url[url.length() - 1] != '/') url.append("/");
         url.append("sample?interval=10&path=//DataItem[@type=\"ASSET_CHANGED\"]&"
-                   "from=" + attrs["nextSequence"]);
+                   "from=" + mNextSequence);
         void *context = MTCStreamInit(url.c_str(), HandleXmlChunk, this);
         MTCStreamStart(context);
         MTCStreamFree(context);
@@ -240,7 +247,7 @@ BalluffAdapter::Attributes
 BalluffAdapter::getAttributes(const string &aXml, 
                               const string &aXPath)
 {
-  std::map<std::string,std::string> res;
+  Attributes res;
   string path = aXPath;
   
   xmlDocPtr document = xmlReadDoc(BAD_CAST aXml.c_str(), "file://node.xml",
@@ -267,13 +274,14 @@ BalluffAdapter::getAttributes(const string &aXml,
     nodes = xmlXPathEval(BAD_CAST path.c_str(), xpathCtx);
     if (nodes == NULL || nodes->nodesetval == NULL || nodes->nodesetval->nodeTab == NULL)
     {
-      printf("No nodes found matching XPath\n");
+      gLogger->debug("No nodes found matching XPath: %s", path.c_str());
     } else {
       // Spin through all the events, samples and conditions.
       nodeset = nodes->nodesetval;
       xmlNodePtr node = nodeset->nodeTab[0];
       
-      res["element"] = (const char*) (node->name);
+      string element = (const char*) (node->name);
+      res["element"] = element;
       for (xmlAttrPtr attr = node->properties; attr != NULL; attr = attr->next)
       {
         if (attr->type == XML_ATTRIBUTE_NODE) {
@@ -281,29 +289,36 @@ BalluffAdapter::getAttributes(const string &aXml,
         }
       }
       
-      for (xmlNodePtr child = node->children; child != NULL; child = child->next) {
-        if (xmlStrcmp(child->name, BAD_CAST "CuttingToolLifeCycle") == 0) {
-          for (xmlNodePtr gchild = child->children; gchild != NULL; gchild = gchild->next) {
-            if (xmlStrcmp(gchild->name, BAD_CAST "CutterStatus") == 0) {
-              string statusStr;
-              for (xmlNodePtr status = gchild->children; status != NULL; status = status->next) {
-                if (xmlStrcmp(status->name, BAD_CAST "Status") == 0) {
-                  xmlChar *text = xmlNodeGetContent(status);
-                  if (text != NULL) {                     
-                    if (!statusStr.empty()) statusStr.append(",");
-                    statusStr.append((const char*)text);
-                    xmlFree(text);
+      if (element == "CuttingTool") {
+        for (xmlNodePtr child = node->children; child != NULL; child = child->next) {
+          if (xmlStrcmp(child->name, BAD_CAST "CuttingToolLifeCycle") == 0) {
+            for (xmlNodePtr gchild = child->children; gchild != NULL; gchild = gchild->next) {
+              if (xmlStrcmp(gchild->name, BAD_CAST "CutterStatus") == 0) {
+                string statusStr;
+                for (xmlNodePtr status = gchild->children; status != NULL; status = status->next) {
+                  if (xmlStrcmp(status->name, BAD_CAST "Status") == 0) {
+                    xmlChar *text = xmlNodeGetContent(status);
+                    if (text != NULL) {                     
+                      if (!statusStr.empty()) statusStr.append(",");
+                      statusStr.append((const char*)text);
+                      xmlFree(text);
+                    }
                   }
                 }
+                res["status"] = statusStr;
+                break;
               }
-              res["status"] = statusStr;
-              break;
             }
+            break;
           }
-          break;
+        }
+      } else {
+        xmlChar *text = xmlNodeGetContent(node);
+        if (text != NULL) {                     
+          res["value"] = (const char*) text;
+          xmlFree(text);
         }
       }
-      
       xmlXPathFreeObject(nodes);
     }
     
@@ -391,71 +406,22 @@ int BalluffAdapter::HandleXmlChunk(const char *xml, void *aObj)
 {
   BalluffAdapter *adapter = (BalluffAdapter*) aObj;
   
-  xmlDocPtr document;
-  const char *path;
-  xmlXPathContextPtr xpathCtx;
-  xmlNodePtr root;
-  xmlXPathObjectPtr nodes;
-  xmlNodeSetPtr nodeset;
-  int i;
-  
-  document = xmlReadDoc(BAD_CAST xml, "file://node.xml",
-                        NULL, XML_PARSE_NOBLANKS);
-  if (document == NULL) 
-  {
-    gLogger->error("Cannot parse document: %s\n", xml);
-    xmlFreeDoc(document);
+  // Should optimize to remove double parse.
+  Attributes header = adapter->getAttributes((string) xml, "//m:Header");
+  if (header.empty()) {
+    gLogger->error("XML stream received without header: %s", xml);
     return 0;
   }
+  adapter->mNextSequence = header["nextSequence"];
   
-  path = "//m:Events/*";
-  xpathCtx = xmlXPathNewContext(document);
+  Attributes changed = adapter->getAttributes((string) xml, "//m:AssetChanged");
   
-  root = xmlDocGetRootElement(document);
-  if (root->ns != NULL)
-  {
-    xmlXPathRegisterNs(xpathCtx, BAD_CAST "m", root->ns->href);
-  }
-  else
-  {
-    gLogger->error("Document does not have a namespace: %s\n", xml);
-    xmlFreeDoc(document);
-    return 0;
-  }
-  
-  // Evaluate the xpath.
-  nodes = xmlXPathEval(BAD_CAST path, xpathCtx);
-  if (nodes == NULL || nodes->nodesetval == NULL)
-  {
-    printf("No nodes found matching XPath\n");
-    xmlXPathFreeContext(xpathCtx);
-    xmlFreeDoc(document);
-    return 1;
-  }
-  
-  // Spin through all the events, samples and conditions.
-  nodeset = nodes->nodesetval;
-  for (i = 0; i != nodeset->nodeNr; ++i)
-  {
-    xmlNodePtr n = nodeset->nodeTab[i];
-    xmlChar *name = xmlGetProp(n, BAD_CAST "name");
-    xmlChar *value;
-    
-    if (name == NULL)
-      name = xmlGetProp(n, BAD_CAST "dataItemId");
-    value = xmlNodeGetContent(n);
-    
-    if (xmlStrcmp(n->name, BAD_CAST "AssetChanged") == 0 && 
-        xmlStrcmp(value, BAD_CAST "UNAVAILABLE") != 0) {
-      adapter->sendAssetToAgent((const char*) value);
+  if (!changed.empty()) {
+    string &value = changed["value"];
+    if (value != "UNAVAILABLE") {
+      adapter->sendAssetToAgent((const char*) value.c_str());
     }    
-    xmlFree(value);
-    xmlFree(name);
   }
-  
-  xmlXPathFreeObject(nodes);    
-  xmlXPathFreeContext(xpathCtx);
-  xmlFreeDoc(document);
   
   return 1;
 }

@@ -3,6 +3,8 @@
 #include <stdlib.h>
 #include <ctype.h>
 #include <curl/curl.h>
+#include <pthread.h>
+#include <unistd.h>
 
 #include "stream.h"
 
@@ -34,6 +36,8 @@ struct _XmlBlock {
   int stopped;
   MTCStreamXMLHandler handler;
   void *user_data;
+  time_t last_received;
+  pthread_t watchdog_thread;
 };
 
 typedef struct _XmlBlock XmlBlock;
@@ -67,9 +71,12 @@ static size_t HandleHeader(char *ptr, size_t size, size_t nmemb, void *user)
   XmlBlock *data = (XmlBlock*) user;
   
   int len = size * nmemb;
+  
+  time(&data->last_received);
+
   if (len > 511) len = 511;
   memcpy(line, ptr, len);
-  line[len] = '\0';
+  line[len] = '\0';  
   
   /* All we care about is the content type. */
   if (strncasecmp(line, "content-type:", 12) == 0)
@@ -109,7 +116,9 @@ static size_t HandleData(char *ptr, size_t size, size_t nmemb, void *user)
   /* First find the boundary in the current block. */
   XmlBlock *data = (XmlBlock*) user;
   int need_data;
-  
+ 
+  time(&data->last_received);
+
   if (data->stopped) return 0;
   
   if (data->boundary[0] == '\0')
@@ -227,15 +236,45 @@ void MTCStreamStop(void *aContext)
   
 }
 
+static void *WatchDog(void *aContext)
+{
+  XmlBlock *data = (XmlBlock*) aContext;
+  
+  while (!data->stopped) {
+    time_t now;
+    time(&now);
+    if (now - data->last_received > 20) {
+      CURL *context = data->context;
+      int sock;
+      curl_easy_getinfo(context, CURLINFO_LASTSOCKET, &sock);
+      if (sock > 0)
+        close(sock);
+      data->stopped = 1;
+    }
+    sleep(2);
+  }
+  
+  return NULL;
+}
+
 int MTCStreamStart(void *aContext)
 {
   XmlBlock *data = (XmlBlock*) aContext;
+  time(&data->last_received);
+
+  // Start the watchdog thread
+  pthread_create(&data->watchdog_thread, NULL, WatchDog, aContext);
+
   return curl_easy_perform(data->context);
 }
 
 void MTCStreamFree(void *aContext)
 {
   XmlBlock *data = (XmlBlock*) aContext;
+  
+  if (data->context != NULL)
+    curl_easy_cleanup(data->context);
+  
   free(data->block);
   
   /* Assumes the perform is now complete */
@@ -304,6 +343,7 @@ void *MTCWebRequest(const char *aUrl)
 int MTCWebExecute(void *aContext, const char **aBuffer)
 {
   XmlBlock *data = (XmlBlock*) aContext;
+  
   int res = curl_easy_perform(data->context);
   if (res == 0)
     *aBuffer = data->block;
