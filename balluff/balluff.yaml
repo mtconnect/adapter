@@ -2,6 +2,6 @@ adapter:
   port: 7880
 connection:
   serialPort: /dev/tty.PL2303-00002006
-  deviceUuid: rfid1
-  agentUrl: http://localhost:5000/presetter
-  myAgent: http://localhost:5000/rfid1
+  deviceUuid: rfid2
+  agentUrl: http://localhost:5000/cnc
+  myAgent: http://localhost:5000/rfid2

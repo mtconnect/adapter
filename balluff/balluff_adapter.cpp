@@ -417,16 +417,17 @@ int BalluffAdapter::HandleXmlChunk(const char *xml, void *aObj)
   Attributes changed = adapter->getAttributes((string) xml, "//m:AssetChanged");
   
   if (!changed.empty()) {
+    Attributes deviceStream = adapter->getAttributes((string) xml, "//m:DeviceStream");
     string &value = changed["value"];
     if (value != "UNAVAILABLE") {
-      adapter->sendAssetToAgent((const char*) value.c_str());
+      adapter->sendAssetToAgent((const char*) value.c_str(), deviceStream["uuid"]);
     }    
   }
   
   return 1;
 }
 
-void BalluffAdapter::sendAssetToAgent(const char *aId)
+void BalluffAdapter::sendAssetToAgent(const char *aId, string &aUuid)
 {
   // Get the XML for the asset from the server.
   string result = getAsset(mBaseUrl, aId);
@@ -434,7 +435,7 @@ void BalluffAdapter::sendAssetToAgent(const char *aId)
     map<string,string> attrs = getAttributes(result, "//m:CuttingTool");
     if (attrs.count("timestamp") > 0 && attrs.count("status") > 0) {      
       uint32_t hash = computeHash(aId + attrs["timestamp"]);
-      if (mCurrentHash != hash) {
+      if (mCurrentHash != hash && (mCurrentDeviceUuid != attrs["deviceUuid"] || aUuid == attrs["deviceUuid"])) {
         gLogger->debug("Sending asset %s to agent", aId);
         mOutgoingHash = hash;
         mOutgoingIsNew = attrs["status"] == "NEW";
@@ -567,6 +568,7 @@ bool BalluffAdapter::writeAssetToRFID()
     mCurrentHash = hash;
     mCurrentAssetId = mOutgoingId;
     mCurrentAssetTimestamp = timestamp;
+    mCurrentDeviceUuid.clear();
   } 
   
   mOutgoingId.clear();
@@ -649,6 +651,7 @@ bool BalluffAdapter::checkForNewAsset(uint32_t aHash)
     mCurrentAssetId.clear();
     mCurrentAssetTimestamp.clear();
     mCurrentHash = 0;
+    mCurrentDeviceUuid.clear();
     mHasRead = false;
     ret = true;
   } else {
@@ -704,6 +707,7 @@ void BalluffAdapter::updateAssetFromRFID(uint32_t aHash, const char *aXml)
     // and hash
     mCurrentAssetId = rfidAttrs["assetId"];
     mCurrentAssetTimestamp = rfidAttrs["timestamp"];
+    mCurrentDeviceUuid = rfidAttrs["deviceUuid"];
     string key = mCurrentAssetId + mCurrentAssetTimestamp;
     mCurrentHash = computeHash(key);
     if (aHash != mCurrentHash && mCurrentType != 'U')

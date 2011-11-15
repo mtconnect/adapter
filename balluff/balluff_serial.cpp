@@ -172,7 +172,9 @@ BalluffSerial::EResult BalluffSerial::checkForData(int &aHead, uint32_t &aText)
       uint32_t hash;
       memcpy(&hash, reply + 2, sizeof(hash));
       aText = ntohl(hash);
+      gLogger->debug("RFID responded with %d and %d", aHead, hash);
     } else {
+      gLogger->debug("RFID responded with %c", reply[1]);
       aHead = 0;
     }
     

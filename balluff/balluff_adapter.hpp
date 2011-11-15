@@ -36,6 +36,7 @@ protected:
   bool mOutgoingIsNew;
   
   // Incoming info
+  std::string mCurrentDeviceUuid;
   std::string mCurrentAssetId;
   std::string mCurrentAssetTimestamp;
   std::string mLastAssetId;
@@ -66,7 +67,7 @@ protected:
                     
   static int HandleXmlChunk(const char *xml, void *aObj);
   
-  void sendAssetToAgent(const char *aId);
+  void sendAssetToAgent(const char *aId, std::string &aUuid);
   
   static void *AgentMonitor(void *anAdapter);
   void agentMonitor();
