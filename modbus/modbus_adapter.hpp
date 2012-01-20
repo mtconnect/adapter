@@ -61,6 +61,12 @@ public:
     return mCount; 
   }
   tType type() { return mType; }
+  
+  void prefixName(std::string &aName) {
+    for (int i = 0; i < mDataItems.size(); i++) {
+      mDataItems[i]->prefixName(aName.c_str());
+    }    
+  }  
 
   std::vector<DeviceDatum*> mDataItems;
   std::vector<int> mSize;
@@ -213,19 +219,25 @@ public:
   }
 };
 
+struct ModbusDevice {
+  int mAddress;
+  std::string mName;
+  std::vector<ModbusData*> mData;
+};
+
 
 class ModbusAdapter : public Adapter, public MTConnectService
 {
 protected:
   /* Events */
-  std::vector<ModbusData*> mData; 
-
   modbus_param_t mb_param;
 
   int mConnected;
   std::string mSerialPort;
   std::string mParity;
   int mBaud, mDataBits, mStopBits;
+  
+  std::vector<ModbusDevice> mDevices;
   
 public:
   ModbusAdapter(int aPort);

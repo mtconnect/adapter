@@ -44,6 +44,7 @@ DeviceDatum::DeviceDatum(const char *aName)
 {
   strncpy(mName, aName, NAME_LEN);
   mName[NAME_LEN - 1] = '\0';
+  strcpy(mOrigName, mName);
   mChanged = false;
   mHasValue = false;
 }
@@ -56,14 +57,13 @@ DeviceDatum::~DeviceDatum()
 bool DeviceDatum::prefixName(const char *aName)
 {
   // Check for overflow.
-  if (strlen(mName) + strlen(aName) >= (size_t) NAME_LEN)
+  int len = strlen(aName);
+  if (strlen(mOrigName) + len >= (size_t) NAME_LEN)
     return false;
 
-  // Shift the current name right by the length of aName. Add one to
-  // make sure we copy the terminator.
-  memmove(mName + strlen(aName), mName, strlen(mName) + 1);
-  // Prepend mName with aName, no NULL terminator.
-  memcpy(mName, aName, strlen(aName));
+  strcpy(mName, aName);
+  mName[len++] = ':';
+  strcpy(mName + len, mOrigName);
 
   // Make sure the whole thing is terminated
   mName[NAME_LEN - 1] = '\0';

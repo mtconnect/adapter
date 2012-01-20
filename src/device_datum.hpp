@@ -56,6 +56,7 @@ class DeviceDatum {
 protected:
   /* The name of the Data Value */
   char mName[NAME_LEN];
+  char mOrigName[NAME_LEN];
   char mNativeUnits[UNITS_LEN];
   
   /* A changed flag to indicated that the value has changed since last append. */

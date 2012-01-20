@@ -54,74 +54,93 @@ ModbusAdapter::ModbusAdapter(int aPort)
   comms["dataBits"] >> mDataBits;
   comms["stopBits"] >> mStopBits;
   comms["parity"] >> mParity;
+  comms["scanDelay"] >> mScanDelay;
   
-  const YAML::Node &data = doc["data"];  
-  for(unsigned i = 0; i < data.size(); i++) {
-    const YAML::Node &node = data[i];
-    std::string type;
-    ModbusData *data = NULL;
-    int address;
+  // Parse devices
+  const YAML::Node &devices = doc["devices"];  
+  for(unsigned i = 0; i < devices.size(); i++) {
+    ModbusDevice device;
+    const YAML::Node &node = devices[i];
+    node["address"] >> device.mAddress;
     
-    node["type"] >> type;
-    node["address"] >> address;
-    
-    if (type == "coil") {
-      data = new ModbusCoil(address);
-    } else if (type == "register") {
-      data = new ModbusRegister(address);
-    } else if (type == "ieee_float") {
-      data = new ModbusFloat(address);
-    } else if (type == "double") {
-      int scaling;
-      const YAML::Node *scaleNode = node.FindValue("scalingAddress");
-      if (scaleNode != NULL) {
-        *scaleNode >> scaling;
-        data = new ModbusDouble(address, scaling, 0);
-      } else if ((scaleNode = node.FindValue("scaler")) != NULL) {
-        *scaleNode >> scaling;
-        data = new ModbusDouble(address, 0, scaling);
-      } else {
-        data = new ModbusDouble(address, 0, 1);
-      }
-    }
-    else 
-    {
-      cerr << "Invalid modbus type: " << type << endl;
-      cerr << "Must be: coil, register, or double" << endl;
-      exit(1);
+    if (node.FindValue("name") != NULL) {
+      node["name"] >> device.mName;    
     }
     
-    std::vector<std::string> nameList;
-    const YAML::Node &names = node["names"];
-    for(unsigned j = 0; j < names.size(); j++) {
-      nameList.push_back(names[j]);
-    }
-    
-    const YAML::Node *sizeNode = node.FindValue("size");
-    int size = 1;
-    std::vector<int> sizes;
-    if (sizeNode != NULL) {
-      if (sizeNode->GetType() == YAML::CT_SEQUENCE) {
-        *sizeNode >> sizes;
-      } else {
-        *sizeNode >> size;
-      }
-    }
-    if (sizes.size() == 0) {
-      for(unsigned j = 0; j < names.size(); j++)
-        sizes.push_back(size);      
-    }
-    
-    data->createDataItems(nameList, sizes);
-    
-    std::vector<DeviceDatum*>::iterator iter;
-    for (iter = data->mDataItems.begin(); iter != data->mDataItems.end(); iter++) {
-      addDatum(**iter);
-    }
-
-    mData.push_back(data);
+    mDevices.push_back(device);
   }
+  
+  std::vector<ModbusDevice>::iterator device;
+  for (device = mDevices.begin(); device != mDevices.end(); device++) {
+    const YAML::Node &data = doc["data"];  
+    for(unsigned i = 0; i < data.size(); i++) {
+      const YAML::Node &node = data[i];
+      std::string type;
+      ModbusData *data = NULL;
+      int address;
+    
+      node["type"] >> type;
+      node["address"] >> address;
+    
+      if (type == "coil") {
+        data = new ModbusCoil(address);
+      } else if (type == "register") {
+        data = new ModbusRegister(address);
+      } else if (type == "ieee_float") {
+        data = new ModbusFloat(address);
+      } else if (type == "double") {
+        int scaling;
+        const YAML::Node *scaleNode = node.FindValue("scalingAddress");
+        if (scaleNode != NULL) {
+          *scaleNode >> scaling;
+          data = new ModbusDouble(address, scaling, 0);
+        } else if ((scaleNode = node.FindValue("scaler")) != NULL) {
+          *scaleNode >> scaling;
+          data = new ModbusDouble(address, 0, scaling);
+        } else {
+          data = new ModbusDouble(address, 0, 1);
+        }
+      }
+      else 
+      {
+        cerr << "Invalid modbus type: " << type << endl;
+        cerr << "Must be: coil, register, or double" << endl;
+        exit(1);
+      }
+    
+      std::vector<std::string> nameList;
+      const YAML::Node &names = node["names"];
+      for(unsigned j = 0; j < names.size(); j++) {
+        nameList.push_back(names[j]);
+      }
+    
+      const YAML::Node *sizeNode = node.FindValue("size");
+      int size = 1;
+      std::vector<int> sizes;
+      if (sizeNode != NULL) {
+        if (sizeNode->GetType() == YAML::CT_SEQUENCE) {
+          *sizeNode >> sizes;
+        } else {
+          *sizeNode >> size;
+        }
+      }
+      if (sizes.size() == 0) {
+        for(unsigned j = 0; j < names.size(); j++)
+          sizes.push_back(size);      
+      }
+    
+      data->createDataItems(nameList, sizes);
+    
+      std::vector<DeviceDatum*>::iterator iter;
+      for (iter = data->mDataItems.begin(); iter != data->mDataItems.end(); iter++) {
+        if (mDevices.size() > 1 && !device->mName.empty())
+          (*iter)->prefixName(device->mName.c_str());
+        addDatum(**iter);
+      }
 
+      device->mData.push_back(data);
+    }
+  }
   unavailable();
 }
 
@@ -132,7 +151,6 @@ ModbusAdapter::~ModbusAdapter()
 
 void ModbusAdapter::initialize(int aArgc, const char *aArgv[])
 {
-  
   MTConnectService::initialize(aArgc, aArgv);
   if (aArgc > 1) {
     mPort = atoi(aArgv[0]);
@@ -153,7 +171,8 @@ void ModbusAdapter::gatherDeviceData()
 {
   if (!mConnected) {
     modbus_init_rtu(&mb_param, mSerialPort.c_str(), mBaud, mParity.c_str(), mDataBits, mStopBits);
-    modbus_set_debug(&mb_param, TRUE);
+    if (gLogger->getLogLevel() == Logger::eDEBUG)
+      modbus_set_debug(&mb_param, TRUE);
     if (modbus_connect(&mb_param) == -1) {
       unavailable();
       printf("ERROR Connection failed\n");
@@ -164,30 +183,35 @@ void ModbusAdapter::gatherDeviceData()
     }
   }
 
-  std::vector<ModbusData*>::iterator iter;
-  for (iter = mData.begin(); iter != mData.end(); iter++) {
-    bool success = false;
-    if ((*iter)->type() == ModbusData::eCOIL) {
-      success = read_input_status(&mb_param, 1, (*iter)->address(), (*iter)->count(),
-                                (static_cast<ModbusCoil*>(*iter))->data()) > 0;
-    } else { 
-      success = read_holding_registers(&mb_param, 1, (*iter)->address(), (*iter)->count(),
-                                       (static_cast<ModbusRegister*>(*iter))->data()) > 0;
-      if (success && (*iter)->type() == ModbusData::eDOUBLE) {
-        ModbusDouble *d = static_cast<ModbusDouble*>(*iter);
-        if (d->scalerAddress() != 0) {
-          uint16_t scaler[1];
-          success = read_holding_registers(&mb_param, 1, d->scalerAddress(), 1, scaler) > 0;
-          if (success) d->scaler = scaler[0];
+  std::vector<ModbusDevice>::iterator device;
+  for (device = mDevices.begin(); device != mDevices.end(); device++) {
+    std::vector<ModbusData*>::iterator iter;
+    for (iter = device->mData.begin(); iter != device->mData.end(); iter++) {
+      bool success = false;
+      if ((*iter)->type() == ModbusData::eCOIL) {
+        success = read_input_status(&mb_param, device->mAddress, (*iter)->address(), (*iter)->count(),
+                                  (static_cast<ModbusCoil*>(*iter))->data()) > 0;
+      } else { 
+        success = read_holding_registers(&mb_param, device->mAddress, (*iter)->address(), (*iter)->count(),
+                                         (static_cast<ModbusRegister*>(*iter))->data()) > 0;
+        if (success && (*iter)->type() == ModbusData::eDOUBLE) {
+          ModbusDouble *d = static_cast<ModbusDouble*>(*iter);
+          if (d->scalerAddress() != 0) {
+            uint16_t scaler[1];
+            success = read_holding_registers(&mb_param, device->mAddress, d->scalerAddress(), 1, scaler) > 0;
+            if (success) d->scaler = scaler[0];
+          }
         }
       }
-    }
 
-    if (success) {
-      (*iter)->writeValues();
-    } else {
-      (*iter)->unavailable();
+      if (success) {
+        (*iter)->writeValues();
+      } else {
+        (*iter)->unavailable();
+      }      
     }
+    
+    flush();
   }
 }
 
