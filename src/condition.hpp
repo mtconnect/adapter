@@ -107,7 +107,7 @@ protected:
 	      bool &aFirst, int aMaxLen);
   
 public:
-  Condition(const char *aName);
+  Condition(const char *aName = "");
   virtual ~Condition();
   virtual char *toString(char *aBuffer, int aMaxLen);
 

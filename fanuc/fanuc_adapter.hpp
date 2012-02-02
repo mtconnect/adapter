@@ -38,7 +38,9 @@
 #include "condition.hpp"
 #include "device_datum.hpp"
 #include "service.hpp"
+#include "fanuc_path.hpp"
 #include "Fwlib32.h"
+#include <vector>
 
 #define MAX_MACROS 32
 #define MAX_PMC 32
@@ -77,29 +79,17 @@ class FanucAdapter : public Adapter, public MTConnectService
 {
 protected:
   /* Define all the data values here */
+  short mMaxPath;
+  std::vector<FanucPath*> mPaths;
+
 
   /* Conditions */
-  Condition mServo;
-  Condition mComms;
-  Condition mLogic;
-  Condition mMotion;
-  Condition mSystem;
-  Condition mSpindle;
   
   /* Events */
-  EmergencyStop mEstop;
   Message mMessage;
   
   Availability mAvail;
-  Execution mExecution;
-  IntEvent mLine; 
-  ControllerMode mMode;
-  Event mProgram;
-  Event mProgramComment;
-  Event mBlock;
   IntEvent mPartCount;
-  IntEvent mToolId;
-  IntEvent mToolGroup;
 
   /* Macro variables */
   MacroSample         *mMacroSample[MAX_MACROS];
@@ -114,59 +104,27 @@ protected:
   int       mPMCAddress[MAX_PMC];
   int       mPMCCount;
 
-  /* Samples */
-  /* Linear Axis */
-  Sample *mAxisAct[MAX_AXIS];
-  Sample *mAxisCom[MAX_AXIS];
-  Sample *mAxisLoad[MAX_AXIS];
-  Condition *mAxisTravel[MAX_AXIS];
-  Condition *mAxisOverheat[MAX_AXIS];
-  Condition *mAxisServo[MAX_AXIS];
-  int mXPathIndex, mYPathIndex, mZPathIndex;
-
-  /* Spindle */
-  Sample *mSpindleSpeed[MAX_SPINDLE];
-  Sample *mSpindleLoad[MAX_SPINDLE];
-  
-  /* Path Feedrate */
-  Sample mPathFeedrate;
-  PathPosition mPathPosition;
-  
   unsigned short mFlibhndl;
   bool mConnected, mConfigured;
   int mDevicePort;
   char mDeviceIP[MAX_HOST_LEN];
-  int mProgramNum;
   ODBSYS mInfo;
-  double mAxisDivisor[MAX_AXIS];
-
-  short mAxisCount, mSpindleCount;
 
 protected:
   void connect();
   void configure();
-  void configAxesNames();
-  void configSpindleNames();
   void configMacrosAndPMC(const char *aIniFile);
   
   void reconnect();
   void disconnect();
-  void getPositions();
-  void getLine();
-  void getStatus();
   void getMessages();
-  Condition *translateAlarmNo(long aNum, int aAxis);
-  void getCondition(long aAlarm);
-  void getAxisLoad();
-  void getSpindleLoad();
-  void getHeader(int aProg);
+  
+  void getPathData();
 
   void getMacros();
   void getPMC();
 
   void getCounts();
-
-  void getToolData();
 
 public:
   FanucAdapter(int aServerPort);
