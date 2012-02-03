@@ -1,0 +1,6 @@
+
+Thu 11/17/11 02:37:03 PM
+	* version 1.0 Tests appear to work
+	Cable disconnect
+	on/off/on/off
+	reset midnight
