@@ -1,0 +1,2 @@
+PCDMISAdapter.exe debug
+pause
