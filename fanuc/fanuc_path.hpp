@@ -5,6 +5,16 @@
 #include "fanuc_axis.hpp"
 #include <vector>
 
+class StaticEvent : public Event 
+{
+public:
+  StaticEvent(const char *aName = "") : Event(aName) {}      
+
+  virtual bool unavailable() {
+    return false;
+  }
+};
+
 class FanucPath
 {
 public:
@@ -45,7 +55,7 @@ protected:
   Event          mProgramComment;
   IntEvent       mLine;
   Event          mBlock;
-  Event          mActiveAxes;
+  StaticEvent    mActiveAxes;
   ControllerMode mMode;
   EmergencyStop  mEStop;
   
@@ -55,6 +65,9 @@ protected:
   int            mProgramNum;
   short          mSpindleCount;
   short          mAxisCount;
+
+  bool           mToolManagementEnabled;
+  bool           mUseModalToolData;
   
   // Path related conditions
   Condition mServo;
@@ -62,9 +75,8 @@ protected:
   Condition mLogic;
   Condition mMotion;
   Condition mSystem;
-  Condition mSpindle;
 
-  Sample *mXAxisPos, *mYAxisPos, *mZAxisPos;
+  FanucAxis *mXAxis, *mYAxis, *mZAxis;
 
   std::vector<FanucAxis*> mAxes;
   std::vector<FanucSpindle*> mSpindles;

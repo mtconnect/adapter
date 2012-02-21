@@ -130,6 +130,7 @@ void FanucAdapter::configMacrosAndPMC(const char *aIniFile)
   mPort = ini_getl("adapter", "port",  mPort, aIniFile);
   ini_gets("adapter", "service", "MTConnect Fanuc Adapter", mName,
            SERVICE_NAME_LEN, aIniFile);
+  mScanDelay = ini_getl("adapter", "scanDelay", mScanDelay, aIniFile);
 
   ini_gets("focus", "host", mDeviceIP, mDeviceIP, MAX_HOST_LEN, aIniFile);
   mDevicePort = ini_getl("focus", "port", mDevicePort, aIniFile);

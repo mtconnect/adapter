@@ -39,4 +39,6 @@ public:
   
   Sample mSpeed;
   Sample mLoad;
+
+  Condition mServo;
 };

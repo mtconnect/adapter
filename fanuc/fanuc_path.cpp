@@ -17,8 +17,8 @@ void FanucPath::addDatum(DeviceDatum &aDatum, const char *aName, const char *aSu
 }
 
 FanucPath::FanucPath(Adapter *anAdapter, short aPathNumber)
-  : mAdapter(anAdapter), mPathNumber(aPathNumber), mXAxisPos(NULL), mYAxisPos(NULL),
-    mZAxisPos(NULL)
+  : mAdapter(anAdapter), mPathNumber(aPathNumber), mXAxis(NULL), mYAxis(NULL),
+    mZAxis(NULL), mToolManagementEnabled(true), mUseModalToolData(false)
 {
   char number[2];
   if (aPathNumber > 1)
@@ -41,7 +41,7 @@ FanucPath::FanucPath(Adapter *anAdapter, short aPathNumber)
   addDatum(mLogic, "logic", number);
   addDatum(mMotion, "motion", number);
   addDatum(mSystem, "system", number);
-  addDatum(mSpindle, "spindle", number);
+  addDatum(mExecution, "execution", number);
 
   // Only track estop on the first path. Should be the same for all
   // paths, only one estop per machine.
@@ -86,12 +86,14 @@ bool FanucPath::configureSpindles(unsigned short aFlibhndl)
     int i = 0;
     for (i = 0; i < mSpindleCount; i++)
     {
-      printf("Spindle %d : %c%c%c\n", i, spindles[i].name, spindles[i].suff1, spindles[i].suff2);
+      gLogger->info("Spindle %d : %c%c%c", i, spindles[i].name, spindles[i].suff1, spindles[i].suff2);
       char name[12];
       int j = 0;
       name[j++] = spindles[i].name;
       if (spindles[i].suff1 > 0)
         name[j++] =  spindles[i].suff1;
+      if (mPathNumber > 1)
+        name[j++] = mPathNumber + '0';
       name[j] = '\0';
 
       mSpindles.push_back(new FanucSpindle(mAdapter, name, i));
@@ -101,7 +103,7 @@ bool FanucPath::configureSpindles(unsigned short aFlibhndl)
   }
   else
   {
-    printf("Failed to get splindle names: %d\n", ret);
+    gLogger->error("Failed to get splindle names: %d", ret);
     return false;
   }
 }
@@ -120,7 +122,7 @@ bool FanucPath::configureAxes(unsigned short aFlibhndl)
       if (i > 0)
         activeAxes += " ";
       
-      printf("Axis %d : %c%c\n", i, axes[i].name, axes[i].suff);
+      gLogger->info("Axis %d : %c%c", i, axes[i].name, axes[i].suff);
       char name[12];
       int j = 0;
       name[j++] = axes[i].name;
@@ -133,20 +135,36 @@ bool FanucPath::configureAxes(unsigned short aFlibhndl)
       FanucAxis *axis = new FanucAxis(mAdapter, name, i);
       mAxes.push_back(axis);
 
-      if (axes[i].name == 'X' && (axes[i].suff == 0 || mXAxisPos == NULL))
-        mXAxisPos = &(axis->mActual);
-      else if (axes[i].name == 'Y' && (axes[i].suff == 0 || mYAxisPos == NULL))
-        mYAxisPos = &(axis->mActual);
-      else if (axes[i].name == 'Z' && (axes[i].suff == 0 || mZAxisPos == NULL))
-        mZAxisPos = &(axis->mActual);
+      if (axes[i].name == 'X' && (axes[i].suff == 0 || mXAxis == NULL))
+        mXAxis = axis;
+      else if (axes[i].name == 'Y' && (axes[i].suff == 0 || mYAxis == NULL))
+        mYAxis = axis;
+      else if (axes[i].name == 'Z' && (axes[i].suff == 0 || mZAxis == NULL))
+        mZAxis = axis;
 
-      
+      const int num = 1;
+      short types[num] = { 1 /* actual position */ };
+      short len = MAX_AXIS;
+      ODBAXDT axisData[MAX_AXIS * num];
+      ret = cnc_rdaxisdata(aFlibhndl, 1 /* Position Value */, (short*) types, num, &len, axisData);
+      if (ret != EW_OK)
+      {
+        gLogger->error("cnc_rdaxisdata returned %d for path %d", ret, mPathNumber);
+      }
+      else
+      {
+        for (int i = 0; i < len; i++)
+        {
+          gLogger->info("Axis %s #i - actual (unit %d flag 0x%X)", 
+                        axisData[i].name, axisData[i].unit, axisData[i].flag);
+        }
+      }
     }
     mActiveAxes.setValue(activeAxes.c_str());
   }
   else
   {
-    printf("Failed to get axis names: %d\n", ret);
+    gLogger->error("Failed to get axis names: %d\n", ret);
     exit(999);
   }
 
@@ -154,12 +172,12 @@ bool FanucPath::configureAxes(unsigned short aFlibhndl)
   ret = cnc_getfigure(aFlibhndl, 0, &count, inprec, outprec);
   if (ret == EW_OK)
   {
-    for (int i = 0; i < mAxes.size(); i++)
+    for (size_t i = 0; i < mAxes.size(); i++)
       mAxes[i]->mDivisor = pow((long double) 10.0, (long double) inprec[i]);
   }
   else
   {
-    printf("Failed to get axis scale: %d\n", ret);
+    gLogger->error("Failed to get axis scale: %d\n", ret);
     return false;
   }
 
@@ -259,16 +277,40 @@ bool FanucPath::getStatus(unsigned short aFlibhndl)
 
 bool FanucPath::getToolData(unsigned short aFlibhndl)
 {
-  ODBTLIFE3 toolId;
-  short ret = cnc_rdntool(aFlibhndl, 0, &toolId);
-  if (ret == EW_OK && toolId.data != 0)
+  if (mToolManagementEnabled)
   {
-    mToolId.setValue(toolId.data);
-    mToolGroup.setValue(toolId.datano);
+    ODBTLIFE3 toolId;
+    short ret = cnc_rdntool(aFlibhndl, 0, &toolId);
+    if (ret == EW_OK && toolId.data != 0)
+    {
+      mToolId.setValue(toolId.data);
+      mToolGroup.setValue(toolId.datano);
+    }
+    else
+    {
+      gLogger->warning("Cannot cnc_rdntool for path %d: %d", mPathNumber, ret);
+      mToolManagementEnabled = false;
+      gLogger->warning("Trying modal tool number", mPathNumber, ret);
+      mUseModalToolData = true;
+    }
   }
-  else
+
+  if (mUseModalToolData)
   {
-    gLogger->warning("Cannot cnc_rdntool for path %d: %d", mPathNumber, ret);
+    ODBMDL command;
+    short ret = cnc_modal(aFlibhndl, 108, 1, &command);
+    if (ret == EW_OK)
+    {
+      //gLogger->debug("cnc_modal returned: datano %d and type %d: %d %X %X",
+      //  command.datano, command.type, command.modal.aux.aux_data, command.modal.aux.flag1, 
+      //  command.modal.aux.flag2);
+      mToolId.setValue(command.modal.aux.aux_data);
+    }
+    else
+    {
+      gLogger->warning("cnc_modal failed for T on path %d: %d", mPathNumber, ret);
+      mUseModalToolData = false;
+    }
   }
 
   return true;
@@ -283,7 +325,8 @@ bool FanucPath::getHeader(unsigned short aFlibhndl, int aProg)
   short ret = cnc_upstart(aFlibhndl, aProg);
   if (ret == EW_OK)
   {
-    long len = sizeof(program);
+    // One for the \0 terminator
+    long len = sizeof(program) - 1;
     do 
     {
       ret = cnc_upload3(aFlibhndl, &len, program);
@@ -294,6 +337,7 @@ bool FanucPath::getHeader(unsigned short aFlibhndl, int aProg)
         int lineCount = 0;
         for (char *cp = program; *cp != '\0' && lineCount < 5; ++cp)
         {
+          //printf("%d ", *cp);
           // When we get a new line, check for the first empty line
           // following with only spaces, ; or carriage returns. If 
           // a new line follows, then terminate the header and set the
@@ -310,6 +354,7 @@ bool FanucPath::getHeader(unsigned short aFlibhndl, int aProg)
             lineCount++;
           }
         }
+        //printf("\n");
         mProgramComment.setValue(program);
       }
     } while (ret == EW_BUFFER);
@@ -321,10 +366,28 @@ bool FanucPath::getHeader(unsigned short aFlibhndl, int aProg)
 
 bool FanucPath::getAxisData(unsigned short aFlibhndl)
 {
+  short ret;
+
+
+
   ODBDY2 dyn;
-  short ret = cnc_rddynamic2(aFlibhndl, -1, sizeof(dyn), &dyn);
+  memset(&dyn, 0xEF, sizeof(dyn));
+  ret = cnc_rddynamic2(aFlibhndl, ALL_AXES, sizeof(dyn), &dyn);
   if (ret == EW_OK)
   {
+    if (dyn.pos.faxis.machine[0] == 0xEFEFEFEF) {
+      // This additional call is only necessary on certain machines. 
+      ODBAXIS machine;
+      // Check to see if the machine data is coming out in the separate call
+      ret = cnc_machine(aFlibhndl, ALL_AXES, sizeof(machine), &machine);
+      if (ret != EW_OK)
+        return false;
+
+      // Overlay machine positions...
+      memcpy(dyn.pos.faxis.machine, machine.data, sizeof(machine.data));
+    }
+
+
     ODBSVLOAD axLoad[MAX_AXIS];
     short num = MAX_AXIS;
     ret = cnc_rdsvmeter(aFlibhndl, &num, axLoad);
@@ -352,12 +415,12 @@ bool FanucPath::getAxisData(unsigned short aFlibhndl)
     mPathFeedrate.setValue(dyn.actf);
 
     double x = 0.0, y = 0.0, z = 0.0;
-    if (mXAxisPos != NULL && mXAxisPos->hasValue())
-      x = mXAxisPos->getValue();
-    if (mYAxisPos != NULL && mYAxisPos->hasValue())
-      y = mYAxisPos->getValue();
-    if (mZAxisPos != NULL && mZAxisPos->hasValue())
-      z = mZAxisPos->getValue();
+    if (mXAxis != NULL)
+      x = dyn.pos.faxis.absolute[mXAxis->mIndex] / mXAxis->mDivisor;
+    if (mYAxis != NULL)
+      y = dyn.pos.faxis.absolute[mYAxis->mIndex] / mYAxis->mDivisor;
+    if (mZAxis != NULL)
+      z = dyn.pos.faxis.absolute[mZAxis->mIndex] / mZAxis->mDivisor;
     
     mPathPosition.setValue(x, y, z);
 
@@ -439,7 +502,7 @@ Condition *FanucPath::translateAlarmNo(long aNum, int aAxis)
     return &mMotion;
 
   case 9: // Spindle
-    return &mSpindle;
+    return &(mSpindles[0]->mServo);
     
   case 19: // PMC
     return &mLogic;

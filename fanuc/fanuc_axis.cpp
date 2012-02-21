@@ -35,6 +35,8 @@ FanucSpindle::FanucSpindle(Adapter *anAdapter, string aPrefix, int aIndex)
   anAdapter->addDatum(mSpeed);
   mLoad.setName((aPrefix + "load").c_str());
   anAdapter->addDatum(mLoad);
+  mServo.setName((aPrefix + "servo").c_str());
+  anAdapter->addDatum(mServo);
 }
 
 bool FanucSpindle::gatherData(ODBSPLOAD *aLoads, ODBACT2 *aSpeeds)
