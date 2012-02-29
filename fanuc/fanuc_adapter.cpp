@@ -100,15 +100,23 @@ void FanucAdapter::stop()
 
 void FanucAdapter::gatherDeviceData()
 {
-  if (!mConnected)
-    connect();
-  else
+  try
   {
-    getPathData();
-    getMessages();
-    getMacros();
-    getPMC();
-    getCounts();
+    if (!mConnected)
+      connect();
+    else
+    {
+      getPathData();
+      getMessages();
+      getMacros();
+      getPMC();
+      getCounts();
+    }
+  }
+  catch (...)
+  {
+    gLogger->error("Unhandled exception occurred during gathering device data, disconnecting.");
+    disconnect();
   }
 }
 
