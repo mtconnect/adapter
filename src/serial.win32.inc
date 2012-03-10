@@ -204,6 +204,16 @@ bool Serial::flush()
   return FlushFileBuffers(mFd) != 0;
 }
 
+uint64_t Serial::getTimestamp()
+{
+  return GetTickCount(); 
+}
+
+int Serial::wait(int aTimeout, Serial::WaitMode aMode)
+{
+  // Not implemented...
+  return 0;
+}
 
 bool Serial::printCommStatus()
 {
@@ -222,5 +232,5 @@ bool Serial::printCommStatus()
   else
     gLogger->debug("Comm port is disconnected");
 
-  return res;
+  return res != 0;
 }

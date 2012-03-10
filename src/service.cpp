@@ -20,6 +20,8 @@ void MTConnectService::initialize(int aArgc, const char *aArgv[])
     else
       gLogger = new Logger();
   }
+  if (mDebug)
+    gLogger->setLogLevel(Logger::eDEBUG);
 }
 
 #ifdef WIN32
