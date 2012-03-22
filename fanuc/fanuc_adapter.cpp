@@ -34,6 +34,7 @@
 #include "internal.hpp"
 #include "fanuc_adapter.hpp"
 #include "minIni.h"
+#include <excpt.h>
 
 FanucAdapter::FanucAdapter(int aPort)
   : Adapter(aPort), mAvail("avail"), mMessage("message"), mPartCount("part_count"),
@@ -98,7 +99,7 @@ void FanucAdapter::stop()
   stopServer();
 }
 
-void FanucAdapter::gatherDeviceData()
+void FanucAdapter::innerGatherDeviceData()
 {
   try
   {
@@ -117,6 +118,18 @@ void FanucAdapter::gatherDeviceData()
   {
     gLogger->error("Unhandled exception occurred during gathering device data, disconnecting.");
     disconnect();
+  }
+}
+
+void FanucAdapter::gatherDeviceData()
+{
+  __try {
+    innerGatherDeviceData();
+  }
+
+  __except(EXCEPTION_EXECUTE_HANDLER) {
+      gLogger->error("Unhandled structured exception occurred during gathering device data, disconnecting.");
+      disconnect();
   }
 }
 
@@ -230,10 +243,9 @@ void FanucAdapter::configure()
   if (mConfigured || !mConnected)
     return;
 
-  gLogger->info("Configuring...\n");
-  cnc_sysinfo(mFlibhndl, &mInfo);
-
   int ret;
+  gLogger->info("Configuring...\n");
+
   short path;
   ret = cnc_getpath(mFlibhndl, &path, &mMaxPath);
   if (ret != EW_OK)
@@ -298,6 +310,9 @@ void FanucAdapter::reconnect()
 
 void FanucAdapter::getMacros()
 {
+  if (!mConnected)
+    return;
+  
   if (mMacroSampleCount == 0 && mMacroPathCount == 0)
     return;
   
@@ -347,6 +362,9 @@ void FanucAdapter::getMacros()
 
 void FanucAdapter::getPMC()
 {
+  if (!mConnected)
+    return;
+  
   for (int i = 0; i < mPMCCount; i++)
   {
     IODBPMC buf;
@@ -385,6 +403,9 @@ void FanucAdapter::getMessages()
 
 void FanucAdapter::getCounts()
 {
+  if (!mConnected)
+    return;
+  
   // Should just be a parameter read
   IODBPSD buf;
   short ret = cnc_rdparam(mFlibhndl, 6711, 0, 8, &buf);
@@ -396,6 +417,9 @@ void FanucAdapter::getCounts()
 
 void FanucAdapter::getPathData()
 {
+  if (!mConnected)
+    return;
+  
   int i;
   for (i = mMaxPath - 1; i >= 0; i--)
   {

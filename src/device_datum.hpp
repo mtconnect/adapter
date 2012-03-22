@@ -166,7 +166,7 @@ protected:
   EPowerState mState;
   
 public:
-  PowerState(const char *aName = "") : DeviceDatum(aName = "") { }
+  PowerState(const char *aName = "") : DeviceDatum(aName) { }
   bool setValue(enum EPowerState aState);
   EPowerState getValue() { return mState; }
   virtual char *toString(char *aBuffer, int aMaxLen);
@@ -192,7 +192,7 @@ protected:
   EExecutionState mState;
   
 public:
-  Execution(const char *aName = "") : DeviceDatum(aName = "") { }
+  Execution(const char *aName = "") : DeviceDatum(aName) { }
   bool setValue(enum EExecutionState aState);
   EExecutionState getValue() { return mState; }
   virtual char *toString(char *aBuffer, int aMaxLen);
@@ -217,7 +217,7 @@ protected:
   EMode mMode;
   
 public:
-  ControllerMode(const char *aName = "") : DeviceDatum(aName = "") { }
+  ControllerMode(const char *aName = "") : DeviceDatum(aName) { }
   bool setValue(enum EMode aState);
   EMode getValue() { return mMode; }
   virtual char *toString(char *aBuffer, int aMaxLen);
@@ -241,7 +241,7 @@ protected:
   ERotationDirection mDirection;
   
 public:
-  Direction(const char *aName = "") : DeviceDatum(aName = "") { }
+  Direction(const char *aName = "") : DeviceDatum(aName) { }
   bool setValue(enum ERotationDirection aDirection);
   ERotationDirection getValue() { return mDirection; }
   virtual char *toString(char *aBuffer, int aMaxLen);
@@ -266,7 +266,7 @@ protected:
   EValues mValue;
   
 public:
-  EmergencyStop(const char *aName = "") : DeviceDatum(aName = "") { }
+  EmergencyStop(const char *aName = "") : DeviceDatum(aName) { }
   bool setValue(enum EValues aValue);
   EValues getValue() { return mValue; }
   virtual char *toString(char *aBuffer, int aMaxLen);
@@ -290,7 +290,7 @@ protected:
   EValues mValue;
   
 public:
-  AxisCoupling(const char *aName = "") : DeviceDatum(aName = "") { }
+  AxisCoupling(const char *aName = "") : DeviceDatum(aName) { }
   bool setValue(enum EValues aValue);
   EValues getValue() { return mValue; }
   virtual char *toString(char *aBuffer, int aMaxLen);
@@ -311,7 +311,7 @@ protected:
   EValues mValue;
   
 public:
-  DoorState(const char *aName = "") : DeviceDatum(aName = "") { }
+  DoorState(const char *aName = "") : DeviceDatum(aName) { }
   bool setValue(enum EValues aValue);
   EValues getValue() { return mValue; }
   virtual char *toString(char *aBuffer, int aMaxLen);
@@ -333,7 +333,7 @@ protected:
   EValues mValue;
   
 public:
-  PathMode(const char *aName = "") : DeviceDatum(aName = "") { }
+  PathMode(const char *aName = "") : DeviceDatum(aName) { }
   bool setValue(enum EValues aValue);
   EValues getValue() { return mValue; }
   virtual char *toString(char *aBuffer, int aMaxLen);
@@ -355,7 +355,7 @@ protected:
   EValues mValue;
   
 public:
-  RotaryMode(const char *aName = "") : DeviceDatum(aName = "") { }
+  RotaryMode(const char *aName = "") : DeviceDatum(aName) { }
   bool setValue(enum EValues aValue);
   EValues getValue() { return mValue; }
   virtual char *toString(char *aBuffer, int aMaxLen);

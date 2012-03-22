@@ -42,6 +42,7 @@ FanucPath::FanucPath(Adapter *anAdapter, short aPathNumber)
   addDatum(mMotion, "motion", number);
   addDatum(mSystem, "system", number);
   addDatum(mExecution, "execution", number);
+  addDatum(mCommandedFeedrate, "f_command", number);
 
   // Only track estop on the first path. Should be the same for all
   // paths, only one estop per machine.
@@ -68,10 +69,26 @@ bool FanucPath::configure(unsigned short aFlibhndl)
   int ret = cnc_setpath(aFlibhndl, mPathNumber);
   if (ret != EW_OK)
   {
-    gLogger->error("Could not cnc_setpath: %d\n");
+    gLogger->error("Could not cnc_setpath: %d");
     return false;
   }
-  
+
+  gLogger->info("Configuration for path %d:", mPathNumber);
+
+  // Get system info for this path:
+  ODBSYS sysinfo;
+  ret = cnc_sysinfo(aFlibhndl, &sysinfo);
+  if (ret == EW_OK)
+  {
+    gLogger->info("  Max Axis: %d", sysinfo.max_axis);
+    gLogger->info("  CNC Type: %c%c", sysinfo.cnc_type[0], sysinfo.cnc_type[1]);
+    gLogger->info("  MT Type: %c%c", sysinfo.mt_type[0], sysinfo.mt_type[1]);
+    gLogger->info("  Series: %c%c", sysinfo.series[0], sysinfo.series[1], sysinfo.series[2], sysinfo.series[3]);
+    gLogger->info("  Version: %c%c", sysinfo.version[0], sysinfo.version[1], sysinfo.version[2], sysinfo.version[3]);
+    gLogger->info("  Axes: %c%c", sysinfo.axes[0], sysinfo.axes[1]);
+  }
+
+
   return configureAxes(aFlibhndl) &&
     configureSpindles(aFlibhndl);
 }
@@ -279,8 +296,11 @@ bool FanucPath::getToolData(unsigned short aFlibhndl)
 {
   if (mToolManagementEnabled)
   {
+    ODBTLIFE4 toolId2;
+    short ret = cnc_toolnum(aFlibhndl, 0, 0, &toolId2);
+
     ODBTLIFE3 toolId;
-    short ret = cnc_rdntool(aFlibhndl, 0, &toolId);
+    ret = cnc_rdntool(aFlibhndl, 0, &toolId);
     if (ret == EW_OK && toolId.data != 0)
     {
       mToolId.setValue(toolId.data);
@@ -368,64 +388,63 @@ bool FanucPath::getAxisData(unsigned short aFlibhndl)
 {
   short ret;
 
-
+  int maxAxes = MAX_AXIS;
 
   ODBDY2 dyn;
   memset(&dyn, 0xEF, sizeof(dyn));
   ret = cnc_rddynamic2(aFlibhndl, ALL_AXES, sizeof(dyn), &dyn);
+  if (ret != EW_OK)
+  {
+    gLogger->error("Cannot get the rddynamic2 data for path %d: %d", mPathNumber, ret);
+    return false;
+  }
+
+  ODBSVLOAD axLoad[MAX_AXIS];
+  short num = MAX_AXIS;
+  ret = cnc_rdsvmeter(aFlibhndl, &num, axLoad);
+  if (ret != EW_OK)
+  {
+    gLogger->error("cnc_rdsvmeter failed for path %d: %d", mPathNumber, ret);
+    return false;
+  }
+
+  char buf[32];
+  if (dyn.prgnum != mProgramNum)
+    getHeader(aFlibhndl, dyn.prgnum);
+
+  mProgramNum = dyn.prgnum;
+  sprintf(buf, "%d.%d", dyn.prgmnum, dyn.prgnum);
+  mProgramName.setValue(buf);
+
+  // Update all the axes
+  vector<FanucAxis*>::iterator axis;
+  for (axis = mAxes.begin(); axis != mAxes.end(); axis++)
+  {
+    (*axis)->gatherData(&dyn, axLoad);
+  }
+
+  mPathFeedrate.setValue(dyn.actf);
+        
+  // Get the modal feed for this path
+  ODBMDL command;
+  ret = cnc_modal(aFlibhndl, 103, 1, &command);
   if (ret == EW_OK)
   {
-    if (dyn.pos.faxis.machine[0] == 0xEFEFEFEF) {
-      // This additional call is only necessary on certain machines. 
-      ODBAXIS machine;
-      // Check to see if the machine data is coming out in the separate call
-      ret = cnc_machine(aFlibhndl, ALL_AXES, sizeof(machine), &machine);
-      if (ret != EW_OK)
-        return false;
-
-      // Overlay machine positions...
-      memcpy(dyn.pos.faxis.machine, machine.data, sizeof(machine.data));
-    }
-
-
-    ODBSVLOAD axLoad[MAX_AXIS];
-    short num = MAX_AXIS;
-    ret = cnc_rdsvmeter(aFlibhndl, &num, axLoad);
-    if (ret != EW_OK)
-    {
-      gLogger->error("cnc_rdsvmeter failed: %d", ret);
-      return false;
-    }
-
-    char buf[32];
-    if (dyn.prgnum != mProgramNum)
-      getHeader(aFlibhndl, dyn.prgnum);
-
-    mProgramNum = dyn.prgnum;
-    sprintf(buf, "%d.%d", dyn.prgmnum, dyn.prgnum);
-    mProgramName.setValue(buf);
-
-    // Update all the axes
-    vector<FanucAxis*>::iterator axis;
-    for (axis = mAxes.begin(); axis != mAxes.end(); axis++)
-    {
-      (*axis)->gatherData(&dyn, axLoad);
-    }
-
-    mPathFeedrate.setValue(dyn.actf);
-
-    double x = 0.0, y = 0.0, z = 0.0;
-    if (mXAxis != NULL)
-      x = dyn.pos.faxis.absolute[mXAxis->mIndex] / mXAxis->mDivisor;
-    if (mYAxis != NULL)
-      y = dyn.pos.faxis.absolute[mYAxis->mIndex] / mYAxis->mDivisor;
-    if (mZAxis != NULL)
-      z = dyn.pos.faxis.absolute[mZAxis->mIndex] / mZAxis->mDivisor;
-    
-    mPathPosition.setValue(x, y, z);
-
-    getCondition(aFlibhndl, dyn.alarm);
+    mCommandedFeedrate.setValue(command.modal.aux.aux_data);
   }
+
+  double x = 0.0, y = 0.0, z = 0.0;
+  if (mXAxis != NULL)
+    x = dyn.pos.faxis.absolute[mXAxis->mIndex] / mXAxis->mDivisor;
+  if (mYAxis != NULL)
+    y = dyn.pos.faxis.absolute[mYAxis->mIndex] / mYAxis->mDivisor;
+  if (mZAxis != NULL)
+    z = dyn.pos.faxis.absolute[mZAxis->mIndex] / mZAxis->mDivisor;
+    
+  mPathPosition.setValue(x, y, z);
+
+  getCondition(aFlibhndl, dyn.alarm);
+  
 
   return true;
 }

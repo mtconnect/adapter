@@ -108,7 +108,6 @@ protected:
   bool mConnected, mConfigured;
   int mDevicePort;
   char mDeviceIP[MAX_HOST_LEN];
-  ODBSYS mInfo;
 
 protected:
   void connect();
@@ -125,6 +124,8 @@ protected:
   void getPMC();
 
   void getCounts();
+
+  void innerGatherDeviceData();
 
 public:
   FanucAdapter(int aServerPort);

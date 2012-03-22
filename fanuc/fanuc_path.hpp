@@ -61,6 +61,7 @@ protected:
   
   Sample         mPathFeedrate;
   PathPosition   mPathPosition;
+  Sample         mCommandedFeedrate;
 
   int            mProgramNum;
   short          mSpindleCount;
