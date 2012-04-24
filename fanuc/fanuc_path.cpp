@@ -127,54 +127,77 @@ bool FanucPath::configureSpindles(unsigned short aFlibhndl)
 
 bool FanucPath::configureAxes(unsigned short aFlibhndl)
 {
+  const int num = 1;
+  short types[num] = { 1 /* actual position */ };
+  short len = MAX_AXIS;
+  ODBAXDT axisData[MAX_AXIS * num];
+  short ret = cnc_rdaxisdata(aFlibhndl, 1 /* Position Value */, (short*) types, num, &len, axisData);
+  bool hasAxisData = ret == EW_OK;
+  if (!hasAxisData)
+  {
+    gLogger->error("cnc_rdaxisdata returned %d for path %d", ret, mPathNumber);
+  }
+
   ODBAXISNAME axes[MAX_AXIS];
   mAxisCount = MAX_AXIS;
-  short ret = cnc_rdaxisname(aFlibhndl, &mAxisCount, axes);
+  ret = cnc_rdaxisname(aFlibhndl, &mAxisCount, axes);
   if (ret == EW_OK)
   {
     int i = 0;
     string activeAxes;
     for (i = 0; i < mAxisCount; i++)
     {
-      if (i > 0)
-        activeAxes += " ";
-      
+      bool add = true;
       gLogger->info("Axis %d : %c%c", i, axes[i].name, axes[i].suff);
-      char name[12];
-      int j = 0;
-      name[j++] = axes[i].name;
-      if (axes[i].suff > 0)
-        name[j++] =  axes[i].suff;
-      name[j] = '\0';
-      
-      activeAxes += name;
-
-      FanucAxis *axis = new FanucAxis(mAdapter, name, i);
-      mAxes.push_back(axis);
-
-      if (axes[i].name == 'X' && (axes[i].suff == 0 || mXAxis == NULL))
-        mXAxis = axis;
-      else if (axes[i].name == 'Y' && (axes[i].suff == 0 || mYAxis == NULL))
-        mYAxis = axis;
-      else if (axes[i].name == 'Z' && (axes[i].suff == 0 || mZAxis == NULL))
-        mZAxis = axis;
-
-      const int num = 1;
-      short types[num] = { 1 /* actual position */ };
-      short len = MAX_AXIS;
-      ODBAXDT axisData[MAX_AXIS * num];
-      ret = cnc_rdaxisdata(aFlibhndl, 1 /* Position Value */, (short*) types, num, &len, axisData);
-      if (ret != EW_OK)
+      if (hasAxisData)
       {
-        gLogger->error("cnc_rdaxisdata returned %d for path %d", ret, mPathNumber);
-      }
-      else
-      {
-        for (int i = 0; i < len; i++)
+        gLogger->info("Axis %s #%d - actual (unit %d flag 0x%X)", 
+                      axisData[i].name, i, axisData[i].unit, axisData[i].flag);
+        // Skip this axis if it isn't displayed
+        if ((axisData[i].flag & 0x01) == 0)
         {
-          gLogger->info("Axis %s #i - actual (unit %d flag 0x%X)", 
-                        axisData[i].name, axisData[i].unit, axisData[i].flag);
+          gLogger->info("  This is an non-display axis, skipping");
+          add = false;
         }
+
+        switch (axisData[i].unit)
+        {
+        case 0: gLogger->info(" Units: mm"); break;
+        case 1: gLogger->info(" Units: inch"); break;
+        case 2: gLogger->info(" Units: degree"); break;
+        case 3: gLogger->info(" Units: mm/minute"); break;
+        case 4: gLogger->info(" Units: inch/minute"); break;
+        case 5: gLogger->info(" Units: rpm"); break;
+        case 6: gLogger->info(" Units: mm/round"); break;
+        case 7: gLogger->info(" Units: inch/round"); break;
+        case 8: gLogger->info(" Units: %"); break;
+        case 9: gLogger->info(" Units: Ampere"); break;
+        }
+      }
+
+      if (add) 
+      {
+        if (mAxes.size() > 0)
+          activeAxes += " ";
+      
+        char name[12];
+        int j = 0;
+        name[j++] = axes[i].name;
+        if (axes[i].suff > 0)
+          name[j++] =  axes[i].suff;
+        name[j] = '\0';
+      
+        activeAxes += name;
+
+        FanucAxis *axis = new FanucAxis(mAdapter, name, i);
+        mAxes.push_back(axis);
+
+        if (axes[i].name == 'X' && (axes[i].suff == 0 || mXAxis == NULL))
+          mXAxis = axis;
+        else if (axes[i].name == 'Y' && (axes[i].suff == 0 || mYAxis == NULL))
+          mYAxis = axis;
+        else if (axes[i].name == 'Z' && (axes[i].suff == 0 || mZAxis == NULL))
+          mZAxis = axis;
       }
     }
     mActiveAxes.setValue(activeAxes.c_str());
@@ -386,6 +409,9 @@ bool FanucPath::getHeader(unsigned short aFlibhndl, int aProg)
 
 bool FanucPath::getAxisData(unsigned short aFlibhndl)
 {
+  if (mAxisCount <= 0)
+    return true;
+
   short ret;
 
   int maxAxes = MAX_AXIS;
@@ -451,12 +477,15 @@ bool FanucPath::getAxisData(unsigned short aFlibhndl)
 
 bool FanucPath::getSpindleData(unsigned short aFlibhndl)
 {
+  if (mSpindleCount <= 0)
+    return true;
+
     // Handle spindle data...
   ODBACT2 speeds;
   int ret = cnc_acts2(aFlibhndl, ALL_SPINDLES, &speeds);
   if (ret != EW_OK)
   {
-    gLogger->error("cnc_acts2 failed: %d", ret);
+    gLogger->error("cnc_acts2 failed: %d for path number: %d", ret, mPathNumber);
     return false;
   }
   
