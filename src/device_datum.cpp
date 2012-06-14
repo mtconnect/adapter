@@ -71,6 +71,13 @@ bool DeviceDatum::prefixName(const char *aName)
   return true;
 }
 
+void DeviceDatum::setName(const char *aName)
+{
+  strncpy(mName, aName, NAME_LEN);
+  mName[NAME_LEN - 1] = '\0';
+  strcpy(mOrigName, mName);
+}
+
 void DeviceDatum::setNativeUnits(const char *aUnits)
 {
   strncpy(mNativeUnits, aUnits, UNITS_LEN);

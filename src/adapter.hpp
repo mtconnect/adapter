@@ -42,8 +42,10 @@
 #endif
 
 class DeviceDatum;
+class CuttingTool;
 
 const int INITIAL_MAX_DEVICE_DATA = 128;
+
 /*
  * Abstract adapter that manages all the data values and writing them
  * to the clients.
@@ -66,12 +68,15 @@ protected:
   int mHeartbeatFrequency; /* The frequency (ms) to heartbeat
 			    * server. Responds to Ping. Default 10 sec */
   bool mRunning;
+  Client *mInitializeClient; /* If we are sending initial data to a client */
   
 #ifdef THREADED
 #ifdef WIN32
   HANDLE mServerThread;
+  CRITICAL_SECTION mGatherLock;
 #else
   pthread_t mServerThread;
+  pthread_mutex_t mGatherLock;
 #endif
 #endif
 
@@ -91,6 +96,8 @@ protected:
   
   virtual void addAsset(const char *aId, const char *aType, const char *aData);
   virtual void updateAsset(const char *aId, const char *aData);
+  virtual void addAsset(CuttingTool *aTool);
+  virtual void updateAsset(CuttingTool *aTool);
     
 public:
   Adapter(int aPort, int aScanDelay = 100);
@@ -118,11 +125,45 @@ public:
   /* Pure virtual method to get the data from the device. */
   virtual void gatherDeviceData() = 0;
   virtual void begin();
+  virtual void prepare();
   virtual void cleanup();
+
+  /* For multithreaded async gathering */
+  virtual void beginGather(const char *aTs = NULL, bool aSweep = true);
+  virtual void completeGather();
 
   /* Overload this method to handle situation when all clients disconnect */
   virtual void clientsDisconnected();
 };
   
 #endif
+
+class AutoGather {
+public:
+  AutoGather(Adapter *anAdapter = NULL, const char *aTs = NULL, bool aSweep = true) 
+    : mAdapter(anAdapter) {
+    if (mAdapter != NULL)
+      mAdapter->beginGather(aTs, aSweep);
+  }
+
+  void begin(Adapter *anAdapter, const char *aTs = NULL, bool aSweep = true) {
+    mAdapter = anAdapter;
+    if (mAdapter != NULL)
+      mAdapter->beginGather(aTs, aSweep);
+  }
+
+  void complete() {
+    if (mAdapter != NULL)
+      mAdapter->completeGather();
+    mAdapter = NULL;
+  }
+
+  ~AutoGather() {
+    if (mAdapter != NULL)
+      mAdapter->completeGather();
+  }
+
+protected:
+  Adapter *mAdapter;
+};
 

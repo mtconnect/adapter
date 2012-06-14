@@ -30,6 +30,8 @@
 * THIS AGREEMENT, USE OR INABILITY TO USE MTCONNECT MATERIALS, WHETHER OR NOT
 * SUCH PARTY HAD ADVANCE NOTICE OF THE POSSIBILITY OF SUCH DAMAGES.
 */
+#ifndef MTC_INTERNAL_HPP
+#define MTC_INTERNAL_HPP
 
 #ifdef WIN32
 #define _CRT_SECURE_NO_DEPRECATE 1
@@ -52,6 +54,7 @@ typedef int socklen_t;
 typedef unsigned char uint8_t;
 typedef unsigned short uint16_t;
 typedef unsigned int uint32_t;
+typedef unsigned __int64 uint64_t;
 
 #define UINT16_MAX 0xFFFF
 
@@ -89,3 +92,4 @@ typedef struct sockaddr SOCKADDR;
 #include <signal.h>
 #include <math.h>
 
+#endif

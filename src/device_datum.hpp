@@ -70,7 +70,7 @@ protected:
 
 public:
   // The name will be supplied later...
-  DeviceDatum(const char *aName);
+  DeviceDatum(const char *aName = "");
 
   virtual ~DeviceDatum();
   
@@ -81,7 +81,9 @@ public:
   void setNativeUnits(const char *aNativeUnits);
 
   bool prefixName(const char *aPrefix);
+  bool hasValue() const { return mHasValue; }
   char *getName() { return mName; }
+  void setName(const char *aName = "");
   virtual char *toString(char *aBuffer, int aMaxLen) = 0;
   virtual bool append(StringBuffer &aBuffer);
   virtual bool hasInitialValue();
@@ -89,8 +91,9 @@ public:
 
   virtual bool unavailable() = 0;
   virtual void begin() { }
+  virtual void prepare() { }
   virtual void cleanup() { }
-  virtual void initialize() {}
+  virtual void initialize() { }
 };
 
 /*
@@ -102,7 +105,7 @@ protected:
   char mValue[EVENT_VALUE_LEN];
 
 public:
-  Event(const char *aName);
+  Event(const char *aName = "");
   bool setValue(const char *aValue);
   const char *getValue() { return mValue; }
   virtual char *toString(char *aBuffer, int aMaxLen);
@@ -121,7 +124,7 @@ protected:
   bool mUnavailable;
 
 public:
-  IntEvent(const char *aName);
+  IntEvent(const char *aName = "");
   bool setValue(int aValue);
   int getValue() { return mValue; }
   virtual char *toString(char *aBuffer, int aMaxLen);
@@ -141,7 +144,7 @@ protected:
   double mEpsilon;
 
 public:
-  Sample(const char *aName, double aEpsilon = 0.000001);
+  Sample(const char *aName = "", double aEpsilon = 0.000001);
   bool setValue(double aValue);
   double getValue() { return mValue; }
   virtual char *toString(char *aBuffer, int aMaxLen);
@@ -164,7 +167,7 @@ protected:
   EPowerState mState;
   
 public:
-  PowerState(const char *aName) : DeviceDatum(aName) { }
+  PowerState(const char *aName = "") : DeviceDatum(aName) { }
   bool setValue(enum EPowerState aState);
   EPowerState getValue() { return mState; }
   virtual char *toString(char *aBuffer, int aMaxLen);
@@ -190,7 +193,7 @@ protected:
   EExecutionState mState;
   
 public:
-  Execution(const char *aName) : DeviceDatum(aName) { }
+  Execution(const char *aName = "") : DeviceDatum(aName) { }
   bool setValue(enum EExecutionState aState);
   EExecutionState getValue() { return mState; }
   virtual char *toString(char *aBuffer, int aMaxLen);
@@ -215,7 +218,7 @@ protected:
   EMode mMode;
   
 public:
-  ControllerMode(const char *aName) : DeviceDatum(aName) { }
+  ControllerMode(const char *aName = "") : DeviceDatum(aName) { }
   bool setValue(enum EMode aState);
   EMode getValue() { return mMode; }
   virtual char *toString(char *aBuffer, int aMaxLen);
@@ -239,7 +242,7 @@ protected:
   ERotationDirection mDirection;
   
 public:
-  Direction(const char *aName) : DeviceDatum(aName) { }
+  Direction(const char *aName = "") : DeviceDatum(aName) { }
   bool setValue(enum ERotationDirection aDirection);
   ERotationDirection getValue() { return mDirection; }
   virtual char *toString(char *aBuffer, int aMaxLen);
@@ -264,7 +267,7 @@ protected:
   EValues mValue;
   
 public:
-  EmergencyStop(const char *aName) : DeviceDatum(aName) { }
+  EmergencyStop(const char *aName = "") : DeviceDatum(aName) { }
   bool setValue(enum EValues aValue);
   EValues getValue() { return mValue; }
   virtual char *toString(char *aBuffer, int aMaxLen);
@@ -288,7 +291,7 @@ protected:
   EValues mValue;
   
 public:
-  AxisCoupling(const char *aName) : DeviceDatum(aName) { }
+  AxisCoupling(const char *aName = "") : DeviceDatum(aName) { }
   bool setValue(enum EValues aValue);
   EValues getValue() { return mValue; }
   virtual char *toString(char *aBuffer, int aMaxLen);
@@ -309,7 +312,7 @@ protected:
   EValues mValue;
   
 public:
-  DoorState(const char *aName) : DeviceDatum(aName) { }
+  DoorState(const char *aName = "") : DeviceDatum(aName) { }
   bool setValue(enum EValues aValue);
   EValues getValue() { return mValue; }
   virtual char *toString(char *aBuffer, int aMaxLen);
@@ -331,7 +334,7 @@ protected:
   EValues mValue;
   
 public:
-  PathMode(const char *aName) : DeviceDatum(aName) { }
+  PathMode(const char *aName = "") : DeviceDatum(aName) { }
   bool setValue(enum EValues aValue);
   EValues getValue() { return mValue; }
   virtual char *toString(char *aBuffer, int aMaxLen);
@@ -353,7 +356,7 @@ protected:
   EValues mValue;
   
 public:
-  RotaryMode(const char *aName) : DeviceDatum(aName) { }
+  RotaryMode(const char *aName = "") : DeviceDatum(aName) { }
   bool setValue(enum EValues aValue);
   EValues getValue() { return mValue; }
   virtual char *toString(char *aBuffer, int aMaxLen);
@@ -366,7 +369,7 @@ class Message : public DeviceDatum {
   char mNativeCode[EVENT_VALUE_LEN];
 
 public:
-  Message(const char *aName);
+  Message(const char *aName = "");
   bool setValue(const char *aText, const char *aCode = ""); 
   virtual char *toString(char *aBuffer, int aMaxLen);
   const char *getNativeCode() { return mNativeCode; }
@@ -382,7 +385,7 @@ protected:
   double mEpsilon;
 
 public:
-  PathPosition(const char *aName, double aEpsilon = 0.000001);
+  PathPosition(const char *aName = "", double aEpsilon = 0.000001);
   bool setValue(double aX, double aY, double aZ);
   double getX() { return mX; }
   double getY() { return mY; }
@@ -398,7 +401,7 @@ protected:
   bool mUnavailable;
 
 public:
-  Availability(const char *aName);
+  Availability(const char *aName = "");
   virtual char *toString(char *aBuffer, int aMaxLen);
   bool available();
   virtual bool unavailable();  

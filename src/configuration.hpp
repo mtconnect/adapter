@@ -51,6 +51,10 @@ namespace YAML {
   else                                          \
     value = def
 
+#define SET_IF_PRESENT(node, key, value)        \
+  if (node.FindValue(key) != NULL)              \
+    node[key] >> value;
+
 // A register represents a PLC/PMC register as an accessible unit. The
 // value of the register will manifest as a typed value or a
 // conditional that will map to an event and be represented by a

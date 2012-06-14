@@ -34,12 +34,7 @@
 #ifndef SERVER_HPP
 #define SERVER_HPP
 
-#ifdef THREADED
-#ifndef WIN32
-#include <pthread.h>
-#endif
-#endif
-
+#include "threading.hpp"
 
 class Client;
 
@@ -57,14 +52,7 @@ protected:
   char mPong[32];
   int mTimeout;
   
-#ifdef THREADED
-#ifdef WIN32
-  CRITICAL_SECTION mListLock;
-#else
-  pthread_mutex_t mListLock;
-#endif
-#endif
-  
+  MTCMutex mListLock;
   
 protected:
   // Assumes the mutex is already locked.

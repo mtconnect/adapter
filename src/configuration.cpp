@@ -61,10 +61,10 @@ void Configuration::parse(YAML::Node &aDoc, int aPort, int aDelay, int aTimeout,
   }
   else
   {
-	mPort = aPort;
-	mScanDelay = aDelay;
-	mTimeout = aTimeout;
-	mServiceName = aService;
+  	mPort = aPort;
+  	mScanDelay = aDelay;
+  	mTimeout = aTimeout;
+  	mServiceName = aService;
   }
 }
 
