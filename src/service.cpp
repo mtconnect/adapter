@@ -420,12 +420,14 @@ VOID ReportSvcStatus( DWORD dwCurrentState,
 
   if (dwCurrentState == SERVICE_START_PENDING)
     gSvcStatus.dwControlsAccepted = 0;
-  else gSvcStatus.dwControlsAccepted = SERVICE_ACCEPT_STOP;
+  else 
+    gSvcStatus.dwControlsAccepted = SERVICE_ACCEPT_STOP;
 
   if ( (dwCurrentState == SERVICE_RUNNING) ||
        (dwCurrentState == SERVICE_STOPPED) )
     gSvcStatus.dwCheckPoint = 0;
-  else gSvcStatus.dwCheckPoint = dwCheckPoint++;
+  else 
+    gSvcStatus.dwCheckPoint = dwCheckPoint++;
 
   // Report the status of the service to the SCM.
   SetServiceStatus( gSvcStatusHandle, &gSvcStatus );

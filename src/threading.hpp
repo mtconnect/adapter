@@ -31,51 +31,89 @@
 * SUCH PARTY HAD ADVANCE NOTICE OF THE POSSIBILITY OF SUCH DAMAGES.
 */
 
-#include "configuration.hpp"
-#include "yaml.h"
+#ifndef THREADING_HPP
+#define THREADING_HPP
 
-using namespace std;
+#ifdef THREADED
 
-Configuration::Configuration()
-  : mPort(7878), mScanDelay(1000), mTimeout(10000)
+#ifndef WIN32
+#include <pthread.h>
+#endif
+
+class MTCMutex 
 {
-}
-
-void Configuration::parse(istream &aStream, int aPort, int aDelay, int aTimeout, const char *aService)
-{
-  YAML::Parser parser(aStream);
-  YAML::Node doc;
-  parser.GetNextDocument(doc);
-  parse(doc, aPort, aDelay, aTimeout, aService);
-}
-
-void Configuration::parse(YAML::Node &aDoc, int aPort, int aDelay, int aTimeout, const char *aService)
-{
-  if (aDoc.FindValue("adapter") != NULL)
-  {
-    const YAML::Node &adapter = aDoc["adapter"];
-    SET_WITH_DEFAULT(adapter, "port", mPort, aPort);
-    SET_WITH_DEFAULT(adapter, "scanDelay", mScanDelay, aDelay);
-    SET_WITH_DEFAULT(adapter, "timeout", mTimeout, aTimeout);
-    SET_WITH_DEFAULT(adapter, "service", mServiceName, aService);
+public:
+  MTCMutex() {
+#ifdef WIN32
+  InitializeCriticalSection(&mLock);
+#else
+  pthread_mutex_init(&mLock, NULL);
+#endif
   }
-  else
-  {
-  	mPort = aPort;
-  	mScanDelay = aDelay;
-  	mTimeout = aTimeout;
-  	mServiceName = aService;
+  
+  ~MTCMutex() {
+#ifdef WIN32
+  DeleteCriticalSection(&mLock);
+#else
+  pthread_mutex_destroy(&mLock);
+#endif  
   }
-}
 
-Configuration::~Configuration()
+  void lock() {
+#ifdef WIN32
+  EnterCriticalSection(&mLock);
+#else
+  pthread_mutex_lock(&mLock);
+#endif
+  }
+  
+  void unlock() {
+#ifdef WIN32
+  LeaveCriticalSection(&mLock);
+#else
+  pthread_mutex_unlock(&mLock);
+#endif    
+  }
+  
+protected:
+#ifdef WIN32
+  CRITICAL_SECTION mLock;
+#else
+  pthread_mutex_t mLock;
+#endif
+
+private:
+  MTCMutex(const MTCMutex& aMutex) {
+    // No copy constructor is possible
+  }
+};
+
+#else // Not threaded
+
+class MTCMutex
 {
-}
+public:
+  void lock() {}
+  void unlock() {}  
+};
 
-RegisterSet *Configuration::getRegisters(string &aName)
-{
-  return mRegisters[aName];
-}
+#endif
 
+class MTCAutoLock {
+public:
+  MTCAutoLock(MTCMutex &aMutex) : mMutex(&aMutex) {
+    mMutex->lock();
+  }
+  
+  ~MTCAutoLock() {
+    mMutex->unlock();
+  }
+  
+protected:
+  MTCMutex *mMutex;
 
+private:
+  MTCAutoLock() : mMutex(NULL) {}
+};
 
+#endif

@@ -34,6 +34,7 @@
 #ifndef CLIENT_HPP
 #define CLIENT_HPP
 
+#include "threading.hpp"
 /*
  * A wrapper around a client socket. An adapter is capable of managing
  * multiple sockets. 
@@ -43,9 +44,8 @@ class Client
   /* Instance Variables */
 protected:
   SOCKET mSocket;
-#if defined(THREADED) && defined(WIN32)
-  CRITICAL_SECTION mWriteLock;
-#endif
+  MTCMutex mWriteLock;
+
   /* class methods */
 public:
   bool mHeartbeats;

@@ -45,16 +45,18 @@ char *Condition::toString(char *aBuffer, int aMaxLen)
 
 void Condition::begin()
 {
-  mBegun = true;
   for (int i = 0; i < mActiveCount; i++) {
     mActiveList[i]->clear();
   }
-  mChanged = true;
+  mPrepared = false;
+  mBegun = true;
+  mChanged = false;
 }
 
 void Condition::cleanup()
 {
   mBegun = false;
+  mPrepared = false;
 }
 
 void Condition::initialize()
@@ -63,7 +65,7 @@ void Condition::initialize()
 }
 
 void Condition::append(StringBuffer &aStringBuffer, char *aBuffer,
-		       ActiveCondition *aCond, bool &aFirst, int aMaxLen)
+                       ActiveCondition *aCond, bool &aFirst, int aMaxLen)
 {
   if (!aFirst)
     aStringBuffer.newline();
@@ -77,24 +79,9 @@ void Condition::append(StringBuffer &aStringBuffer, char *aBuffer,
   aStringBuffer.append(aBuffer);
 }
 
-bool Condition::append(StringBuffer &aBuffer)
+void Condition::prepare()
 {
-  char buffer[1024];
-  bool first = true;
-  buffer[0] = '|';
-  strcpy(buffer + 1, mName);
-  char *cp = buffer + strlen(buffer);
-  int max = 1024 - strlen(buffer);
-  
-  if (!mBegun)
-  {
-    for (int i = 0; i < mActiveCount; i++)
-    {
-      *cp = '\0';
-      append(aBuffer, buffer, mActiveList[i], first, max);
-    }
-  }
-  else
+  if (mBegun)
   {
     bool marked = false;
 
@@ -102,29 +89,64 @@ bool Condition::append(StringBuffer &aBuffer)
     for (int i = 0; !marked && i < mActiveCount; i++)
     {
       if (mActiveList[i]->isPlaceHolder() || mActiveList[i]->isMarked())
-	marked = true;
+        marked = true;
     }
 
     if (!marked)
       normal();
-    
+  
     // Sweep old conditions
     for (int i = mActiveCount - 1; i >= 0; i--)
     {
       ActiveCondition *cond = mActiveList[i];
       if (!cond->isPlaceHolder() && !cond->isMarked())
       {
-	cond->setValue(eNORMAL, "", cond->getNativeCode());
+        cond->setValue(eNORMAL, "", cond->getNativeCode());
       }
-      
+    
       if (cond->hasChanged()) {
-	*cp = '\0';
-	append(aBuffer, buffer, cond, first, max);
+        mChanged = true;
+      }
+    }
+    mPrepared = true;
+  }
+}
+
+bool Condition::append(StringBuffer &aBuffer)
+{
+  if (!mBegun) 
+  {
+    char buffer[1024];
+    bool first = true;
+    buffer[0] = '|';
+    strcpy(buffer + 1, mName);
+    char *cp = buffer + strlen(buffer);
+    int max = 1024 - strlen(buffer);
+    for (int i = 0; i < mActiveCount; i++)
+    {
+      *cp = '\0';
+      append(aBuffer, buffer, mActiveList[i], first, max);
+    }
+  } else if (mBegun && mPrepared) {
+    char buffer[1024];
+    bool first = true;
+    buffer[0] = '|';
+    strcpy(buffer + 1, mName);
+    char *cp = buffer + strlen(buffer);
+    int max = 1024 - strlen(buffer);
+  
+    // Sweep old conditions
+    for (int i = mActiveCount - 1; i >= 0; i--)
+    {
+      ActiveCondition *cond = mActiveList[i];
+      if (cond->hasChanged()) {
+        *cp = '\0';
+        append(aBuffer, buffer, cond, first, max);
       }
       
       // Remove stale conditions since they have now been generated.
       if (!cond->isPlaceHolder() && !cond->isMarked())
-	removeAt(i);
+        removeAt(i);
     }
   }
   
@@ -142,7 +164,7 @@ bool Condition::isActive(const char *aNativeCode)
 }
 
 bool Condition::add(ELevels aLevel, const char *aText, const char *aCode,
-		    const char *aQualifier, const char *aSeverity)
+                    const char *aQualifier, const char *aSeverity)
 {
   ActiveCondition *cond = NULL;
   bool res;
@@ -152,7 +174,7 @@ bool Condition::add(ELevels aLevel, const char *aText, const char *aCode,
   {
     // See if we are already in this state.
     if (mActiveCount == 1 && mActiveList[0]->getNativeCode()[0] == '\0' &&
-	mActiveList[0]->getLevel() == aLevel)
+        mActiveList[0]->getLevel() == aLevel)
     {
       mActiveList[0]->mark();
       res = false;
@@ -169,8 +191,8 @@ bool Condition::add(ELevels aLevel, const char *aText, const char *aCode,
   else
   {
     if (mActiveCount == 1 &&
-	(mActiveList[0]->getLevel() == eNORMAL ||
-	 mActiveList[0]->getLevel() == eUNAVAILABLE)) 
+        (mActiveList[0]->getLevel() == eNORMAL ||
+         mActiveList[0]->getLevel() == eUNAVAILABLE)) 
     {
       removeAll();
     }
@@ -179,7 +201,7 @@ bool Condition::add(ELevels aLevel, const char *aText, const char *aCode,
     int i;
     for (i = 0; i < mActiveCount; i++)
       if (strcmp(aCode, mActiveList[i]->getNativeCode()) == 0)
-	break;
+        break;
     
     if (i < mActiveCount)
     {
@@ -220,7 +242,7 @@ bool Condition::removeAt(int i)
   delete mActiveList[i];
   mActiveCount--;
   memmove(mActiveList + i, mActiveList + i + 1,
-	  sizeof(ActiveCondition*) * (mActiveCount - i));
+          sizeof(ActiveCondition*) * (mActiveCount - i));
   
   return true;
 }
@@ -237,14 +259,14 @@ char *Condition::ActiveCondition::toString(char *aBuffer, int aMaxLen)
   default: text = ""; break;
   }
   snprintf(aBuffer, aMaxLen, "|%s|%s|%s|%s|", text, mNativeCode, mNativeSeverity,
-	        mQualifier);
+                mQualifier);
 
   mChanged = false;
   return aBuffer;
 }
 
 bool Condition::ActiveCondition::setValue(ELevels aLevel, const char *aText, const char *aCode,
-			  const char *aQualifier, const char *aSeverity)
+                          const char *aQualifier, const char *aSeverity)
 {
   if ((aLevel == eNORMAL || aLevel == eUNAVAILABLE) && aCode[0] == '\0')
     mPlaceHolder = true;

@@ -67,7 +67,7 @@ const char *Logger::timestamp(char *aBuffer)
 #ifdef WIN32
   SYSTEMTIME st;
   GetSystemTime(&st);
-  sprintf(aBuffer, "%4d-%02d-%02dT%02d:%02d:%02d.%04dZ", st.wYear, st.wMonth, st.wDay, st.wHour, 
+  sprintf(aBuffer, "%4d-%02d-%02dT%02d:%02d:%02d.%03dZ", st.wYear, st.wMonth, st.wDay, st.wHour, 
           st.wMinute, st.wSecond, st.wMilliseconds);
 #else
   struct timeval tv;

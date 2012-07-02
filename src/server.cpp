@@ -46,14 +46,6 @@ Server::Server(int aPort, int aHeartbeatFreq)
   mPort = aPort;
   mTimeout = aHeartbeatFreq * 2;
   
-#ifdef THREADED
-#ifdef WIN32
-  InitializeCriticalSection(&mListLock);
-#else
-  pthread_mutex_init(&mListLock, NULL);
-#endif
-#endif  
-
   SOCKADDR_IN t;
 
 #ifndef WIN32
@@ -111,26 +103,11 @@ Server::~Server()
 #ifdef WINDOWS
   WSACleanup();
 #endif
-
-#ifdef THREADED
-#ifdef WIN32
-  DeleteCriticalSection(&mListLock);
-#else
-  pthread_mutex_destroy(&mListLock);
-#endif  
-#endif  
-
 }
 
 void Server::readFromClients()
 {
-#ifdef THREADED
-#ifdef WIN32
-  EnterCriticalSection(&mListLock);
-#else
-  pthread_mutex_lock(&mListLock);
-#endif
-#endif
+  MTCAutoLock lock(mListLock);
   
   fd_set rset;
   FD_ZERO(&rset);
@@ -199,15 +176,7 @@ void Server::readFromClients()
         removeClientInternal(client);
       }
     }
-  }
-  
-#ifdef THREADED
-#ifdef WIN32
-  LeaveCriticalSection(&mListLock);
-#else
-  pthread_mutex_unlock(&mListLock);
-#endif
-#endif
+  }  
 }
 
 void Server::sendToClient(Client *aClient, const char *aString)
@@ -218,27 +187,13 @@ void Server::sendToClient(Client *aClient, const char *aString)
 
 void Server::sendToClients(const char *aString)
 {
-#ifdef THREADED
-#ifdef WIN32
-  EnterCriticalSection(&mListLock);
-#else
-  pthread_mutex_lock(&mListLock);
-#endif
-#endif
+  MTCAutoLock lock(mListLock);
 
   for (int i = mNumClients - 1; i >= 0; i--)
   {
     if (mClients[i]->write(aString) < 0)
       removeClientInternal(mClients[i]);
-  }
-    
-#ifdef THREADED
-#ifdef WIN32
-  LeaveCriticalSection(&mListLock);
-#else
-  pthread_mutex_unlock(&mListLock);
-#endif
-#endif
+  }    
 }
 
 Client *Server::connectToClients()
@@ -312,34 +267,14 @@ void Server::removeClientInternal(Client *aClient)
 */
 void Server::removeClient(Client *aClient)
 {
-#ifdef THREADED
-#ifdef WIN32
-  EnterCriticalSection(&mListLock);
-#else
-  pthread_mutex_lock(&mListLock);
-#endif
-#endif
+  MTCAutoLock lock(mListLock);
   
   removeClientInternal(aClient);
-
-#ifdef THREADED
-#ifdef WIN32
-  LeaveCriticalSection(&mListLock);
-#else
-  pthread_mutex_unlock(&mListLock);
-#endif
-#endif
 }
 
 Client *Server::addClient(Client *aClient)
 {
-#ifdef THREADED
-#ifdef WIN32
-  EnterCriticalSection(&mListLock);
-#else
-  pthread_mutex_lock(&mListLock);
-#endif
-#endif
+  MTCAutoLock lock(mListLock);
   
   if (mNumClients < MAX_CLIENTS)
   {
@@ -351,14 +286,6 @@ Client *Server::addClient(Client *aClient)
     delete aClient;
     aClient = NULL;
   }
-
-#ifdef THREADED
-#ifdef WIN32
-  LeaveCriticalSection(&mListLock);
-#else
-  pthread_mutex_unlock(&mListLock);
-#endif
-#endif
   
   return aClient;
 }

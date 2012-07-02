@@ -35,39 +35,11 @@
 #include "client.hpp"
 #include "server.hpp"
 
-#ifdef THREADED
-#ifdef WIN32
-static CRITICAL_SECTION sWriteLock;
-#define LOCK(s) EnterCriticalSection(&s)
-#define UNLOCK(s) LeaveCriticalSection(&s)
-#else
-#include <pthread.h>
-static pthread_mutex_t sWriteLock;
-#define LOCK(s) pthread_mutex_lock(&s)
-#define UNLOCK(s) pthread_mutex_unlock(&s)
-#endif
-static bool sWriteLockInitialized = false;
-#else
-#define LOCK(s)
-#define UNLOCK(s)
-#endif
-
 /* Instance methods */
 Client::Client(SOCKET aSocket)
 {
   mSocket = aSocket;
   mHeartbeats = false;
-
-#ifdef THREADED
-  if (!sWriteLockInitialized) {
-#ifdef WIN32
-    InitializeCriticalSection(&sWriteLock);
-#else
-    pthread_mutex_init(&sWriteLock, NULL);
-#endif
-    sWriteLockInitialized = true;
-  }
-#endif
 }
 
 Client::~Client()
@@ -79,8 +51,7 @@ Client::~Client()
 int Client::write(const char *aString)
 {
   int res;
-
-  LOCK(sWriteLock);
+  MTCAutoLock lock(mWriteLock);
 
   try {
     res = ::send(mSocket, aString, (int) strlen(aString), 0);
@@ -89,8 +60,6 @@ int Client::write(const char *aString)
   catch(...) {
     res = -1;
   }
-
-  UNLOCK(sWriteLock);
 
   return res;
 }

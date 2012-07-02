@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<MTConnectDevices xmlns:m="urn:mtconnect.org:MTConnectDevices:1.1" xmlns="urn:mtconnect.org:MTConnectDevices:1.1" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="urn:mtconnect.org:MTConnectDevices:1.1 http://www.mtconnect.org/schemas/MTConnectDevices_1.1.xsd">
+  <Header creationTime="2011-04-26T19:41:27Z" sender="mdc-Ubuntu" instanceId="1303739716" bufferSize="131072" version="1.1"/>
+  <Devices>
+    <Device id="Device_01" name="device" uuid="device_with_fanuc">
+      <Description manufacturer="XXX" serialNumber="45283">
+                        </Description>
+      <DataItems>
+        <DataItem category="EVENT" id="avail_01" name="avail" type="AVAILABILITY"/>
+      </DataItems>
+      <Components>
+        <Linear id="x1_01" name="X">
+          <DataItems>
+            <DataItem category="SAMPLE" id="x11_01" name="Xact" nativeUnits="MILLIMETER" subType="ACTUAL" type="POSITION" units="MILLIMETER"/>
+            <DataItem category="SAMPLE" id="x12_01" name="Xload" nativeUnits="PERCENT" subType="ACTUAL" type="LOAD" units="PERCENT"/>
+            <DataItem category="CONDITION" id="x13_01" name="Xtravel" type="POSITION"/>
+            <DataItem category="CONDITION" id="x14_01" name="Xoverheat" type="TEMPERATURE"/>
+            <DataItem category="CONDITION" id="x15_01" name="Xservo" type="LOAD"/>
+          </DataItems>
+        </Linear>
+        <Linear id="y1_01" name="Y">
+          <DataItems>
+            <DataItem category="SAMPLE" id="y11_01" name="Yact" nativeUnits="MILLIMETER" subType="ACTUAL" type="POSITION" units="MILLIMETER"/>
+            <DataItem category="SAMPLE" id="y12_01" name="Yload" nativeUnits="PERCENT" subType="ACTUAL" type="LOAD" units="PERCENT"/>
+            <DataItem category="CONDITION" id="y13_01" name="Ytravel" type="POSITION"/>
+            <DataItem category="CONDITION" id="y14_01" name="Yoverheat" type="TEMPERATURE"/>
+            <DataItem category="CONDITION" id="y15_01" name="Yservo" type="LOAD"/>
+          </DataItems>
+        </Linear>
+        <Linear id="z1_01" name="Z">
+          <DataItems>
+            <DataItem category="SAMPLE" id="z11_01" name="Zact" nativeUnits="MILLIMETER" subType="ACTUAL" type="POSITION" units="MILLIMETER"/>
+            <DataItem category="SAMPLE" id="z12_01" name="Zload" nativeUnits="PERCENT" subType="ACTUAL" type="LOAD" units="PERCENT"/>
+            <DataItem category="CONDITION" id="z13_01" name="Ztravel" type="POSITION"/>
+            <DataItem category="CONDITION" id="z14_01" name="Zoverheat" type="TEMPERATURE"/>
+            <DataItem category="CONDITION" id="z15_01" name="Zservo" type="LOAD"/>
+          </DataItems>
+        </Linear>
+        <Rotary id="a1_01" name="A">
+          <DataItems>
+            <DataItem category="SAMPLE" id="a11_01" name="Aact" nativeUnits="DEGREE" subType="ACTUAL" type="ANGLE" units="DEGREE"/>
+            <DataItem category="SAMPLE" id="a12_01" name="Aload" nativeUnits="PERCENT" subType="ACTUAL" type="LOAD" units="PERCENT"/>
+            <DataItem category="CONDITION" id="a13_01" name="Atravel" type="POSITION"/>
+            <DataItem category="CONDITION" id="a14_01" name="Aoverheat" type="TEMPERATURE"/>
+            <DataItem category="CONDITION" id="a15_01" name="Aservo" type="LOAD"/>
+            <DataItem category="EVENT" id="a16_01" type="ROTARY_MODE">
+              <Constraints>
+                <Value>INDEX</Value>
+              </Constraints>
+            </DataItem>
+          </DataItems>
+        </Rotary>
+        <Rotary id="c1_01" name="C" nativeName="S">
+          <DataItems>
+            <DataItem category="SAMPLE" id="c11_01" name="S1speed" nativeUnits="REVOLUTION/MINUTE" subType="ACTUAL" type="ROTARY_VELOCITY" units="REVOLUTION/MINUTE"/>
+            <DataItem category="SAMPLE" id="c12_01" name="S1load" nativeUnits="PERCENT" subType="ACTUAL" type="LOAD" units="PERCENT"/>
+            <DataItem category="EVENT" id="c14_01" type="ROTARY_MODE">
+              <Constraints>
+                <Value>SPINDLE</Value>
+              </Constraints>
+            </DataItem>
+            <DataItem category="SAMPLE" id="c15_01" name="SspeedOvr" nativeUnits="PERCENT" subType="OVERRIDE" type="ROTARY_VELOCITY" units="PERCENT"/>
+            <DataItem category="CONDITION" id="c16_01" name="S1servo" type="LOAD"/>
+          </DataItems>
+        </Rotary>
+        <Controller id="controller1_01" name="Controller">
+          <DataItems>
+            <DataItem category="EVENT" id="controller11_01" name="estop" type="EMERGENCY_STOP"/>
+            <DataItem category="EVENT" id="controller12_01" name="message" type="MESSAGE"/>
+            <DataItem category="CONDITION" id="controller13_01" name="servo" type="HARDWARE"/>
+            <DataItem category="CONDITION" id="controller14_01" name="comms" type="COMMUNICATIONS"/>
+            <DataItem category="CONDITION" id="controller15_01" name="logic" type="LOGIC_PROGRAM"/>
+            <DataItem category="CONDITION" id="controller16_01" name="motion" type="MOTION_PROGRAM"/>
+            <DataItem category="CONDITION" id="controller17_01" name="system" type="SYSTEM"/>
+          </DataItems>
+          <Components>
+            <Path id="path1_01" name="path">
+              <DataItems>
+                <DataItem category="EVENT" id="path11_01" name="active_axes" type="ACTIVE_AXES"/>
+                <DataItem category="EVENT" id="path21_01" name="tool_id" type="TOOL_ID"/>
+                <DataItem category="EVENT" id="path22_01" name="line" type="LINE"/>
+                <DataItem category="EVENT" id="path12_01" name="execution" type="EXECUTION"/>
+                <DataItem category="EVENT" id="path13_01" name="mode" type="CONTROLLER_MODE"/>
+                <DataItem category="EVENT" id="path14_01" name="program" type="PROGRAM"/>
+                <DataItem category="EVENT" id="path24_01" name="program_comment" type="PROGRAM_COMMENT"/>
+                <DataItem category="EVENT" id="path15_01" name="block" type="BLOCK"/>
+                <DataItem category="EVENT" id="path20_01" name="part_count" type="PART_COUNT"/>
+                <DataItem category="SAMPLE" id="path17_01" name="path_position" nativeUnits="MILLIMETER_3D" subType="ACTUAL" type="PATH_POSITION" units="MILLIMETER_3D"/>
+                <DataItem category="SAMPLE" id="path18_01" name="path_feedrate" nativeUnits="MILLIMETER/SECOND" type="PATH_FEEDRATE" subType="ACTUAL" units="MILLIMETER/SECOND"/>
+                <DataItem category="SAMPLE" id="path28_01" name="f_command" nativeUnits="MILLIMETER/SECOND" type="PATH_FEEDRATE" subType="COMMANDED" units="MILLIMETER/SECOND"/>
+                <DataItem category="SAMPLE" id="path19_01" name="Fovr" nativeUnits="PERCENT" subType="OVERRIDE" type="PATH_FEEDRATE" units="PERCENT"/>
+              </DataItems>
+            </Path>
+          </Components>
+        </Controller>
+      </Components>
+    </Device>
+  </Devices>
+</MTConnectDevices>

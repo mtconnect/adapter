@@ -99,6 +99,7 @@ protected:
   static const int mInitialActiveListSize = 16;
 
   bool mBegun;
+  bool mPrepared;
 
   void add(ActiveCondition *aCondition);
   bool removeAt(int i);
@@ -122,6 +123,7 @@ public:
   bool isActive(const char *aNativeCode);
 
   virtual void begin();
+  virtual void prepare();
   virtual void cleanup();
   virtual void initialize();
 };

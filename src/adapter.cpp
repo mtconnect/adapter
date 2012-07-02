@@ -34,10 +34,11 @@
 #include "internal.hpp"
 #include "adapter.hpp"
 #include "device_datum.hpp"
+#include "cutting_tool.hpp"
 #include "logger.hpp"
 
 Adapter::Adapter(int aPort, int aScanDelay)
- : mNumDeviceData(0)
+ : mNumDeviceData(0), mInitializeClient(NULL)
 {
   mScanDelay = aScanDelay;
   mServer = 0;
@@ -48,6 +49,11 @@ Adapter::Adapter(int aPort, int aScanDelay)
   mDeviceData = new DeviceDatum*[mMaxDatum];
 #ifdef THREADED
   mServerThread = 0;
+#ifdef WIN32
+  InitializeCriticalSection(&mGatherLock);
+#else
+  pthread_mutex_init(&mGatherLock, NULL);
+#endif
 #endif
 }
 
@@ -58,6 +64,14 @@ Adapter::~Adapter()
     delete mServer;
 
   delete[] mDeviceData;
+
+#ifdef THREADED
+#ifdef WIN32
+  DeleteCriticalSection(&mGatherLock);
+#else
+  pthread_mutex_destroy(&mGatherLock);
+#endif  
+#endif  
 }
 
 /* Add a data value to the list of data values */
@@ -111,7 +125,7 @@ bool Adapter::startServerThread()
     delete mServer;
     return false;
   } else {
-    CloseHandle(mServerThread);
+    Sleep(10);
   }
   
   return true;
@@ -184,11 +198,7 @@ void Adapter::serverThread()
 
     periodicWork();
     
-#ifdef WIN32
-    Sleep(1000);
-#else
-    sleep(1);
-#endif
+    sleepMs(mScanDelay);
   }
 }
 
@@ -249,6 +259,7 @@ void Adapter::startServer()
       begin();
       mBuffer.timestamp();
       gatherDeviceData();
+      prepare();
       sendChangedData();
       mBuffer.reset();
       cleanup();
@@ -274,6 +285,15 @@ void Adapter::begin()
   }
 }
 
+void Adapter::prepare()
+{
+  for (int i = 0; i < mNumDeviceData; i++)
+  {
+    DeviceDatum *value = mDeviceData[i];
+    value->prepare();
+  }
+}
+
 void Adapter::cleanup()
 {
   for (int i = 0; i < mNumDeviceData; i++)
@@ -283,6 +303,40 @@ void Adapter::cleanup()
   }
 }
 
+void Adapter::beginGather(const char *aTs, bool aSweep)
+{
+#ifdef THREADED
+#ifdef WIN32
+  EnterCriticalSection(&mGatherLock);
+#else
+  pthread_mutex_lock(&mGatherLock);
+#endif
+#endif
+
+  if (aSweep) begin();
+  
+  mBuffer.reset();
+  if (aTs != NULL)
+    mBuffer.setTimestamp(aTs);
+  else
+    mBuffer.timestamp();
+}
+
+void Adapter::completeGather()
+{
+  prepare();
+  sendChangedData();
+  cleanup();
+  
+#ifdef THREADED
+#ifdef WIN32
+  LeaveCriticalSection(&mGatherLock);
+#else
+  pthread_mutex_unlock(&mGatherLock);
+#endif
+#endif
+
+}
 
 void Adapter::stopServer()
 {    
@@ -305,7 +359,10 @@ void Adapter::sendBuffer()
   if (mServer != 0 && mBuffer.length() > 0)
   {
     mBuffer.append("\n");
-    mServer->sendToClients(mBuffer);
+    if (mInitializeClient != NULL)
+      mServer->sendToClient(mInitializeClient, mBuffer);
+    else
+      mServer->sendToClients(mBuffer);
     mBuffer.reset();  
   }
 }
@@ -313,6 +370,7 @@ void Adapter::sendBuffer()
 /* Send the initial values to a client */
 void Adapter::sendInitialData(Client *aClient)
 {
+  mInitializeClient = aClient;
   mDisableFlush = true;
   mBuffer.timestamp();
   gatherDeviceData();
@@ -324,7 +382,9 @@ void Adapter::sendInitialData(Client *aClient)
       sendDatum(value);
   }
   sendBuffer();
+
   mDisableFlush = false;
+  mInitializeClient = NULL;
 }
 
 /* Send the values that have changed to the clients */
@@ -378,7 +438,8 @@ void Adapter::initializeDeviceDatum()
 void Adapter::addAsset(const char *aId, const char *aType, const char *aData)
 {
   sendBuffer();
-  
+  mBuffer.timestamp();
+
   mBuffer.append("|@ASSET@|");
   mBuffer.append(aId);
   mBuffer.append("|");
@@ -388,11 +449,13 @@ void Adapter::addAsset(const char *aId, const char *aType, const char *aData)
   mBuffer.append("\n--multiline--ABCD");
   
   sendBuffer();
+  mBuffer.timestamp();
 }
 
 void Adapter::updateAsset(const char *aId, const char *aData)
 {
   sendBuffer();
+  mBuffer.timestamp();
 
   mBuffer.append("|@UPDATE_ASSET@|");
   mBuffer.append(aId);
@@ -400,5 +463,16 @@ void Adapter::updateAsset(const char *aId, const char *aData)
   mBuffer.append(aData);  
 
   sendBuffer();
+  mBuffer.timestamp();
+}
+
+void Adapter::addAsset(CuttingTool *aTool)
+{
+  addAsset(aTool->getAssetId().c_str(), "CuttingTool", aTool->toString().c_str());
+}
+
+void Adapter::updateAsset(CuttingTool *aTool)
+{
+  updateAsset(aTool->getAssetId().c_str(), aTool->toString().c_str());  
 }
 

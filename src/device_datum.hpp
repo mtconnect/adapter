@@ -91,8 +91,9 @@ public:
 
   virtual bool unavailable() = 0;
   virtual void begin() { }
+  virtual void prepare() { }
   virtual void cleanup() { }
-  virtual void initialize() {}
+  virtual void initialize() { }
 };
 
 /*
