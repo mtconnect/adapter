@@ -261,7 +261,6 @@ bool FanucPath::getProgramInfo(unsigned short aFlibhndl)
     }
     
     mBlock.setValue(buf);
-    mLine.setValue(num);
     
     return true;
   }
@@ -424,6 +423,8 @@ bool FanucPath::getAxisData(unsigned short aFlibhndl)
     gLogger->error("Cannot get the rddynamic2 data for path %d: %d", mPathNumber, ret);
     return false;
   }
+
+  mLine.setValue(dyn.seqnum);
 
   ODBSVLOAD axLoad[MAX_AXIS];
   short num = MAX_AXIS;

@@ -331,6 +331,8 @@ void FanucAdapter::getMacros()
       {
         mMacroSample[i]->setValue(((double) macros->data[off].mcr_val) /
                             pow(10.0, macros->data[off].dec_val));
+      } else {
+        mMacroSample[i]->unavailable();
       }
     }
     for (int i = 0; i < mMacroPathCount; i++)
@@ -349,6 +351,8 @@ void FanucAdapter::getMacros()
                                   pow(10.0, macros->data[y].dec_val),
                                 ((double) macros->data[z].mcr_val) /
                                   pow(10.0, macros->data[z].dec_val));
+      } else {
+        mMacroSample[i]->unavailable();
       }
     }
   }
