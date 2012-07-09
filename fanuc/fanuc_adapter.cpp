@@ -435,6 +435,8 @@ void FanucAdapter::getPositions()
   short ret = cnc_rddynamic2(mFlibhndl, -1, sizeof(dyn), &dyn);
   if (ret == EW_OK)
   {
+    mLine.setValue(dyn.seqnum);
+    
     for (int i = 0; i < mAxisCount; i++)
       mAxisAct[i]->setValue(dyn.pos.faxis.machine[i] / mAxisDivisor[i]);
       
@@ -542,7 +544,6 @@ void FanucAdapter::getStatus()
       }
               
       mBlock.setValue(buf);
-      mLine.setValue(num);
     }
   }
   else
