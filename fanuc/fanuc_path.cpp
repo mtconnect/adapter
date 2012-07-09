@@ -170,7 +170,7 @@ bool FanucPath::configureAxes(unsigned short aFlibhndl)
         case 5: gLogger->info(" Units: rpm"); break;
         case 6: gLogger->info(" Units: mm/round"); break;
         case 7: gLogger->info(" Units: inch/round"); break;
-        case 8: gLogger->info(" Units: %"); break;
+        case 8: gLogger->info(" Units: %%"); break;
         case 9: gLogger->info(" Units: Ampere"); break;
         }
       }
