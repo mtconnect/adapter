@@ -5,8 +5,8 @@
 
 // Condition
 
-Condition::Condition(const char *aName) :
-  DeviceDatum(aName), mBegun(false)
+Condition::Condition(const char *aName, bool aSimple) :
+  DeviceDatum(aName), mBegun(false), mSimple(aSimple)
 {
   mActiveSize = mInitialActiveListSize;
   mActiveCount = 0;
@@ -45,8 +45,10 @@ char *Condition::toString(char *aBuffer, int aMaxLen)
 
 void Condition::begin()
 {
-  for (int i = 0; i < mActiveCount; i++) {
-    mActiveList[i]->clear();
+  if (!mSimple) {
+    for (int i = 0; i < mActiveCount; i++) {
+      mActiveList[i]->clear();
+    }
   }
   mPrepared = false;
   mBegun = true;
@@ -219,6 +221,25 @@ bool Condition::add(ELevels aLevel, const char *aText, const char *aCode,
   
   return res;
 }
+
+void Condition::remove(const char *aCode)
+{
+  // We have a code specific condition or a ab-normal
+  int i;
+  for (i = 0; i < mActiveCount; i++) {
+    if (strcmp(aCode, mActiveList[i]->getNativeCode()) == 0) {
+      if (mActiveCount == 1)
+        normal();
+      else {
+        mActiveList[i]->setValue(eNORMAL, "", aCode);
+        mActiveList[i]->clear();
+      }
+      mChanged = true;
+      break;      
+    }
+  }
+}
+
 
 void Condition::add(ActiveCondition *aCond)
 {

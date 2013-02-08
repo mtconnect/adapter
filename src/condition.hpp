@@ -100,6 +100,7 @@ protected:
 
   bool mBegun;
   bool mPrepared;
+  bool mSimple;
 
   void add(ActiveCondition *aCondition);
   bool removeAt(int i);
@@ -108,7 +109,7 @@ protected:
 	      bool &aFirst, int aMaxLen);
   
 public:
-  Condition(const char *aName = "");
+  Condition(const char *aName = "", bool aSimple = false);
   virtual ~Condition();
   virtual char *toString(char *aBuffer, int aMaxLen);
 
@@ -118,15 +119,17 @@ public:
 
   bool add(ELevels aLevel, const char *aText = "", const char *aCode = "",
 	   const char *aQualifier = "", const char *aSeverity = "");
+  void remove(const char *aCode);   
+   
   void removeAll();
   bool normal() { return add(eNORMAL); }
   bool isActive(const char *aNativeCode);
+  void setSimple() { mSimple = true; }
 
   virtual void begin();
   virtual void prepare();
   virtual void cleanup();
   virtual void initialize();
 };
-
 
 #endif

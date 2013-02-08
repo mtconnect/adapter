@@ -49,11 +49,6 @@ Adapter::Adapter(int aPort, int aScanDelay)
   mDeviceData = new DeviceDatum*[mMaxDatum];
 #ifdef THREADED
   mServerThread = 0;
-#ifdef WIN32
-  InitializeCriticalSection(&mGatherLock);
-#else
-  pthread_mutex_init(&mGatherLock, NULL);
-#endif
 #endif
 }
 
@@ -64,14 +59,6 @@ Adapter::~Adapter()
     delete mServer;
 
   delete[] mDeviceData;
-
-#ifdef THREADED
-#ifdef WIN32
-  DeleteCriticalSection(&mGatherLock);
-#else
-  pthread_mutex_destroy(&mGatherLock);
-#endif  
-#endif  
 }
 
 /* Add a data value to the list of data values */
@@ -256,6 +243,8 @@ void Adapter::startServer()
     /* Don't bother getting data if we don't have anyone to read it */
     if (mServer->numClients() > 0)
     {
+      MTCAutoLock lock(mGatherLock);
+      
       begin();
       mBuffer.timestamp();
       gatherDeviceData();
@@ -305,13 +294,7 @@ void Adapter::cleanup()
 
 void Adapter::beginGather(const char *aTs, bool aSweep)
 {
-#ifdef THREADED
-#ifdef WIN32
-  EnterCriticalSection(&mGatherLock);
-#else
-  pthread_mutex_lock(&mGatherLock);
-#endif
-#endif
+  mGatherLock.lock();
 
   if (aSweep) begin();
   
@@ -328,14 +311,7 @@ void Adapter::completeGather()
   sendChangedData();
   cleanup();
   
-#ifdef THREADED
-#ifdef WIN32
-  LeaveCriticalSection(&mGatherLock);
-#else
-  pthread_mutex_unlock(&mGatherLock);
-#endif
-#endif
-
+  mGatherLock.unlock();
 }
 
 void Adapter::stopServer()
@@ -370,6 +346,8 @@ void Adapter::sendBuffer()
 /* Send the initial values to a client */
 void Adapter::sendInitialData(Client *aClient)
 {
+  MTCAutoLock lock(mGatherLock);
+
   mInitializeClient = aClient;
   mDisableFlush = true;
   mBuffer.timestamp();

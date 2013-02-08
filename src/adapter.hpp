@@ -36,10 +36,7 @@
 
 #include "server.hpp"
 #include "string_buffer.hpp"
-
-#if defined(THREADED) && !defined(WIN32)
-#include <pthread.h>
-#endif
+#include "threading.hpp"
 
 class DeviceDatum;
 class CuttingTool;
@@ -73,13 +70,11 @@ protected:
 #ifdef THREADED
 #ifdef WIN32
   HANDLE mServerThread;
-  CRITICAL_SECTION mGatherLock;
 #else
   pthread_t mServerThread;
-  pthread_mutex_t mGatherLock;
 #endif
 #endif
-
+  MTCMutex mGatherLock;
   
 protected:
   void sleepMs(int aMs);
