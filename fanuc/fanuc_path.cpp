@@ -1,3 +1,18 @@
+/*
+ * Copyright Copyright 2012, System Insights, Inc.
+ *
+ *    Licensed under the Apache License, Version 2.0 (the "License");
+ *    you may not use this file except in compliance with the License.
+ *    You may obtain a copy of the License at
+ *
+ *       http://www.apache.org/licenses/LICENSE-2.0
+ *
+ *    Unless required by applicable law or agreed to in writing, software
+ *    distributed under the License is distributed on an "AS IS" BASIS,
+ *    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *    See the License for the specific language governing permissions and
+ *    limitations under the License.
+ */
 
 #include "internal.hpp"
 #include "Fwlib32.h"
@@ -18,7 +33,8 @@ void FanucPath::addDatum(DeviceDatum &aDatum, const char *aName, const char *aSu
 
 FanucPath::FanucPath(Adapter *anAdapter, short aPathNumber)
   : mAdapter(anAdapter), mPathNumber(aPathNumber), mXAxis(NULL), mYAxis(NULL),
-    mZAxis(NULL), mToolManagementEnabled(true), mUseModalToolData(false)
+    mZAxis(NULL), mToolManagementEnabled(true), mUseModalToolData(false),
+    mAllowDNC(true)
 {
   char number[2];
   if (aPathNumber > 1)
@@ -362,6 +378,8 @@ bool FanucPath::getHeader(unsigned short aFlibhndl, int aProg)
 {
   /* This is not needed since we're getting the codes from
      macros now. */
+  if (!mAllowDNC)
+    return true;
   
   char program[2048];
   short ret = cnc_upstart(aFlibhndl, aProg);
