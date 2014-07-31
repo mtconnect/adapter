@@ -412,7 +412,7 @@ void FanucAdapter::getCounts()
   short ret = cnc_rdparam(mFlibhndl, 6711, 0, 8, &buf);
   if (ret == EW_OK)
   {
-    mPartCount.setValue(buf.u.idata);
+    mPartCount.setValue(buf.u.ldata);
   }
 }
 
