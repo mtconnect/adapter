@@ -38,7 +38,6 @@ bool Condition::unavailable()
   return add(eUNAVAILABLE);
 }
 
-//char *Condition::toString(char *aBuffer, int aMaxLen)
 char *Condition::toString(char*, int)
 {
   return NULL;
