@@ -211,7 +211,7 @@ Client *Server::connectToClients()
   ::memset(&timeout, 0, sizeof(timeout));
 
   Client *client = NULL;
-  bool added = false;
+  //bool added = false;
 
   if (::select(nfds, &rset, 0, 0, &timeout) > 0)
   {
@@ -230,7 +230,7 @@ Client *Server::connectToClients()
     ::setsockopt(socket, IPPROTO_TCP, TCP_NODELAY, (const char*) &flag, sizeof(int));
 
     client = addClient(new Client(socket));
-    added = true;
+    //added = true;
   }
 
   return client;

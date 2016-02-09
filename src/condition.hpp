@@ -77,7 +77,7 @@ protected:
     bool setValue(ELevels aLevel, const char *aText = "", const char *aCode = "",
 		  const char *aQualifier = "", const char *aSeverity = "");
     
-    char *toString(char *aBuffer, int aMaxLen);
+    char *toString(char *aBuffer, int aMaxLen);    
     bool hasChanged() { return mChanged; }
     
     ELevels getLevel() { return mLevel; }
@@ -111,7 +111,7 @@ protected:
 public:
   Condition(const char *aName = "", bool aSimple = false);
   virtual ~Condition();
-  virtual char *toString(char *aBuffer, int aMaxLen);
+  virtual char *toString(char *aBuffer, int aMaxLen);  
 
   virtual bool requiresFlush();
   virtual bool unavailable();
