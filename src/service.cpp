@@ -12,7 +12,7 @@ void MTConnectService::setName(const char *aName)
   mName[79] = '\0';
 }
 
-void MTConnectService::initialize(int aArgc, const char *aArgv[])
+void MTConnectService::initialize(int, const char**)
 {
   if (gLogger == NULL) {
     if (mIsService)
@@ -578,7 +578,7 @@ int MTConnectService::main(int argc, const char *argv[])
   return 0;
 } 
 
-void MTConnectService::install(int argc, const char *argv[])
+void MTConnectService::install(int, const char*[])
 {
 }
 
