@@ -98,6 +98,16 @@ protected:
 	int       mDgnAddress[MAX_PMC];
 	int       mDgnCount;
 
+	/* Alarms */
+	Event *mAlmVariable[MAX_PMC];
+	int       mAlmAddress[MAX_PMC];
+	int       mAlmCount;
+
+	/* Critical */
+	Event *mCriticalVariable[MAX_PMC];
+	int       mCriticalAddress[MAX_PMC];
+	int       mCriticalCount;
+
 	unsigned short mFlibhndl;
 	bool mConnected, mConfigured;
 	bool mAllowDNC;
@@ -120,6 +130,8 @@ protected:
 	void getPMC();
 	void getParameters();
 	void getDgn();
+	void getAlarm();
+	void getCritical();
 
 	void getCounts();
 

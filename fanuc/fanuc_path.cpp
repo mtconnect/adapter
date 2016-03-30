@@ -289,9 +289,9 @@ bool FanucPath::getProgramInfo(unsigned short aFlibhndl)
 
 bool FanucPath::getStatus(unsigned short aFlibhndl)
 {
-  ODBST status;
+  ODBST2 status;
   memset(&status, 0, sizeof(status));
-  int ret = cnc_statinfo(aFlibhndl, &status);
+  int ret = cnc_statinfo2(aFlibhndl, &status);
   if (ret == EW_OK)
   {
     if (status.run == 3 || status.run == 4) // STaRT
@@ -327,7 +327,7 @@ bool FanucPath::getStatus(unsigned short aFlibhndl)
   {
     gLogger->error("Cannot cnc_statinfo for path %d: %d", mPathNumber, ret);
     return false;
-  }
+  } 
 }
 
 bool FanucPath::getToolData(unsigned short aFlibhndl)
@@ -457,9 +457,14 @@ bool FanucPath::getAxisData(unsigned short aFlibhndl)
   if (dyn.prgnum != mProgramNum)
     getHeader(aFlibhndl, dyn.prgnum);
 
-  mProgramNum = dyn.prgnum;
-  sprintf(buf, "%d.%d", dyn.prgmnum, dyn.prgnum);
-  mProgramName.setValue(buf);
+
+
+  // Program Number/Name assignment
+
+  char exeprg[256];
+  int result = cnc_exeprgname2(aFlibhndl, exeprg);
+  mProgramName.setValue(exeprg);
+
 
   // Update all the axes
   vector<FanucAxis*>::iterator axis;

@@ -99,9 +99,11 @@ void FanucAdapter::innerGatherDeviceData()
       getPathData();
       getMessages();
       getMacros();
-      getPMC();
+	  getPMC();
 	  getParameters();
 	  getDgn();
+	  getAlarm();
+	  getCritical();
       getCounts();
     }
   }
@@ -172,6 +174,8 @@ void FanucAdapter::configMacrosAndPMC(const char *aIniFile)
 	char name[100];
 	char paraName[100];
 	char dgnName[100];
+	char almName[100];
+	char criticalName[100];
 
 	int idx;
 	const static char *sDigits = "0123456789";
@@ -283,6 +287,42 @@ void FanucAdapter::configMacrosAndPMC(const char *aIniFile)
 		printf("Adding diagnostic '%s' at location %d\n", dgnName, v);
 	}
 	mDgnCount = idx;
+
+	//Add alarms
+	for (idx = 0;
+		ini_getkey("alarms", idx, almName, sizeof(paraName), aIniFile) > 0 &&
+		idx < MAX_PMC;
+	idx++)
+	{
+		long v = ini_getl("alarms", almName, 0, aIniFile); // was long
+		mAlmVariable[idx] = new Event(almName);
+		mAlmAddress[idx] = v;
+
+		addDatum(*mAlmVariable[idx]);
+
+		printf("Adding alarm '%s' at location %d\n", almName, v);
+	}
+	mAlmCount = idx;
+
+
+
+	//Add critical
+	for (idx = 0;
+		ini_getkey("critical", idx, criticalName, sizeof(paraName), aIniFile) > 0 &&
+		idx < MAX_PMC;
+	idx++)
+	{
+		long v = ini_getl("alarms", criticalName, 0, aIniFile); // was long
+		mCriticalVariable[idx] = new Event(criticalName);
+		mCriticalAddress[idx] = v;
+
+		addDatum(*mCriticalVariable[idx]);
+
+		printf("Adding critical '%s' at location %d\n", criticalName, v);
+	}
+	mCriticalCount = idx;
+
+
 }
 
 void FanucAdapter::configure()
@@ -426,6 +466,119 @@ void FanucAdapter::getParameters()
 
 }
 
+
+
+
+
+void FanucAdapter::getCritical()
+{
+
+	// TODO really needs cleanup accross control models, dgn types, etc
+	// Adding each alarm set 4 times - uncorrected nested loop, need to fix with
+	// bet declaraion from the ini
+
+
+	if (!mConnected)
+		return;
+
+	for (int i = 0; i < mCriticalCount; i++)
+	{
+		ODBALMMSG * odbalmmsg = new ODBALMMSG[4];
+		short num = mCriticalCount;
+
+		short ret = cnc_rdalmmsg(mFlibhndl, -1, &num, odbalmmsg);
+		if (ret == EW_OK)
+		{
+
+			if (i < num && ((odbalmmsg[i].type == 1) || (odbalmmsg[i].type == 2) || (odbalmmsg[i].type == 5) || (odbalmmsg[i].type == 6) || (odbalmmsg[i].type == 9) || (odbalmmsg[i].type == 10) || (odbalmmsg[i].type == 13) || (odbalmmsg[i].type == 19))){
+				ODBALMMSG alarm1 = odbalmmsg[i];
+				int charcount = 0;
+
+				char number[12];
+				sprintf(number, "%d", alarm1);
+
+				char message[64];
+				sprintf(message, "%s", alarm1.alm_msg);
+
+				char numMsg[80];
+				strcpy(numMsg, number);
+				strcat(numMsg, " ");
+				strncat(numMsg, message, alarm1.msg_len);
+
+				mCriticalVariable[i]->setValue(numMsg);
+			}
+			else {
+				mCriticalVariable[i]->setValue("\0");
+			}
+
+		}
+
+		//else {
+		//	printf("Could not retrieve Alarm at %d for %s: %d\n",
+		//		mPMCAddress[i], mPMCVariable[i]->getName(), ret);
+		//}
+	}
+}
+
+
+
+
+
+
+
+
+void FanucAdapter::getAlarm()
+{
+
+	// TODO really needs cleanup accross control models, dgn types, etc
+	// Adding each alarm set 4 times - uncorrected nested loop, need to fix with
+	// bet declaraion from the ini
+
+	if (!mConnected)
+		return;
+
+	for (int i = 0; i < mAlmCount; i++)
+	{
+		ODBALMMSG * odbalmmsg = new ODBALMMSG[4];
+		short num = mAlmCount;
+
+		short ret = cnc_rdalmmsg(mFlibhndl, -1, &num, odbalmmsg);
+		if (ret == EW_OK)
+		{
+			if (i < num){
+				ODBALMMSG alarm1 = odbalmmsg[i];
+				int charcount = 0;
+
+				char number[12];
+				sprintf(number, "%d", alarm1);
+
+				char message[64];
+				sprintf(message, "%s", alarm1.alm_msg);
+
+				char numMsg[80];
+				strcpy(numMsg, number);
+				strcat(numMsg, " ");
+				strncat(numMsg, message, alarm1.msg_len);
+
+				mAlmVariable[i]->setValue(numMsg);
+			}
+			else {
+				mAlmVariable[i]->setValue("\0");
+			}
+
+			
+		}
+
+		//else {
+		//	printf("Could not retrieve Alarm at %d for %s: %d\n",
+		//		mPMCAddress[i], mPMCVariable[i]->getName(), ret);
+		//}
+	}
+}
+
+
+
+
 void FanucAdapter::getPMC()
 {
 
@@ -511,7 +664,7 @@ void FanucAdapter::getDgn()
 			}
 			else if ((odbdiagif.info[0].diag_type & 0x03) == 2)
 			{
-				length = 12;
+				length = 16;
 			}
 			else if ((odbdiagif.info[0].diag_type & 0x03) == 3)
 			{
