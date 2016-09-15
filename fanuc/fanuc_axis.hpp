@@ -19,7 +19,7 @@
 #include "condition.hpp"
 #include "adapter.hpp"
 #include <string>
-#include "Fwlib32.h"
+#include "fwlib32.h"
 
 class FanucAxis
 {

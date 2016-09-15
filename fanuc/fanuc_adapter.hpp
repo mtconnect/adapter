@@ -22,7 +22,7 @@
 #include "device_datum.hpp"
 #include "service.hpp"
 #include "fanuc_path.hpp"
-#include "Fwlib32.h"
+#include "fwlib32.h"
 #include <vector>
 #include <math.h>
 

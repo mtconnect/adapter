@@ -15,7 +15,7 @@
  */
 
 #include "internal.hpp"
-#include "Fwlib32.h"
+#include "fwlib32.h"
 #include "fanuc_path.hpp"
 #include "logger.hpp"
 
