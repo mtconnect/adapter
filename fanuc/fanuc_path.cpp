@@ -610,7 +610,7 @@ void FanucPath::getCondition(unsigned short aFlibhndl, long aAlarm)
           if (cond == NULL)
             continue;
 
-          sprintf(num, "%d", alarm.alm_no);
+          sprintf(num, "%ld", alarm.alm_no);
           cond->add(Condition::eFAULT, alarm.alm_msg, num);
         }
       }
