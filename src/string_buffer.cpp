@@ -113,7 +113,7 @@ void StringBuffer::timestamp()
   gettimeofday(&tv, &tz);
   
   strftime(mTimestamp, 64, "%Y-%m-%dT%H:%M:%S", gmtime(&tv.tv_sec));
-  sprintf(mTimestamp + strlen(mTimestamp), ".%06dZ", tv.tv_usec);
+  sprintf(mTimestamp + strlen(mTimestamp), ".%06ldZ", tv.tv_usec);
 #endif
 }
 

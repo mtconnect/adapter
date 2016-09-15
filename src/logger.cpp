@@ -76,7 +76,7 @@ const char *Logger::timestamp(char *aBuffer)
   gettimeofday(&tv, &tz);
 
   strftime(aBuffer, 64, "%Y-%m-%dT%H:%M:%S", gmtime(&tv.tv_sec));
-  sprintf(aBuffer + strlen(aBuffer), ".%06dZ", tv.tv_usec);
+  sprintf(aBuffer + strlen(aBuffer), ".%06ldZ", tv.tv_usec);
 #endif
   
   return aBuffer;
