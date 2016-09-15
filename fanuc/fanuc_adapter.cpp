@@ -17,7 +17,6 @@
 #include "internal.hpp"
 #include "fanuc_adapter.hpp"
 #include "minIni.h"
-#include <excpt.h>
 
 FanucAdapter::FanucAdapter(int aPort)
   : Adapter(aPort), mAvail("avail"), mMessage("message"), mPartCount("part_count"),
@@ -51,7 +50,8 @@ void FanucAdapter::initialize(int aArgc, const char *aArgv[])
 
   const char *iniFile = "adapter.ini";
 
-  printf("Arguments: %d\n", aArgc);
+  gLogger->info("Arguments: %d\n", aArgc);
+
   if (aArgc > 1) {
     strncpy(mDeviceIP, aArgv[0], MAX_HOST_LEN - 1);
     mDeviceIP[MAX_HOST_LEN - 1] = '\0';
@@ -68,11 +68,11 @@ void FanucAdapter::initialize(int aArgc, const char *aArgv[])
     mPort = 7878;
     if (aArgc > 0)
       iniFile = aArgv[0];
-    printf("Ini File: %s\n", iniFile);
+    gLogger->info("Ini File: %s\n", iniFile);
   }
   
   FILE *fp = fopen(iniFile, "r");
-  printf("FP = %d, %x\n", errno, fp);
+  //gLogger->info("FP = %d, %x\n", errno, fp);
   if (fp != 0) fclose(fp);
 
   configMacrosAndPMC(iniFile);
@@ -116,11 +116,11 @@ void FanucAdapter::innerGatherDeviceData()
 
 void FanucAdapter::gatherDeviceData()
 {
-  __try {
+  try {
     innerGatherDeviceData();
   }
 
-  __except(EXCEPTION_EXECUTE_HANDLER) {
+  catch(...) {
       gLogger->error("Unhandled structured exception occurred during gathering device data, disconnecting.");
       disconnect();
   }
@@ -130,7 +130,7 @@ void FanucAdapter::disconnect()
 {
   if (mConnected)
   {
-    printf("Machine has disconnected. Releasing Resources\n");
+    gLogger->info("Machine has disconnected. Releasing Resources\n");
     cnc_freelibhndl(mFlibhndl);  
     mConnected = false;
     unavailable();
@@ -152,20 +152,20 @@ void FanucAdapter::configMacrosAndPMC(const char *aIniFile)
 
 	char dnc[8];
 	ini_gets("focus", "dnc", "yes", dnc, 8, aIniFile);
-	mAllowDNC = _strnicmp(dnc, "no", 2) != 0;
+	mAllowDNC = strncasecmp(dnc, "no", 2) != 0;
 
 	if (!mAllowDNC)
-		printf("Disabling retrieval of program header\n");
+		gLogger->info("Disabling retrieval of program header\n");
 
 	//********** Added for DisplayHidden Setting *******
 	char dhdn[8];
 	ini_gets("settings", "displayhidden", "no", dhdn, 8, aIniFile);
-	mDisplayHidden = _strnicmp(dhdn, "no", 2) != 0;
+	mDisplayHidden = strncasecmp(dhdn, "no", 2) != 0;
 
 	if (!mDisplayHidden)
-		printf("Not showing hidden axis.\n");
+		gLogger->info("Not showing hidden axis.\n");
 	if (mDisplayHidden)
-		printf("Showing hidden axis.\n");
+		gLogger->info("Showing hidden axis.\n");
 	//***************************************************
 
 
@@ -212,7 +212,7 @@ void FanucAdapter::configMacrosAndPMC(const char *aIniFile)
 			mMacroPath[i] = new MacroPathPosition(name, x, y, z);
 			addDatum(*mMacroPath[i]);
 
-			printf("Adding path macro '%s' at location %d %d %d\n", name, x, y, z);
+			gLogger->info("Adding path macro '%s' at location %d %d %d\n", name, x, y, z);
 
 			if (x > mMacroMax) mMacroMax = x;
 			if (x < mMacroMin) mMacroMin = x;
@@ -231,7 +231,7 @@ void FanucAdapter::configMacrosAndPMC(const char *aIniFile)
 			mMacroSample[i] = new MacroSample(name, v);
 			addDatum(*mMacroSample[i]);
 
-			printf("Adding sample macro '%s' at location %d\n", name, v);
+			gLogger->info("Adding sample macro '%s' at location %ld\n", name, v);
 
 			if (v > mMacroMax) mMacroMax = v;
 			if (v < mMacroMin) mMacroMin = v;
@@ -251,7 +251,7 @@ void FanucAdapter::configMacrosAndPMC(const char *aIniFile)
 
 		addDatum(*mPMCVariable[idx]);
 
-		printf("Adding pmc '%s' at location %d\n", name, v);
+		gLogger->info("Adding pmc '%s' at location %ld\n", name, v);
 	}
 	mPMCCount = idx;
 
@@ -267,7 +267,7 @@ void FanucAdapter::configMacrosAndPMC(const char *aIniFile)
 
 		addDatum(*mParameterVariable[idx]);
 
-		printf("Adding parameter '%s' at location %d\n", paraName, v);
+		gLogger->info("Adding parameter '%s' at location %ld\n", paraName, v);
 	}
 	mParameterCount = idx;
 
@@ -284,7 +284,7 @@ void FanucAdapter::configMacrosAndPMC(const char *aIniFile)
 
 		addDatum(*mDgnVariable[idx]);
 
-		printf("Adding diagnostic '%s' at location %d\n", dgnName, v);
+		gLogger->info("Adding diagnostic '%s' at location %ld\n", dgnName, v);
 	}
 	mDgnCount = idx;
 
@@ -300,7 +300,7 @@ void FanucAdapter::configMacrosAndPMC(const char *aIniFile)
 
 		addDatum(*mAlmVariable[idx]);
 
-		printf("Adding alarm '%s' at location %d\n", almName, v);
+		gLogger->info("Adding alarm '%s' at location %ld\n", almName, v);
 	}
 	mAlmCount = idx;
 
@@ -318,7 +318,7 @@ void FanucAdapter::configMacrosAndPMC(const char *aIniFile)
 
 		addDatum(*mCriticalVariable[idx]);
 
-		printf("Adding critical '%s' at location %d\n", criticalName, v);
+		gLogger->info("Adding critical '%s' at location %ld\n", criticalName, v);
 	}
 	mCriticalCount = idx;
 
@@ -365,9 +365,13 @@ void FanucAdapter::connect()
 	if (mConnected)
 		return;
 
-	printf("Connecting to Machine at %s and port %d\n", mDeviceIP, mDevicePort);
+	gLogger->info("Connecting to host %s on port %d\n", mDeviceIP, mDevicePort);
+        long level = 3;
+        std::string filename = "focas.log";
+        const char * c =  filename.c_str();
+        short log = ::cnc_startupprocess(level, c);	
 	short ret = ::cnc_allclibhndl3(mDeviceIP, mDevicePort, 10, &mFlibhndl);
-	printf("Result: %d\n", ret);
+	gLogger->info("Result: %d\n", ret);
 	if (ret == EW_OK)
 	{
 		mAvail.available();
@@ -381,7 +385,7 @@ void FanucAdapter::connect()
 	{
 		mConnected = false;
 		unavailable();
-		Sleep(5000);
+		sleep(5);
 	}
 }
 
@@ -390,6 +394,7 @@ void FanucAdapter::reconnect()
 	if (mConnected)
 	{
 		cnc_freelibhndl(mFlibhndl);
+		cnc_exitprocess();
 		mConnected = false;
 
 		connect();
@@ -418,7 +423,7 @@ void FanucAdapter::getMacros()
 		}
 		else
 		{
-			printf("Could not retrieve Macro data at %d for %s: %d\n", mMacroSample[i], mMacroSample[i]->getNumber(), ret);
+			gLogger->error("Could not retrieve Macro data at %d for %d: %d\n", mMacroSample[i], mMacroSample[i]->getNumber(), ret);
 		}
 	}
 }
@@ -459,7 +464,7 @@ void FanucAdapter::getParameters()
 		}
 
 		else {
-			printf("Could not retrieve Parameter data at %d for %s: %d\n",
+			gLogger->error("Could not retrieve Parameter data at %d for %s: %d\n",
 				mParameterAddress[i], mParameterVariable[i]->getName(), ret);
 		}
 	}
@@ -623,7 +628,7 @@ void FanucAdapter::getPMC()
 			}
 		}
 		else {
-			printf("Could not retrieve PMC data at %d for %s: %d\n",
+			gLogger->error("Could not retrieve PMC data at %d for %s: %d\n",
 				mPMCAddress[i], mPMCVariable[i]->getName(), ret);
 		}
 	}
@@ -687,7 +692,7 @@ void FanucAdapter::getDgn()
 					
 			}
 			else {
-				printf("Could not retrieve Diagnostic data at %d for %s: %d\n",
+				gLogger->error("Could not retrieve Diagnostic data at %d for %s: %d\n",
 					mDgnAddress[i], mDgnVariable[i]->getName(), ret);
 			}
 		}		
