@@ -15,13 +15,20 @@ void MTConnectService::setName(const char *aName)
 void MTConnectService::initialize(int aArgc, const char *aArgv[])
 {
   if (gLogger == NULL) {
-    if (mIsService)
+    if (mIsService) {
       gLogger = new ServiceLogger();
-    else
-      gLogger = new Logger();
+    } else {
+	FILE * pFile;
+
+   	pFile = fopen ("adapter.log" , "w");
+	gLogger = new Logger(pFile);
+    	gLogger->setLogLevel(Logger::eINFO);
+    }
+    
   }
   if (mDebug)
     gLogger->setLogLevel(Logger::eDEBUG);
+
 }
 
 #ifdef WIN32
@@ -573,9 +580,32 @@ void ServiceLogger::debug(const char *aFormat, ...)
 
 int MTConnectService::main(int argc, const char *argv[]) 
 { 
-  initialize(argc - 1, argv + 1);
-  start();
-  return 0;
+ 
+  printf("Starting MTConnect Adapter\n");
+
+  for (int i = 1; i < argc; i++) {
+
+	if ( strcmp( argv[i], "-db") == 0 || strcmp( argv[i], "--debug") == 0 ) {
+		mDebug = true;
+	}
+	if ( strcmp( argv[i], "-v") == 0 || strcmp( argv[i], "--verbose") == 0 ) {
+		// don't log to a file, log to stderr
+	}
+	if ( strcmp( argv[i], "-h") == 0 ||  strcmp( argv[i], "--help") == 0 ) {
+		printf("\nOptions: \n	-c,--conf	specify config file location\n	-v,--verbose	messages will be directed to stderr instead of \"adapter.log\"\n			in the directory where you start the adapter\n	-db,--debug	get debug messages in the log file (or stderr with \"-v\")\n 	-h,--help	this help message\n\n");
+	}
+ 
+
+	if( mDebug )
+		printf("argc= %d; argv[%d]= \"%s\"\n", argc,i, argv[i]);
+	
+   }  // end for loop
+	
+   initialize(argc, argv);
+
+   start();
+   return 0;
+
 } 
 
 void MTConnectService::install(int argc, const char *argv[])
