@@ -49,9 +49,16 @@ void FanucAdapter::initialize(int aArgc, const char *aArgv[])
   MTConnectService::initialize(aArgc, aArgv);
 
   const char *iniFile = "adapter.ini";
+  mDevicePort = 8193;
+  strcpy(mDeviceIP, "localhost");
+  mPort = 7878;
 
-  gLogger->info("Arguments: %d\n", aArgc);
-
+  for (int i = 1; i < aArgc; i++) {
+    if ( strcmp( aArgv[i], "-c") == 0 || strcmp( aArgv[i], "--conf") == 0 ) {
+	iniFile = aArgv[i+1];
+    }
+  }
+/*
   if (aArgc > 1) {
     strncpy(mDeviceIP, aArgv[0], MAX_HOST_LEN - 1);
     mDeviceIP[MAX_HOST_LEN - 1] = '\0';
@@ -63,14 +70,10 @@ void FanucAdapter::initialize(int aArgc, const char *aArgv[])
   }
   else
   {
-    mDevicePort = 8193;
-    strcpy(mDeviceIP, "localhost");
-    mPort = 7878;
     if (aArgc > 0)
       iniFile = aArgv[0];
-    gLogger->info("Ini File: %s\n", iniFile);
   }
-  
+  */
   FILE *fp = fopen(iniFile, "r");
   //gLogger->info("FP = %d, %x\n", errno, fp);
   if (fp != 0) fclose(fp);
@@ -130,7 +133,7 @@ void FanucAdapter::disconnect()
 {
   if (mConnected)
   {
-    gLogger->info("Machine has disconnected. Releasing Resources\n");
+    gLogger->info("Machine has disconnected. Releasing Resources");
     cnc_freelibhndl(mFlibhndl);  
     mConnected = false;
     unavailable();
@@ -155,7 +158,7 @@ void FanucAdapter::configMacrosAndPMC(const char *aIniFile)
 	mAllowDNC = strncasecmp(dnc, "no", 2) != 0;
 
 	if (!mAllowDNC)
-		gLogger->info("Disabling retrieval of program header\n");
+		gLogger->info("Disabling retrieval of program header");
 
 	//********** Added for DisplayHidden Setting *******
 	char dhdn[8];
@@ -163,9 +166,9 @@ void FanucAdapter::configMacrosAndPMC(const char *aIniFile)
 	mDisplayHidden = strncasecmp(dhdn, "no", 2) != 0;
 
 	if (!mDisplayHidden)
-		gLogger->info("Not showing hidden axis.\n");
+		gLogger->info("Not showing hidden axis.");
 	if (mDisplayHidden)
-		gLogger->info("Showing hidden axis.\n");
+		gLogger->info("Showing hidden axis.");
 	//***************************************************
 
 
@@ -212,7 +215,7 @@ void FanucAdapter::configMacrosAndPMC(const char *aIniFile)
 			mMacroPath[i] = new MacroPathPosition(name, x, y, z);
 			addDatum(*mMacroPath[i]);
 
-			gLogger->info("Adding path macro '%s' at location %d %d %d\n", name, x, y, z);
+			gLogger->info("Adding path macro '%s' at location %d %d %d", name, x, y, z);
 
 			if (x > mMacroMax) mMacroMax = x;
 			if (x < mMacroMin) mMacroMin = x;
@@ -231,7 +234,7 @@ void FanucAdapter::configMacrosAndPMC(const char *aIniFile)
 			mMacroSample[i] = new MacroSample(name, v);
 			addDatum(*mMacroSample[i]);
 
-			gLogger->info("Adding sample macro '%s' at location %ld\n", name, v);
+			gLogger->info("Adding sample macro '%s' at location %ld", name, v);
 
 			if (v > mMacroMax) mMacroMax = v;
 			if (v < mMacroMin) mMacroMin = v;
@@ -251,7 +254,7 @@ void FanucAdapter::configMacrosAndPMC(const char *aIniFile)
 
 		addDatum(*mPMCVariable[idx]);
 
-		gLogger->info("Adding pmc '%s' at location %ld\n", name, v);
+		gLogger->info("Adding pmc '%s' at location %ld", name, v);
 	}
 	mPMCCount = idx;
 
@@ -267,7 +270,7 @@ void FanucAdapter::configMacrosAndPMC(const char *aIniFile)
 
 		addDatum(*mParameterVariable[idx]);
 
-		gLogger->info("Adding parameter '%s' at location %ld\n", paraName, v);
+		gLogger->info("Adding parameter '%s' at location %ld", paraName, v);
 	}
 	mParameterCount = idx;
 
@@ -284,7 +287,7 @@ void FanucAdapter::configMacrosAndPMC(const char *aIniFile)
 
 		addDatum(*mDgnVariable[idx]);
 
-		gLogger->info("Adding diagnostic '%s' at location %ld\n", dgnName, v);
+		gLogger->info("Adding diagnostic '%s' at location %ld", dgnName, v);
 	}
 	mDgnCount = idx;
 
@@ -300,7 +303,7 @@ void FanucAdapter::configMacrosAndPMC(const char *aIniFile)
 
 		addDatum(*mAlmVariable[idx]);
 
-		gLogger->info("Adding alarm '%s' at location %ld\n", almName, v);
+		gLogger->info("Adding alarm '%s' at location %ld", almName, v);
 	}
 	mAlmCount = idx;
 
@@ -318,7 +321,7 @@ void FanucAdapter::configMacrosAndPMC(const char *aIniFile)
 
 		addDatum(*mCriticalVariable[idx]);
 
-		gLogger->info("Adding critical '%s' at location %ld\n", criticalName, v);
+		gLogger->info("Adding critical '%s' at location %ld", criticalName, v);
 	}
 	mCriticalCount = idx;
 
@@ -365,13 +368,13 @@ void FanucAdapter::connect()
 	if (mConnected)
 		return;
 
-	gLogger->info("Connecting to host %s on port %d\n", mDeviceIP, mDevicePort);
+	gLogger->info("Connecting to host %s on port %d", mDeviceIP, mDevicePort);
         long level = 3;
         std::string filename = "focas.log";
         const char * c =  filename.c_str();
         short log = ::cnc_startupprocess(level, c);	
 	short ret = ::cnc_allclibhndl3(mDeviceIP, mDevicePort, 10, &mFlibhndl);
-	gLogger->info("Result: %d\n", ret);
+	gLogger->info("Result: %d", ret);
 	if (ret == EW_OK)
 	{
 		mAvail.available();
@@ -423,7 +426,7 @@ void FanucAdapter::getMacros()
 		}
 		else
 		{
-			gLogger->error("Could not retrieve Macro data at %d for %d: %d\n", mMacroSample[i], mMacroSample[i]->getNumber(), ret);
+			gLogger->error("Could not retrieve Macro data at %d for %d: %d", mMacroSample[i], mMacroSample[i]->getNumber(), ret);
 		}
 	}
 }
