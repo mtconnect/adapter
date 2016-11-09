@@ -1,5 +1,10 @@
 #include "service.hpp"
-#include "string.h"
+#include "string.h" 
+#ifndef WIN32
+#include <iostream>
+#include <sys/types.h>
+#include <unistd.h>
+#endif
 
 MTConnectService::MTConnectService() :
   mIsService(false), mDebug(false)
@@ -19,8 +24,30 @@ void MTConnectService::initialize(int aArgc, const char *aArgv[])
       gLogger = new ServiceLogger();
     } else {
 	FILE * pFile;
+	char log_file[100];
+	char me[100];
+	int start=0; int end=0;
 
-   	pFile = fopen ("adapter.log" , "w");
+	for (int i = 1; i < aArgc; i++) {
+		if ( strcmp( aArgv[i], "-c") == 0 || strcmp( aArgv[i], "—conf") == 0 && (i+1<aArgc) ) {
+			for (int j=0; j < strlen(aArgv[i+1]); j++) {
+				if ( (strncmp(&aArgv[i+1][j], "/",1) == 0) ) {  //strip the path (if any) from the config file,
+					start = j+1;
+				} else if  (strncmp(&aArgv[i+1][j],".",1) == 0 ) {  // strip the file extension (typically ".ini" but just strip the last "." and everything after it)
+					end = j-1;
+				}	
+			}
+			strncpy(me, &aArgv[i+1][start], end-start+1);
+			me[end-start+1]= '\0' ; // store the result in "me" variable.
+			break;   // assumes you only get a single -c or -conf input 
+
+		}
+	}
+
+
+   	snprintf( log_file, 100, "/var/log/adapter/%s.log", me );
+	
+	pFile = fopen ( log_file, "w");
 	gLogger = new Logger(pFile);
     	gLogger->setLogLevel(Logger::eINFO);
     }
@@ -581,7 +608,7 @@ void ServiceLogger::debug(const char *aFormat, ...)
 int MTConnectService::main(int argc, const char *argv[]) 
 { 
  
-  printf("Starting MTConnect Adapter\n");
+  std::cout << "Starting MTConnect Adapter\n";
 
   for (int i = 1; i < argc; i++) {
 
@@ -593,6 +620,7 @@ int MTConnectService::main(int argc, const char *argv[])
 	}
 	if ( strcmp( argv[i], "-h") == 0 ||  strcmp( argv[i], "--help") == 0 ) {
 		printf("\nOptions: \n	-c,--conf	specify config file location\n	-v,--verbose	messages will be directed to stderr instead of \"adapter.log\"\n			in the directory where you start the adapter\n	-db,--debug	get debug messages in the log file (or stderr with \"-v\")\n 	-h,--help	this help message\n\n");
+		return 0;
 	}
  
 
