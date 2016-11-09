@@ -334,7 +334,7 @@ void FanucAdapter::configure()
     return;
 
   int ret;
-  gLogger->info("Configuring...\n");
+  gLogger->info("Configuring...");
 
   short path;
   ret = cnc_getpath(mFlibhndl, &path, &mMaxPath);
@@ -368,7 +368,7 @@ void FanucAdapter::connect()
 	if (mConnected)
 		return;
 
-	gLogger->info("Connecting to host %s on port %d", mDeviceIP, mDevicePort);
+	gLogger->info("Connecting to FOCAS: host %s port %d", mDeviceIP, mDevicePort);
         long level = 3;
         std::string filename = "focas.log";
         const char * c =  filename.c_str();
@@ -467,7 +467,7 @@ void FanucAdapter::getParameters()
 		}
 
 		else {
-			gLogger->error("Could not retrieve Parameter data at %d for %s: %d\n",
+			gLogger->error("Could not retrieve Parameter data at %d for %s: %d",
 				mParameterAddress[i], mParameterVariable[i]->getName(), ret);
 		}
 	}
