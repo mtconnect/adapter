@@ -54,7 +54,7 @@ int Client::write(const char *aString)
   MTCAutoLock lock(mWriteLock);
 
   try {
-    res = ::send(mSocket, aString, (int) strlen(aString), 0);
+    res = ::send(mSocket, aString, (int) strlen(aString), MSG_NOSIGNAL);
   }
 
   catch(...) {
