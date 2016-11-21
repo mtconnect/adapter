@@ -224,7 +224,7 @@ Client *Server::connectToClients()
       gLogger->error("Error at accept().");
       return 0;
     }
-    gLogger->info("Connected to: %s on port %d", inet_ntoa(addr.sin_addr), ntohs(addr.sin_port));
+    gLogger->info("Connection received from: host %s port %d", inet_ntoa(addr.sin_addr), ntohs(addr.sin_port));
 
     int flag = 1;
     ::setsockopt(socket, IPPROTO_TCP, TCP_NODELAY, (const char*) &flag, sizeof(int));

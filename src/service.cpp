@@ -1,5 +1,10 @@
 #include "service.hpp"
-#include "string.h"
+#include "string.h" 
+#ifndef WIN32
+#include <iostream>
+#include <sys/types.h>
+#include <unistd.h>
+#endif
 
 MTConnectService::MTConnectService() :
   mIsService(false), mDebug(false)
@@ -15,13 +20,42 @@ void MTConnectService::setName(const char *aName)
 void MTConnectService::initialize(int aArgc, const char *aArgv[])
 {
   if (gLogger == NULL) {
-    if (mIsService)
+    if (mIsService) {
       gLogger = new ServiceLogger();
-    else
-      gLogger = new Logger();
+    } else {
+	FILE * pFile;
+	char log_file[100];
+	char me[100];
+	int start=0; int end=0;
+
+	for (int i = 1; i < aArgc; i++) {
+		if ( strcmp( aArgv[i], "-c") == 0 || strcmp( aArgv[i], "—conf") == 0 && (i+1<aArgc) ) {
+			for (int j=0; j < strlen(aArgv[i+1]); j++) {
+				if ( (strncmp(&aArgv[i+1][j], "/",1) == 0) ) {  //strip the path (if any) from the config file,
+					start = j+1;
+				} else if  (strncmp(&aArgv[i+1][j],".",1) == 0 ) {  // strip the file extension (typically ".ini" but just strip the last "." and everything after it)
+					end = j-1;
+				}	
+			}
+			strncpy(me, &aArgv[i+1][start], end-start+1);
+			me[end-start+1]= '\0' ; // store the result in "me" variable.
+			break;   // assumes you only get a single -c or -conf input 
+
+		}
+	}
+
+
+   	snprintf( log_file, 100, "/var/log/adapter/%s.log", me );
+	
+	pFile = fopen ( log_file, "w");
+	gLogger = new Logger(pFile);
+    	gLogger->setLogLevel(Logger::eINFO);
+    }
+    
   }
   if (mDebug)
     gLogger->setLogLevel(Logger::eDEBUG);
+
 }
 
 #ifdef WIN32
@@ -573,9 +607,33 @@ void ServiceLogger::debug(const char *aFormat, ...)
 
 int MTConnectService::main(int argc, const char *argv[]) 
 { 
-  initialize(argc - 1, argv + 1);
-  start();
-  return 0;
+ 
+  std::cout << "MTConnect Adapter - *nix edition - version 0.9.0\n";
+
+  for (int i = 1; i < argc; i++) {
+
+	if ( strcmp( argv[i], "-db") == 0 || strcmp( argv[i], "--debug") == 0 ) {
+		mDebug = true;
+	}
+	if ( strcmp( argv[i], "-v") == 0 || strcmp( argv[i], "--verbose") == 0 ) {
+		// don't log to a file, log to stderr
+	}
+	if ( strcmp( argv[i], "-h") == 0 ||  strcmp( argv[i], "--help") == 0 ) {
+		printf("\nOptions: \n	-c,--conf	specify config file location\n	-v,--verbose	messages will be directed to stderr instead of \"adapter.log\"\n			in the directory where you start the adapter\n	-db,--debug	get debug messages in the log file (or stderr with \"-v\")\n 	-h,--help	this help message\n\n	The log files are written to /var/log/adapter/. Create an \"adapter\" folder in /var/log and give permission for the adapter to write to it.\n	The log file name is copied from the .ini config file name.\n	Use unique config file names if you run more than one adapter instance.\n\n");
+		return 0;
+	}
+ 
+
+	if( mDebug )
+		printf("argc= %d; argv[%d]= \"%s\"\n", argc,i, argv[i]);
+	
+   }  // end for loop
+	
+   initialize(argc, argv);
+
+   start();
+   return 0;
+
 } 
 
 void MTConnectService::install(int argc, const char *argv[])
