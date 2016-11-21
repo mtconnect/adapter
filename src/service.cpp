@@ -608,7 +608,7 @@ void ServiceLogger::debug(const char *aFormat, ...)
 int MTConnectService::main(int argc, const char *argv[]) 
 { 
  
-  std::cout << "Starting MTConnect Adapter\n";
+  std::cout << "MTConnect Adapter - *nix edition - version 0.9.0\n";
 
   for (int i = 1; i < argc; i++) {
 
@@ -619,7 +619,7 @@ int MTConnectService::main(int argc, const char *argv[])
 		// don't log to a file, log to stderr
 	}
 	if ( strcmp( argv[i], "-h") == 0 ||  strcmp( argv[i], "--help") == 0 ) {
-		printf("\nOptions: \n	-c,--conf	specify config file location\n	-v,--verbose	messages will be directed to stderr instead of \"adapter.log\"\n			in the directory where you start the adapter\n	-db,--debug	get debug messages in the log file (or stderr with \"-v\")\n 	-h,--help	this help message\n\n");
+		printf("\nOptions: \n	-c,--conf	specify config file location\n	-v,--verbose	messages will be directed to stderr instead of \"adapter.log\"\n			in the directory where you start the adapter\n	-db,--debug	get debug messages in the log file (or stderr with \"-v\")\n 	-h,--help	this help message\n\n	The log files are written to /var/log/adapter/. Create an \"adapter\" folder in /var/log and give permission for the adapter to write to it.\n	The log file name is copied from the .ini config file name.\n	Use unique config file names if you run more than one adapter instance.\n\n");
 		return 0;
 	}
  
