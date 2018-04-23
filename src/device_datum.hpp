@@ -1,5 +1,3 @@
-
-/* Forward class definitions */
 //
 // Copyright (c) 2008, AMT - The Association For Manufacturing Technology ("AMT")
 // All rights reserved.
@@ -33,9 +31,11 @@
 // SUCH PARTY HAD ADVANCE NOTICE OF THE POSSIBILITY OF SUCH DAMAGES.
 //
 #pragma once
+
+// Forward declarations
 class StringBuffer;
 
-/* Some constants for field lengths */
+// Some constants for field lengths
 const int NAME_LEN = 32;
 const int CODE_LEN = 32;
 const int UNITS_LEN = 32;
@@ -45,76 +45,92 @@ const int STATE_LEN = 32;
 const int DESCRIPTION_LEN = 512;
 const int EVENT_VALUE_LEN = 512;
 
-/*
- * An abstract data value that knows its name and tracks when it has changed. 
- * 
- * The data value will be set in the subclasses.
- */
-class DeviceDatum {
+//
+// An abstract data value that knows its name and tracks when it has changed.
+//
+// The data value will be set in the subclasses.
+//
+class DeviceDatum
+{
 protected:
-  /* The name of the Data Value */
+	// The name of the Data Value
 	char mName[NAME_LEN];
 	char mOrigName[NAME_LEN];
 	char mNativeUnits[UNITS_LEN];
 
-  /* A changed flag to indicated that the value has changed since last append. */
+	// A changed flag to indicated that the value has changed since last append.
 	bool mChanged;
 
-  /* Has this data value been initialized? */
+	// Has this data value been initialized?
 	bool mHasValue;
 
 protected:
-  void appendText(char *aBuffer, char *aValue, int aMaxLen);
+	void appendText(char *buffer, char *value, int maxLen);
 
 public:
 	// The name will be supplied later...
-  DeviceDatum(const char *aName = "");
+	DeviceDatum(const char *name = "");
 
 	virtual ~DeviceDatum();
 
-  virtual bool changed() { return mChanged; }
-  void reset() { mChanged = false; }
+	void reset() {
+		mChanged = false; }
 
-  const char *getNativeUnits() { return mNativeUnits; }
-  void setNativeUnits(const char *aNativeUnits);
+	const char *getNativeUnits() const {
+		return mNativeUnits; }
+	void setNativeUnits(const char *nativeUnits);
 
-  bool prefixName(const char *aPrefix);
-  bool hasValue() const { return mHasValue; }
-  char *getName() { return mName; }
-  void setName(const char *aName = "");
-  virtual char *toString(char *aBuffer, int aMaxLen) = 0;
-  virtual bool append(StringBuffer &aBuffer);
-  virtual bool hasInitialValue();
-  virtual bool requiresFlush();
+	bool prefixName(const char *prefix);
+	bool hasValue() const {
+		return mHasValue; }
+	const char *getName() const {
+		return mName; }
+	void setName(const char *name = "");
 
+// Pure virtual and overridable methods
+public:
+	virtual char *toString(char *buffer, int maxLen) = 0;
 	virtual bool unavailable() = 0;
+
+	virtual bool changed() const {
+		return mChanged; }
+	virtual bool append(StringBuffer &buffer);
+	virtual bool hasInitialValue() const ;
+	virtual bool requiresFlush() const;
+
 	virtual void begin() { }
 	virtual void prepare() { }
 	virtual void cleanup() { }
 	virtual void initialize() { }
 };
 
-/*
- * An event is a data value with a string value.
- */
+
+//
+// An event is a data value with a string value.
+//
 class Event : public DeviceDatum
 {
 protected:
 	char mValue[EVENT_VALUE_LEN];
 
 public:
-  Event(const char *aName = "");
-  bool setValue(const char *aValue);
-  const char *getValue() { return mValue; }
-  virtual char *toString(char *aBuffer, int aMaxLen);
+	Event(const char *name = "");
 
-  virtual bool unavailable();
+	bool setValue(const char *value);
+	const char *getValue() const {
+		return mValue; }
+
+// Overrides from DeviceDatum
+public:
+	char *toString(char *buffer, int maxLen) override;
+	bool unavailable() override;
 };
 
-/*
- * An int event is an event with an integer value. This can be used
- * for line number events.
- */
+
+//
+// An int event is an event with an integer value. This can be used
+// for line number events.
+//
 class IntEvent : public DeviceDatum
 {
 protected:
@@ -122,18 +138,22 @@ protected:
 	bool mUnavailable;
 
 public:
-  IntEvent(const char *aName = "");
-  bool setValue(int aValue);
-  int getValue() { return mValue; }
-  virtual char *toString(char *aBuffer, int aMaxLen);
+	IntEvent(const char *name = "");
 
-  virtual bool unavailable();
+	bool setValue(int value);
+	int getValue() const {
+		return mValue; }
+
+// Overrides from DeviceDatum
+public:
+	char *toString(char *buffer, int maxLen) override;
+	bool unavailable() override;
 };
 
-/*
- * A sample event is used for floating point samples.
- */
 
+//
+// A sample event is used for floating point samples.
+//
 class Sample : public DeviceDatum
 {
 protected:
@@ -142,20 +162,24 @@ protected:
 	double mEpsilon;
 
 public:
-  Sample(const char *aName = "", double aEpsilon = 0.000001);
-  bool setValue(double aValue);
-  double getValue() { return mValue; }
-  virtual char *toString(char *aBuffer, int aMaxLen);
+	Sample(const char *name = "", double aEpsilon = 0.000001);
 
-  virtual bool unavailable();
+	bool setValue(double value);
+	double getValue() const {
+		return mValue; }
+
+// Overrides from DeviceDatum
+public:
+	char *toString(char *buffer, int maxLen) override;
+	bool unavailable() override;
 };
 
-/* Power status data value */
 
 class PowerState : public DeviceDatum
 {
 public:
-  enum EPowerState {
+	enum EPowerState
+	{
 		eUNAVAILABLE,
 		eON,
 		eOFF,
@@ -165,20 +189,23 @@ protected:
 	EPowerState mState;
 
 public:
-  PowerState(const char *aName = "") : DeviceDatum(aName) { }
-  bool setValue(enum EPowerState aState);
-  EPowerState getValue() { return mState; }
-  virtual char *toString(char *aBuffer, int aMaxLen);
+	PowerState(const char *name = "") : DeviceDatum(name) { }
+	bool setValue(enum EPowerState state);
+	EPowerState getValue() const {
+		return mState; }
 
-  virtual bool unavailable();
+// Overrides from DeviceDatum
+public:
+	char *toString(char *buffer, int maxLen) override;
+	bool unavailable() override;
 };
 
-/* Executaion state */
 
 class Execution : public DeviceDatum
 {
 public:
-  enum EExecutionState {
+	enum EExecutionState
+	{
 		eUNAVAILABLE,
 		eREADY,
 		eINTERRUPTED,
@@ -191,20 +218,27 @@ protected:
 	EExecutionState mState;
 
 public:
-  Execution(const char *aName = "") : DeviceDatum(aName) { }
-  bool setValue(enum EExecutionState aState);
-  EExecutionState getValue() { return mState; }
-  virtual char *toString(char *aBuffer, int aMaxLen);
+	Execution(const char *name = "") :
+		DeviceDatum(name)
+	{
+	}
 
-  virtual bool unavailable();
+	bool setValue(enum EExecutionState state);
+	EExecutionState getValue() const {
+		return mState; }
+
+// Overrides from DeviceDatum
+public:
+	char *toString(char *buffer, int maxLen) override;
+	bool unavailable() override;
 };
 
-/* ControllerMode  */
 
 class ControllerMode : public DeviceDatum
 {
 public:
-  enum EMode {
+	enum EMode
+	{
 		eUNAVAILABLE,
 		eAUTOMATIC,
 		eMANUAL,
@@ -216,21 +250,27 @@ protected:
 	EMode mMode;
 
 public:
-  ControllerMode(const char *aName = "") : DeviceDatum(aName) { }
-  bool setValue(enum EMode aState);
-  EMode getValue() { return mMode; }
-  virtual char *toString(char *aBuffer, int aMaxLen);
+	ControllerMode(const char *name = "") :
+		DeviceDatum(name)
+	{
+	}
 
-  virtual bool unavailable();
+	bool setValue(enum EMode state);
+	EMode getValue() const {
+		return mMode; }
+
+// Overrides from DeviceDatum
+public:
+	char *toString(char *buffer, int maxLen) override;
+	bool unavailable() override;
 };
 
-
-/* Direction  */
 
 class Direction : public DeviceDatum
 {
 public:
-  enum ERotationDirection {
+	enum ERotationDirection
+	{
 		eUNAVAILABLE,
 		eCLOCKWISE,
 		eCOUNTER_CLOCKWISE
@@ -240,22 +280,27 @@ protected:
 	ERotationDirection mDirection;
 
 public:
-  Direction(const char *aName = "") : DeviceDatum(aName) { }
-  bool setValue(enum ERotationDirection aDirection);
-  ERotationDirection getValue() { return mDirection; }
-  virtual char *toString(char *aBuffer, int aMaxLen);
+	Direction(const char *name = "") :
+		DeviceDatum(name)
+	{
+	}
 
-  virtual bool unavailable();
+	bool setValue(enum ERotationDirection direction);
+	ERotationDirection getValue() const {
+		return mDirection; }
+
+// Overrides from DeviceDatum
+public:
+	char *toString(char *buffer, int maxLen) override;
+	bool unavailable() override;
 };
 
-// Version 1.1
-
-/* Emergency Stop */
 
 class EmergencyStop : public DeviceDatum
 {
 public:
-  enum EValues {
+	enum EValues
+	{
 		eUNAVAILABLE,
 		eTRIGGERED,
 		eARMED
@@ -265,19 +310,27 @@ protected:
 	EValues mValue;
 
 public:
-  EmergencyStop(const char *aName = "") : DeviceDatum(aName) { }
-  bool setValue(enum EValues aValue);
-  EValues getValue() { return mValue; }
-  virtual char *toString(char *aBuffer, int aMaxLen);
+	EmergencyStop(const char *name = "") :
+		DeviceDatum(name)
+	{
+	}
 
-  virtual bool unavailable();
+	bool setValue(enum EValues value);
+	EValues getValue() const {
+		return mValue; }
+
+// Overrides from DeviceDatum
+public:
+	char *toString(char *buffer, int maxLen) override;
+	bool unavailable() override;
 };
 
 
 class AxisCoupling : public DeviceDatum
 {
 public:
-  enum EValues {
+	enum EValues
+	{
 		eUNAVAILABLE,
 		eTANDEM,
 		eSYNCHRONOUS,
@@ -289,18 +342,27 @@ protected:
 	EValues mValue;
 
 public:
-  AxisCoupling(const char *aName = "") : DeviceDatum(aName) { }
-  bool setValue(enum EValues aValue);
-  EValues getValue() { return mValue; }
-  virtual char *toString(char *aBuffer, int aMaxLen);
+	AxisCoupling(const char *name = "") :
+		DeviceDatum(name)
+	{
+	}
 
-  virtual bool unavailable();
+	bool setValue(enum EValues value);
+	EValues getValue() const {
+		return mValue; }
+
+// Overrides from DeviceDatum
+public:
+	char *toString(char *buffer, int maxLen) override;
+	bool unavailable() override;
 };
+
 
 class DoorState : public DeviceDatum
 {
 public:
-  enum EValues {
+	enum EValues
+	{
 		eUNAVAILABLE,
 		eOPEN,
 		eCLOSED
@@ -310,18 +372,27 @@ protected:
 	EValues mValue;
 
 public:
-  DoorState(const char *aName = "") : DeviceDatum(aName) { }
-  bool setValue(enum EValues aValue);
-  EValues getValue() { return mValue; }
-  virtual char *toString(char *aBuffer, int aMaxLen);
+	DoorState(const char *name = "") :
+		DeviceDatum(name)
+	{
+	}
 
-  virtual bool unavailable();
+	bool setValue(enum EValues value);
+	EValues getValue() const {
+		return mValue; }
+
+// Overrides from DeviceDatum
+public:
+	char *toString(char *buffer, int maxLen) override;
+	bool unavailable() override;
 };
+
 
 class PathMode : public DeviceDatum
 {
 public:
-  enum EValues {
+	enum EValues
+	{
 		eUNAVAILABLE,
 		eINDEPENDENT,
 		eSYNCHRONOUS,
@@ -332,18 +403,27 @@ protected:
 	EValues mValue;
 
 public:
-  PathMode(const char *aName = "") : DeviceDatum(aName) { }
-  bool setValue(enum EValues aValue);
-  EValues getValue() { return mValue; }
-  virtual char *toString(char *aBuffer, int aMaxLen);
+	PathMode(const char *name = "") :
+		DeviceDatum(name)
+	{
+	}
 
-  virtual bool unavailable();
+	bool setValue(enum EValues value);
+	EValues getValue() const {
+		return mValue; }
+
+// Overrides from DeviceDatum
+public:
+	char *toString(char *buffer, int maxLen) override;
+	bool unavailable() override;
 };
+
 
 class RotaryMode : public DeviceDatum
 {
 public:
-  enum EValues {
+	enum EValues
+	{
 		eUNAVAILABLE,
 		eSPINDLE,
 		eINDEX,
@@ -354,44 +434,62 @@ protected:
 	EValues mValue;
 
 public:
-  RotaryMode(const char *aName = "") : DeviceDatum(aName) { }
-  bool setValue(enum EValues aValue);
-  EValues getValue() { return mValue; }
-  virtual char *toString(char *aBuffer, int aMaxLen);
+	RotaryMode(const char *name = "") : DeviceDatum(name) { }
+	bool setValue(enum EValues value);
+	EValues getValue() const {
+		return mValue; }
 
-  virtual bool unavailable();
+// Overrides from DeviceDatum
+public:
+	char *toString(char *buffer, int maxLen) override;
+	bool unavailable() override;
 };
 
-class Message : public DeviceDatum {
+
+class Message : public DeviceDatum
+{
 	char mText[EVENT_VALUE_LEN];
 	char mNativeCode[EVENT_VALUE_LEN];
 
 public:
-  Message(const char *aName = "");
-  bool setValue(const char *aText, const char *aCode = ""); 
-  virtual char *toString(char *aBuffer, int aMaxLen);
-  const char *getNativeCode() { return mNativeCode; }
+	Message(const char *name = "");
 
-  virtual bool requiresFlush();  
-  virtual bool unavailable();
+	bool setValue(const char *text, const char *code = "");
+	const char *getNativeCode() const {
+		return mNativeCode; }
+
+// Overrides from DeviceDatum
+public:
+	char *toString(char *buffer, int maxLen) override;
+	bool unavailable() override;
+	bool requiresFlush() const override {
+		return true; }
 };
 
-class PathPosition : public DeviceDatum {
+
+class PathPosition : public DeviceDatum
+{
 protected:
 	double mX, mY, mZ;
 	bool mUnavailable;
 	double mEpsilon;
 
 public:
-  PathPosition(const char *aName = "", double aEpsilon = 0.000001);
-  bool setValue(double aX, double aY, double aZ);
-  double getX() { return mX; }
-  double getY() { return mY; }
-  double getZ() { return mZ; }
-  virtual char *toString(char *aBuffer, int aMaxLen);
+	PathPosition(const char *name = "", double aEpsilon = 0.000001);
+	bool setValue(double x, double y, double z);
+	double getX() const {
+		return mX; }
+	double getY() const {
+		return mY; }
+	double getZ() const {
+		return mZ; }
 
-  virtual bool unavailable();  
+// Overrides from DeviceDatum
+public:
+	char *toString(char *buffer, int maxLen) override;
+	bool unavailable() override;
 };
+
 
 class Availability : public DeviceDatum
 {
@@ -399,9 +497,12 @@ protected:
 	bool mUnavailable;
 
 public:
-  Availability(const char *aName = "");
-  virtual char *toString(char *aBuffer, int aMaxLen);
+	Availability(const char *name = "");
 	bool available();
-  virtual bool unavailable();  
+
+// Overrides from DeviceDatum
+public:
+	char *toString(char *buffer, int maxLen) override;
+	bool unavailable() override;
 };
 

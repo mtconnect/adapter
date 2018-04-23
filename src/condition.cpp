@@ -32,59 +32,69 @@
 //
 #include "internal.hpp"
 #include "condition.hpp"
+#include <algorithm>
 #include "string_buffer.hpp"
 
 // Condition
 
-Condition::Condition(const char *aName, bool aSimple) :
-  DeviceDatum(aName), mBegun(false), mSimple(aSimple)
+
+Condition::Condition(const char *name, bool simple) :
+	DeviceDatum(name),
+	mBegun(false),
+	mPrepared(false),
+	mSimple(simple)
 {
-  mActiveSize = mInitialActiveListSize;
-  mActiveCount = 0;
-  mActiveList = new ActiveCondition*[mActiveSize];
+	mActiveList.reserve(mInitialActiveListSize);
 	mHasValue = true;
 	unavailable();
 }
 
+
 Condition::~Condition()
 {
 	removeAll();
-  delete[] mActiveList;
 }
+
 
 void Condition::removeAll()
 {
-  for (int i = 0; i < mActiveCount; i++)
-    delete mActiveList[i];
-  mActiveCount = 0;
+	for(auto condition : mActiveList)
+		delete condition;
+	mActiveList.clear();
 }
 
-bool Condition::requiresFlush()
+
+bool Condition::requiresFlush() const
 {
 	return true;
 }
+
 
 bool Condition::unavailable()
 {
 	return add(eUNAVAILABLE);
 }
 
-char *Condition::toString(char *aBuffer, int aMaxLen)
+
+char *Condition::toString(char *, int )
 {
-  return NULL;
+	return nullptr;
 }
+
 
 void Condition::begin()
 {
-  if (!mSimple) {
-    for (int i = 0; i < mActiveCount; i++) {
-      mActiveList[i]->clear();
-    }
+	if (!mSimple)
+	{
+		for(auto condition : mActiveList)
+			condition->clear();
 	}
+
 	mPrepared = false;
 	mBegun = true;
 	mChanged = false;
 }
+
 
 void Condition::cleanup()
 {
@@ -92,122 +102,155 @@ void Condition::cleanup()
 	mPrepared = false;
 }
 
+
 void Condition::initialize()
 {
 	normal();
 }
 
-void Condition::append(StringBuffer &aStringBuffer, char *aBuffer,
-                       ActiveCondition *aCond, bool &aFirst, int aMaxLen)
+
+void Condition::append(
+	StringBuffer &stringBuffer,
+	char *buffer,
+	ActiveCondition *condition,
+	bool &first,
+	int maxLen)
 {
-  if (!aFirst)
-    aStringBuffer.newline();
+	if (!first)
+		stringBuffer.newline();
 	else
-    aFirst = false;
+		first = false;
 
-  char *cp = aBuffer + strlen(aBuffer);
+	auto cp = buffer + strlen(buffer);
+	condition->toString(cp, maxLen);
 
-  aCond->toString(cp, aMaxLen);
-  appendText(aBuffer, (char*) aCond->getText(), aMaxLen);
-  aStringBuffer.append(aBuffer);
+	appendText(buffer, const_cast<char *>(condition->getText()), maxLen);
+	stringBuffer.append(buffer);
 }
+
 
 void Condition::prepare()
 {
-  if (mBegun)
-  {
+	if (!mBegun)
+		return;
+
 	bool marked = false;
 
 	// Check to see if we have no marked conditions
-    for (int i = 0; !marked && i < mActiveCount; i++)
+	for(auto condition : mActiveList)
+	{
+		if (condition->isPlaceHolder() || condition->isMarked())
 		{
-      if (mActiveList[i]->isPlaceHolder() || mActiveList[i]->isMarked())
 			marked = true;
+			break;
+		}
 	}
 
 	if (!marked)
 		normal();
 
 	// Sweep old conditions
-    for (int i = mActiveCount - 1; i >= 0; i--)
-    {
-      ActiveCondition *cond = mActiveList[i];
-      if (!cond->isPlaceHolder() && !cond->isMarked())
+	for(auto conditionIter = mActiveList.crbegin();conditionIter != mActiveList.crend(); conditionIter++)
 	{
-        cond->setValue(eNORMAL, "", cond->getNativeCode());
-      }
+		auto condition = *conditionIter;
+		if (!condition->isPlaceHolder() && !condition->isMarked())
+			condition->setValue(eNORMAL, "", condition->getNativeCode());
 
-      if (cond->hasChanged()) {
+		if (condition->hasChanged())
 			mChanged = true;
 	}
-    }
+
 	mPrepared = true;
-  }
 }
 
-bool Condition::append(StringBuffer &aBuffer)
+
+bool Condition::append(StringBuffer &stringBuffer)
 {
 	if (!mBegun)
 	{
-    char buffer[1024];
+		char buffer[1024] = {0};
 		bool first = true;
 		buffer[0] = '|';
 		strcpy(buffer + 1, mName);
-    char *cp = buffer + strlen(buffer);
-    int max = 1024 - strlen(buffer);
-    for (int i = 0; i < mActiveCount; i++)
+		auto cp = buffer + strlen(buffer);
+		auto max = 1024u - strlen(buffer);
+
+		for(auto condition : mActiveList)
 		{
 			*cp = '\0';
-      append(aBuffer, buffer, mActiveList[i], first, max);
+			append(stringBuffer, buffer, condition, first, max);
 		}
-  } else if (mBegun && mPrepared) {
-    char buffer[1024];
+	}
+	else if (mBegun && mPrepared)
+	{
+		char buffer[1024]  {0};
 		bool first = true;
 		buffer[0] = '|';
 		strcpy(buffer + 1, mName);
-    char *cp = buffer + strlen(buffer);
-    int max = 1024 - strlen(buffer);
+		auto cp = buffer + strlen(buffer);
+		auto max = 1024u - strlen(buffer);
 		
 		// Sweep old conditions
-    for (int i = mActiveCount - 1; i >= 0; i--)
+		// Update any that have changed
+		for(auto conditionIter = mActiveList.crbegin(); conditionIter != mActiveList.crend(); conditionIter++)
+		{
+			auto condition = *conditionIter;
+			if(condition->hasChanged())
 			{
-      ActiveCondition *cond = mActiveList[i];
-      if (cond->hasChanged()) {
 				*cp = '\0';
-        append(aBuffer, buffer, cond, first, max);
+				append(stringBuffer, buffer, condition, first, max);
+			}
 		}
 
-      // Remove stale conditions since they have now been generated.
-      if (!cond->isPlaceHolder() && !cond->isMarked())
-        removeAt(i);
+		// Update our container to move items to be deleted to the end
+		auto removeRange = std::remove_if(mActiveList.begin(), mActiveList.end(), [](ActiveCondition *condition)
+		{
+			if( !condition->isPlaceHolder() && !condition->isMarked() )
+			{
+				delete condition; condition = nullptr;
+				return true;
 			}
+			else
+				return false;
+		});
+
+		// Remove items from the container if required
+		if(removeRange != mActiveList.end())
+			mActiveList.erase(removeRange);
 	}
 
 	return mChanged;
 }
 
-bool Condition::isActive(const char *aNativeCode)
-{
-  for (int i = 0; i < mActiveCount; i++) {
-    if (strcmp(aNativeCode, mActiveList[i]->getNativeCode()) == 0)
-      return true;
-  }
 
-  return false;
+bool Condition::isActive(const char *nativeCode) const
+{
+	auto findPos = std::find_if(mActiveList.cbegin(), mActiveList.cend(), [nativeCode](const ActiveCondition *condition)
+	{
+		return !strcmp(nativeCode, condition->getNativeCode());
+	});
+
+	return findPos != mActiveList.cend();
 }
 
-bool Condition::add(ELevels aLevel, const char *aText, const char *aCode,
-                    const char *aQualifier, const char *aSeverity)
+
+bool Condition::add(
+	ELevels level,
+	const char *text,
+	const char *code,
+	const char *qualifier,
+	const char *severity)
 {
-  ActiveCondition *cond = NULL;
-  bool res;
+	bool res(false);
+
 	// First check for a unassociated normal or a unavailable.
-  if ((aLevel == eNORMAL || aLevel == eUNAVAILABLE) &&
-      aCode[0] == '\0')
+	if ((level == eNORMAL || level == eUNAVAILABLE) &&
+		code[0] == '\0')
 	{
 		// See if we are already in this state.
-    if (mActiveCount == 1 && mActiveList[0]->getNativeCode()[0] == '\0' &&
-        mActiveList[0]->getLevel() == aLevel)
+		if (mActiveList.size() == 1u &&
+			mActiveList[0]->getNativeCode()[0] == '\0' &&
+			mActiveList[0]->getLevel() == level)
 		{
 			mActiveList[0]->mark();
 			res = false;
@@ -216,14 +259,13 @@ bool Condition::add(ELevels aLevel, const char *aText, const char *aCode,
 		{
 			// Clear all existing conditions and add one with this state.
 			removeAll();
-      cond = new ActiveCondition(aLevel);
-      add(cond);
+			add( new ActiveCondition(level) );
 			res = mChanged = true;
 		}
 	}
 	else
 	{
-    if (mActiveCount == 1 &&
+		if (mActiveList.size() == 1u &&
 			(mActiveList[0]->getLevel() == eNORMAL ||
 			 mActiveList[0]->getLevel() == eUNAVAILABLE))
 		{
@@ -231,21 +273,21 @@ bool Condition::add(ELevels aLevel, const char *aText, const char *aCode,
 		}
 
 		// We have a code specific condition or a ab-normal
-    int i;
-    for (i = 0; i < mActiveCount; i++)
-      if (strcmp(aCode, mActiveList[i]->getNativeCode()) == 0)
-        break;
-
-    if (i < mActiveCount)
+		auto conditionPos = std::find_if(mActiveList.cbegin(), mActiveList.cend(), [code](ActiveCondition* condition)
 		{
-      res = mChanged = mActiveList[i]->setValue(aLevel, aText, aCode, aQualifier, aSeverity);
-      mActiveList[i]->mark();
+			return !strcmp(code, condition->getNativeCode());
+		});
+
+		if(conditionPos != mActiveList.cend())
+		{
+			auto condition = *conditionPos;
+			res = mChanged = condition->setValue(level, text, code, qualifier, severity);
+			condition->mark();
 		}
 		else
 		{
 			// New condition
-      cond = new ActiveCondition(aLevel, aText, aCode, aQualifier, aSeverity);
-      add(cond);
+			add( new ActiveCondition(level, text, code, qualifier, severity) );
 			res = mChanged = true;
 		}
 	}
@@ -253,94 +295,100 @@ bool Condition::add(ELevels aLevel, const char *aText, const char *aCode,
 	return res;
 }
 
-void Condition::remove(const char *aCode)
+
+void Condition::remove(const char *code)
 {
 	// We have a code specific condition or a ab-normal
-  int i;
-  for (i = 0; i < mActiveCount; i++) {
-    if (strcmp(aCode, mActiveList[i]->getNativeCode()) == 0) {
-      if (mActiveCount == 1)
+	auto conditionPos = std::find_if(mActiveList.cbegin(), mActiveList.cend(), [code](ActiveCondition* condition)
+	{
+		return !strcmp(code, condition->getNativeCode());
+	});
+
+	if(conditionPos != mActiveList.cend())
+	{
+		if(mActiveList.size() == 1u)
 			normal();
-      else {
-        mActiveList[i]->setValue(eNORMAL, "", aCode);
-        mActiveList[i]->clear();
-      }
-      mChanged = true;
-      break;      
+		else
+		{
+			(*conditionPos)->setValue(eNORMAL, "", code);
+			(*conditionPos)->clear();
 		}
 	}
 }
 
 
-void Condition::add(ActiveCondition *aCond)
+void Condition::add(ActiveCondition *condition)
 {
-  if (mActiveCount >= mActiveSize)
-  {
-    ActiveCondition **newList = new ActiveCondition*[mActiveSize * 2];
-    memcpy(newList, mActiveList, sizeof(ActiveCondition*) * mActiveSize);
-    delete mActiveList;
-    mActiveList = newList;
-    mActiveSize *= 2;
-  }
+	// If we are approaching our capacity then resize
+	if(mActiveList.size() == mActiveList.capacity())
+		mActiveList.reserve(mActiveList.capacity() * 2u);
 
-  mActiveList[mActiveCount++] = aCond;
+	mActiveList.push_back(condition);
 }
 
-bool Condition::removeAt(int i)
+
+char *Condition::ActiveCondition::toString(char *buffer, int aMaxLen)
 {
-  if (i < 0 || i >= mActiveCount)
-    return false;
+	const char *text = nullptr;
 
-  delete mActiveList[i];
-  mActiveCount--;
-  memmove(mActiveList + i, mActiveList + i + 1,
-          sizeof(ActiveCondition*) * (mActiveCount - i));
+	switch (mLevel)
+	{
+	case eUNAVAILABLE:
+		text = "UNAVAILABLE";
+		break;
 
-  return true;
-}
+	case eNORMAL:
+		text = "NORMAL";
+		break;
 
-char *Condition::ActiveCondition::toString(char *aBuffer, int aMaxLen)
-{
-  const char *text;
-  switch(mLevel)
-  {
-  case eUNAVAILABLE: text = "UNAVAILABLE"; break;
-  case eNORMAL: text = "NORMAL"; break;
-  case eWARNING: text = "WARNING"; break;
-  case eFAULT: text = "FAULT"; break;
-  default: text = ""; break;
+	case eWARNING:
+		text = "WARNING";
+		break;
+
+	case eFAULT:
+		text = "FAULT";
+		break;
+
+	default:
+		text = "";
+		break;
 	}
-  snprintf(aBuffer, aMaxLen, "|%s|%s|%s|%s|", text, mNativeCode, mNativeSeverity,
-                mQualifier);
+
+	snprintf(buffer, aMaxLen, "|%s|%s|%s|%s|", text, mNativeCode, mNativeSeverity, mQualifier);
 
 	mChanged = false;
-  return aBuffer;
+	return buffer;
 }
 
-bool Condition::ActiveCondition::setValue(ELevels aLevel, const char *aText, const char *aCode,
-                          const char *aQualifier, const char *aSeverity)
+
+bool Condition::ActiveCondition::setValue(
+	ELevels level,
+	const char *text,
+	const char *code,
+	const char *qualifier,
+	const char *severity)
 {
-  if ((aLevel == eNORMAL || aLevel == eUNAVAILABLE) && aCode[0] == '\0')
+	if ((level == eNORMAL || level == eUNAVAILABLE) && code[0] == '\0')
 		mPlaceHolder = true;
 
-  if (mLevel != aLevel ||
-      strncmp(aCode, mNativeCode, EVENT_VALUE_LEN) != 0 ||
-      strncmp(aQualifier, mQualifier, EVENT_VALUE_LEN) != 0 ||
-      strncmp(aSeverity, mNativeSeverity, EVENT_VALUE_LEN) != 0 ||
-      strncmp(aText, mText, EVENT_VALUE_LEN) != 0)
+	if (mLevel != level ||
+		strncmp(code, mNativeCode, EVENT_VALUE_LEN) ||
+		strncmp(qualifier, mQualifier, EVENT_VALUE_LEN) ||
+		strncmp(severity, mNativeSeverity, EVENT_VALUE_LEN) ||
+		strncmp(text, mText, EVENT_VALUE_LEN))
 	{
-    mLevel = aLevel;
+		mLevel = level;
 
-    strncpy(mNativeCode, aCode, EVENT_VALUE_LEN);
+		strncpy(mNativeCode, code, EVENT_VALUE_LEN);
 		mNativeCode[EVENT_VALUE_LEN - 1] = '\0';
 
-    strncpy(mQualifier, aQualifier, EVENT_VALUE_LEN);
+		strncpy(mQualifier, qualifier, EVENT_VALUE_LEN);
 		mQualifier[EVENT_VALUE_LEN - 1] = '\0';
 
-    strncpy(mNativeSeverity, aSeverity, EVENT_VALUE_LEN);
+		strncpy(mNativeSeverity, severity, EVENT_VALUE_LEN);
 		mNativeSeverity[EVENT_VALUE_LEN - 1] = '\0';
 
-    strncpy(mText, aText, EVENT_VALUE_LEN);
+		strncpy(mText, text, EVENT_VALUE_LEN);
 		mText[EVENT_VALUE_LEN - 1] = '\0';
 
 		mChanged = true;

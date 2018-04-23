@@ -36,21 +36,14 @@
 #include <map>
 #include <istream>
 
+// Forward Declarations
 class DeviceDatum;
-namespace YAML {
+namespace YAML
+{
 	class Parser;
 	class Node;
 }
 
-#define SET_WITH_DEFAULT(node, key, value, def) \
-  if (node.FindValue(key) != NULL)              \
-    node[key] >> value;                        \
-  else                                          \
-    value = def
-
-#define SET_IF_PRESENT(node, key, value)        \
-  if (node.FindValue(key) != NULL)              \
-    node[key] >> value;
 
 // A register represents a PLC/PMC register as an accessible unit. The
 // value of the register will manifest as a typed value or a
@@ -72,17 +65,26 @@ public:
 		TEXT
 	};
 
-  Register(EType aType, int aOffset, bool aTimeSeries = false) {
-    mType = aType;
-    mOffset = aOffset;
-    mTimeseries = aTimeSeries;
+	Register(EType type, int offset, bool timeSeries = false) :
+		mType(type),
+		mOffset(offset),
+		mTimeseries(timeSeries),
+		mScaler(0.0),
+		mScalerOffset(0),
+		mCount(0),
+		mDatum(nullptr)
+	{
 	}
-  ~Register();
 
-  Register(Register &aRegister) {
-    mType = aRegister.mType;
-    mOffset = aRegister.mOffset;
-    mTimeseries = aRegister.mTimeseries;
+	Register(Register &anotherRegister) : 
+		mType(anotherRegister.mType),
+		mOffset(anotherRegister.mOffset),
+		mTimeseries(anotherRegister.mTimeseries),
+		mScaler(0.0),
+		mScalerOffset(0),
+		mCount(0),
+		mDatum(nullptr)
+	{
 	}
 
 protected:
@@ -96,17 +98,20 @@ protected:
 	DeviceDatum *mDatum;
 };
 
+
 class RegisterSet
 {
-  void addRegister(Register &aRegister) { mRegisters.push_back(&aRegister); }
+	void addRegister(Register &newRegister) {
+		mRegisters.push_back(&newRegister); }
 
 protected:
 	int mAddress;
 	int mLength;
 	int mCount;
 
-  std::vector<Register*> mRegisters;
+	std::vector<Register *> mRegisters;
 };
+
 
 class Configuration
 {
@@ -114,27 +119,40 @@ public:
 	Configuration();
 	virtual ~Configuration();
 
-  virtual void parse(std::istream &aStream, int aPort = 7878, int aDelay = 1000,
-                     int aTimeout = 10000, const char *aService = "MTConnect Adapter");
+	virtual void parse(
+		std::istream &stream,
+		int port = 7878,
+		int delay = 1000,
+		int timeout = 10000,
+		const char *service = "MTConnect Adapter");
 
-  int getPort() const { return mPort; }
-  int getScanDelay() const { return mScanDelay; }
-  int getTimeout() const { return mTimeout; }
-  const std::string &getServiceName() const { return mServiceName; }
+	int getPort() const {
+		return mPort; }
+	int getScanDelay() const {
+		return mScanDelay; }
+	int getTimeout() const {
+		return mTimeout; }
+	const std::string &getServiceName() const {
+		return mServiceName; }
 
-  void setPort(int aPort) { mPort = aPort; }
+	void setPort(int aPort) {
+		mPort = aPort; }
 
-  RegisterSet *getRegisters(std::string &aName);
+	RegisterSet *getRegisters(std::string &name) const;
 
 protected:
-  virtual void parse(YAML::Node &aDoc, int aPort, int aDelay, int aTimeout, const char *aService); 
+	virtual void parse(
+		YAML::Node &aDoc,
+		int aPort,
+		int aDelay,
+		int aTimeout,
+		const char *aService);
 
 protected:
 	int mPort;
 	int mScanDelay;
 	int mTimeout;
 	std::string mServiceName;
-  
-  std::map<std::string, RegisterSet*> mRegisters;
+	std::map<std::string, RegisterSet *> mRegisters;
 };
 

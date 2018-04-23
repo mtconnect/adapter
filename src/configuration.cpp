@@ -35,46 +35,79 @@
 
 using namespace std;
 
-Configuration::Configuration()
-  : mPort(7878), mScanDelay(1000), mTimeout(10000)
+template<class T, class V>
+void set_with_default(const YAML::Node &node, const char *key, T& value, V def)
 {
-}
-
-void Configuration::parse(istream &aStream, int aPort, int aDelay, int aTimeout, const char *aService)
-{
-  YAML::Parser parser(aStream);
-	YAML::Node doc;
-	parser.GetNextDocument(doc);
-  parse(doc, aPort, aDelay, aTimeout, aService);
-}
-
-void Configuration::parse(YAML::Node &aDoc, int aPort, int aDelay, int aTimeout, const char *aService)
-{
-  if (aDoc.FindValue("adapter") != NULL)
-	{
-    const YAML::Node &adapter = aDoc["adapter"];
-    SET_WITH_DEFAULT(adapter, "port", mPort, aPort);
-    SET_WITH_DEFAULT(adapter, "scanDelay", mScanDelay, aDelay);
-    SET_WITH_DEFAULT(adapter, "timeout", mTimeout, aTimeout);
-    SET_WITH_DEFAULT(adapter, "service", mServiceName, aService);
-	}
+	if (node.FindValue(key) != nullptr)
+		node[key] >> value;
 	else
-	{
-  	mPort = aPort;
-  	mScanDelay = aDelay;
-  	mTimeout = aTimeout;
-  	mServiceName = aService;
-	}
+		value = def;
 }
+
+template<class T>
+void set_if_present(const YAML::Node &node, const char *key, T& value)
+{
+	if (node.FindValue(key) != nullptr)
+		node[key] >> value;
+}
+
+
+Configuration::Configuration() :
+	mPort(7878),
+	mScanDelay(1000),
+	mTimeout(10000)
+{
+}
+
 
 Configuration::~Configuration()
 {
 }
 
-RegisterSet *Configuration::getRegisters(string &aName)
+
+void Configuration::parse(
+	istream &stream,
+	int port,
+	int delay,
+	int timeout,
+	const char *service)
 {
-  return mRegisters[aName];
+	YAML::Parser parser(stream);
+	YAML::Node doc;
+	parser.GetNextDocument(doc);
+	parse(doc, port, delay, timeout, service);
 }
 
 
+void Configuration::parse(
+	YAML::Node &doc,
+	int port,
+	int delay,
+	int timeout,
+	const char *service)
+{
+	if (doc.FindValue("adapter"))
+	{
+		const YAML::Node &adapter = doc["adapter"];
+		set_with_default(adapter, "port", mPort, port);
+		set_with_default(adapter, "scanDelay", mScanDelay, delay);
+		set_with_default(adapter, "timeout", mTimeout, timeout);
+		set_with_default(adapter, "service", mServiceName, service);
+	}
+	else
+	{
+		mPort = port;
+		mScanDelay = delay;
+		mTimeout = timeout;
+		mServiceName = service;
+	}
+}
 
+
+RegisterSet *Configuration::getRegisters(string &aName) const
+{
+	auto regPos = mRegisters.find(aName);
+	if(regPos != mRegisters.cend())
+		return regPos->second;
+	return nullptr;
+}
