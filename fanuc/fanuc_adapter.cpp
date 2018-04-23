@@ -376,22 +376,27 @@ void FanucAdapter::getMacros()
 
 	// For now we assume they are close in range. If this proves to not
 	// be true, we will have to get more creative.
-	auto macros = new IODBMR[mMacroMax - mMacroMin];
-	short ret = cnc_rdmacror(mFlibhndl,
+	std::vector<IODBMR> rawData;
+	auto count = (mMacroMax - mMacroMin) + 1;
+	rawData.resize(count);
+
+	short ret = cnc_rdmacror(
+		mFlibhndl,
 		mMacroMin,
 		mMacroMax,
-		sizeof(IODBMR) * (mMacroMax - mMacroMin + 1),
-		macros);
+		sizeof(IODBMR) * count,
+		&rawData[0]);
 
 	if (ret == EW_OK)
 	{
 		for (auto i = 0; i < mMacroSampleCount; i++)
 		{
 			auto off = mMacroSample[i]->getNumber() - mMacroMin;
-			if (macros->data[off].mcr_val != 0 || macros->data[off].dec_val != -1)
+			auto const &variableData = rawData[0].data[off];
+			if (variableData.mcr_val != 0 || variableData.dec_val != -1)
 			{
-				mMacroSample[i]->setValue(((double) macros->data[off].mcr_val) /
-								pow(10.0, macros->data[off].dec_val));
+				mMacroSample[i]->setValue(((double) variableData.mcr_val) /
+								pow(10.0, variableData.dec_val));
 			}
 			else
 			{
@@ -404,16 +409,16 @@ void FanucAdapter::getMacros()
 			auto y = mMacroPath[i]->getY() - mMacroMin;
 			auto z = mMacroPath[i]->getZ() - mMacroMin;
 
-			if ((macros->data[x].mcr_val != 0 || macros->data[x].dec_val != -1) &&
-				(macros->data[y].mcr_val != 0 || macros->data[y].dec_val != -1) &&
-				(macros->data[z].mcr_val != 0 || macros->data[z].dec_val != -1))
+			if ((rawData[0].data[x].mcr_val != 0 || rawData[0].data[x].dec_val != -1) &&
+				(rawData[0].data[y].mcr_val != 0 || rawData[0].data[y].dec_val != -1) &&
+				(rawData[0].data[z].mcr_val != 0 || rawData[0].data[z].dec_val != -1))
 			{
-				mMacroPath[i]->setValue(((double) macros->data[x].mcr_val) /
-											pow(10.0, macros->data[x].dec_val),
-										((double) macros->data[y].mcr_val) /
-											pow(10.0, macros->data[y].dec_val),
-										((double) macros->data[z].mcr_val) /
-											pow(10.0, macros->data[z].dec_val));
+				mMacroPath[i]->setValue(((double) rawData[0].data[x].mcr_val) /
+											pow(10.0, rawData[0].data[x].dec_val),
+										((double) rawData[0].data[y].mcr_val) /
+											pow(10.0, rawData[0].data[y].dec_val),
+										((double) rawData[0].data[z].mcr_val) /
+											pow(10.0, rawData[0].data[z].dec_val));
 			}
 			else
 			{
@@ -423,8 +428,6 @@ void FanucAdapter::getMacros()
 	}
 	else
 		std::cout << "Could not read macro variables: " << ret << std::endl;
-
-	delete[] macros;
 }
 
 
