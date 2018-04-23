@@ -99,8 +99,8 @@ bool FanucPath::configure(unsigned short aFlibhndl)
 		gLogger->info("  Max Axis: %d", sysinfo.max_axis);
 		gLogger->info("  CNC Type: %c%c", sysinfo.cnc_type[0], sysinfo.cnc_type[1]);
 		gLogger->info("  MT Type: %c%c", sysinfo.mt_type[0], sysinfo.mt_type[1]);
-    gLogger->info("  Series: %c%c", sysinfo.series[0], sysinfo.series[1], sysinfo.series[2], sysinfo.series[3]);
-    gLogger->info("  Version: %c%c", sysinfo.version[0], sysinfo.version[1], sysinfo.version[2], sysinfo.version[3]);
+		gLogger->info("  Series: %c%c%c%c", sysinfo.series[0], sysinfo.series[1], sysinfo.series[2], sysinfo.series[3]);
+		gLogger->info("  Version: %c%c%c%c", sysinfo.version[0], sysinfo.version[1], sysinfo.version[2], sysinfo.version[3]);
 		gLogger->info("  Axes: %c%c", sysinfo.axes[0], sysinfo.axes[1]);
 	}
 
@@ -133,7 +133,7 @@ bool FanucPath::configureSpindles(unsigned short aFlibhndl)
 	}
 
 	return true;
-  }
+}
   else
   {
     gLogger->error("Failed to get splindle names: %d", ret);
@@ -322,7 +322,7 @@ bool FanucPath::getStatus(unsigned short aFlibhndl)
 			mEStop.setValue(EmergencyStop::eARMED);
 	}
 	return true;
-  }
+}
   else
   {
     gLogger->error("Cannot cnc_statinfo for path %d: %d", mPathNumber, ret);
@@ -584,7 +584,7 @@ Condition *FanucPath::translateAlarmNo(long aNum, int aAxis)
 void FanucPath::getCondition(unsigned short aFlibhndl, long aAlarm)
 {
   if (aAlarm != 0) 
-  {
+{
     for (int i = 0; i < 31; i++) 
 	{
       if (aAlarm & (0x1 << i))
