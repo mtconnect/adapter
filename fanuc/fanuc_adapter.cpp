@@ -35,7 +35,6 @@ constexpr std::size_t countof(T const (&)[N]) noexcept
 
 FanucAdapter::FanucAdapter(int aPort) :
 	Adapter(aPort),
-	mMaxPath(0),
 	mMessage("message"),
 	mAvail("avail"),
 	mPartCount("part_count"),
@@ -67,8 +66,8 @@ FanucAdapter::FanucAdapter(int aPort) :
 
 FanucAdapter::~FanucAdapter()
 {
-	for (auto path : mPaths)
-		delete path;
+	for (auto &path : mPaths)
+		path.release();
 	mPaths.clear();
 
 	disconnect();
@@ -285,28 +284,28 @@ void FanucAdapter::configure()
 
 	gLogger->info("Configuring...\n");
 
-	short path(0);
-	auto ret = cnc_getpath(mFlibhndl, &path, &mMaxPath);
+	short path(0), maxNumPaths(0);
+	auto ret = cnc_getpath(mFlibhndl, &path, &maxNumPaths);
 	if (ret != EW_OK)
 	{
 		gLogger->error("Cannot find number of paths: %d", ret);
-		mMaxPath = 1;
+		maxNumPaths = 1;
 		path = 1;
 	}
 
-	for (auto pathNum = 1; pathNum <= mMaxPath; pathNum++)
+	for (auto pathNum = 1; pathNum <= maxNumPaths; pathNum++)
 	{
-		auto fanucPath = new FanucPath(this, pathNum);
+		auto fanucPath = std::make_unique<FanucPath>(this, pathNum);
 		if (!fanucPath->configure(mFlibhndl))
 		{
 			gLogger->error("Could not configure path: %d", pathNum);
 			exit(1);
 		}
 
-		mPaths.push_back(fanucPath);
+		mPaths.push_back(std::move(fanucPath));
 	}
 
-	gLogger->info("Current path: %d, maximum paths: %d", path, mMaxPath);
+	gLogger->info("Current path: %d, maximum paths: %d", path, maxNumPaths);
 
 	mConfigured = true;
 }
@@ -487,7 +486,7 @@ void FanucAdapter::getCounts()
 		return;
 
 	// Should just be a parameter read
-	IODBPSD buf;
+	IODBPSD buf = {0};
 	auto ret = cnc_rdparam(mFlibhndl, 6711, 0, 8, &buf);
 	if (ret == EW_OK)
 		mPartCount.setValue(buf.u.ldata);
@@ -499,15 +498,15 @@ void FanucAdapter::getPathData()
 	if (!mConnected)
 		return;
 
-	int i;
-	for (i = mMaxPath - 1; i >= 0; i--)
+	for(auto &path : mPaths)
 	{
-		if (!mPaths[i]->gatherData(mFlibhndl))
+		if(!path->gatherData(mFlibhndl))
 		{
 			disconnect();
 			break;
 		}
 	}
-	if (mConnected && i > 0)
+
+	if (mConnected && mPaths.size() > 0)
 		cnc_setpath(mFlibhndl, 0);
 }

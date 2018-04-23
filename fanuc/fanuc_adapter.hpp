@@ -15,6 +15,7 @@
 //
 #pragma once
 #include <vector>
+#include <memory>
 #include <Fwlib32.h>
 #include <adapter.hpp>
 #include <condition.hpp>
@@ -76,8 +77,7 @@ class FanucAdapter : public Adapter, public MTConnectService
 {
 protected:
 	// Define all the data values here
-	short mMaxPath;
-	std::vector<FanucPath*> mPaths;
+	std::vector<std::unique_ptr<FanucPath>> mPaths;
 
 
 	// Conditions
