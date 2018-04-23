@@ -15,17 +15,48 @@
 //
 #include <internal.hpp>
 #include "fanuc_adapter.hpp"
-#include "minIni.h"
 #include <excpt.h>
+#include <regex>
+#include <iostream>
+#include <thread>
+#include <chrono>
+#include <minIni.h>
 
-FanucAdapter::FanucAdapter(int aPort)
-  : Adapter(aPort), mAvail("avail"), mMessage("message"), mPartCount("part_count"),
-    mMacroSampleCount(0), mMacroPathCount(0), mPMCCount(0)
+constexpr int DEF_SERVICE_PORT = 7878;
+constexpr int DEF_FOCAS2_PORT = 8193;
+
+// C++11 helper function for obtaining a statically defined array's item count
+template <typename T, std::size_t N>
+constexpr std::size_t countof(T const (&)[N]) noexcept
 {
-  /* Alarms */
+	return N;
+}
+
+
+FanucAdapter::FanucAdapter(int aPort) :
+	Adapter(aPort),
+	mMaxPath(0),
+	mMessage("message"),
+	mAvail("avail"),
+	mPartCount("part_count"),
+	mMacroSample{0},
+	mMacroPath{0},
+	mMacroMin(99999),
+	mMacroMax(0),
+	mMacroSampleCount(0),
+	mMacroPathCount(0),
+	mPMCVariable{0},
+	mPMCAddress{0},
+	mPMCCount(0),
+	mFlibhndl(0),
+	mConnected(false),
+	mDevicePort(DEF_FOCAS2_PORT),
+	mDeviceIP{"localhost"}
+{
+	// Alarms
 	addDatum(mMessage);
 
-  /* Controller */
+	// Controller
 	addDatum(mAvail);
 	addDatum(mPartCount);
 
@@ -33,59 +64,64 @@ FanucAdapter::FanucAdapter(int aPort)
 	mAvail.unavailable();
 }
 
+
 FanucAdapter::~FanucAdapter()
 {
-  size_t i;
-
-  for (i = 0; i < mPaths.size(); i++)
-    delete mPaths[i];
+	for (auto path : mPaths)
+		delete path;
 	mPaths.clear();
 
 	disconnect();
 }
 
-void FanucAdapter::initialize(int aArgc, const char *aArgv[])
+
+void FanucAdapter::initialize(int argc, const char *argv[])
 {
-  MTConnectService::initialize(aArgc, aArgv);
+	MTConnectService::initialize(argc, argv);
 
-  const char *iniFile = "adapter.ini";
-
-  printf("Arguments: %d\n", aArgc);
-  if (aArgc > 1) {
-    strncpy(mDeviceIP, aArgv[0], MAX_HOST_LEN - 1);
-    mDeviceIP[MAX_HOST_LEN - 1] = '\0';
-    mDevicePort = atoi(aArgv[1]);
-
-    mPort = 7878;
-    if (aArgc > 2)
-      mPort = atoi(aArgv[2]);
+	auto iniFile = "adapter.ini";
+	std::cout << "Arguments: " << argc << std::endl;
+	if (argc > 1)
+	{
+		strncpy(mDeviceIP, argv[0], countof(mDeviceIP) - 1);
+		mDevicePort = atoi(argv[1]);
+		mPort = DEF_SERVICE_PORT;
+		if (argc > 2)
+			mPort = atoi(argv[2]);
 	}
 	else
 	{
-    mDevicePort = 8193;
-    strcpy(mDeviceIP, "localhost");
-    mPort = 7878;
-    if (aArgc > 0)
-      iniFile = aArgv[0];
-    printf("Ini File: %s\n", iniFile);
+		mDevicePort = DEF_FOCAS2_PORT;
+		strncpy(mDeviceIP, "localhost", countof(mDeviceIP) - 1);
+		mPort = DEF_SERVICE_PORT;
+		if (argc > 0)
+			iniFile = argv[0];
+		std::cout << "Ini File: " << iniFile << std::endl;
 	}
 
-  FILE *fp = fopen(iniFile, "r");
-  printf("FP = %d, %x\n", errno, fp);
-  if (fp != 0) fclose(fp);
+	auto fp = fopen(iniFile, "r");
+	std::cout << "FP = " << errno << ", " << fp << std::endl;
+	if(fp)
+	{
+		fclose(fp);
+		fp = nullptr;
+	}
 
 	configMacrosAndPMC(iniFile);
 }
+
 
 void FanucAdapter::start()
 {
 	startServer();
 }
 
+
 void FanucAdapter::stop()
 {
 	stopServer();
 }
+
 
 void FanucAdapter::innerGatherDeviceData()
 {
@@ -109,69 +145,69 @@ void FanucAdapter::innerGatherDeviceData()
 	}
 }
 
+
 void FanucAdapter::gatherDeviceData()
 {
-  __try {
+	__try
+	{
 		innerGatherDeviceData();
 	}
 
-  __except(EXCEPTION_EXECUTE_HANDLER) {
+	__except(EXCEPTION_EXECUTE_HANDLER)
+	{
 		gLogger->error("Unhandled structured exception occurred during gathering device data, disconnecting.");
 		disconnect();
 	}
 }
 
+
 void FanucAdapter::disconnect()
 {
 	if (mConnected)
 	{
-    printf("Machine has disconnected. Releasing Resources\n");
+		std::cout << "Machine has disconnected. Releasing Resources" << std::endl;
 		cnc_freelibhndl(mFlibhndl);
+		mFlibhndl = 0;
 		mConnected = false;
 		unavailable();
 	}
 }
 
 
-void FanucAdapter::configMacrosAndPMC(const char *aIniFile)
+void FanucAdapter::configMacrosAndPMC(const char *iniFile)
 {
 	// Read adapter configuration
-  mPort = ini_getl("adapter", "port",  mPort, aIniFile);
-  ini_gets("adapter", "service", "MTConnect Fanuc Adapter", mName,
-           SERVICE_NAME_LEN, aIniFile);
-  mScanDelay = ini_getl("adapter", "scanDelay", mScanDelay, aIniFile);
+	mPort = ini_getl("adapter", "port", mPort, iniFile);
+	ini_gets("adapter",
+		"service",
+		"MTConnect Fanuc Adapter",
+		mName,
+		SERVICE_NAME_LEN,
+		iniFile);
+	mScanDelay = std::chrono::milliseconds{ ini_getl("adapter", "scanDelay", 100, iniFile) };
 
-  ini_gets("focus", "host", mDeviceIP, mDeviceIP, MAX_HOST_LEN, aIniFile);
-  mDevicePort = ini_getl("focus", "port", mDevicePort, aIniFile);
-
-  char dnc[8];
-  ini_gets("focus", "dnc", "yes", dnc, 8, aIniFile);
-  mAllowDNC = _strnicmp(dnc, "no", 2) != 0;
-  
-  if (!mAllowDNC)
-    printf("Disabling retrieval of program header\n");
+	ini_gets("focus", "host", mDeviceIP, mDeviceIP, countof(mDeviceIP), iniFile);
+	mDevicePort = ini_getl("focus", "port", mDevicePort, iniFile);
 
 	// Read adapter.ini to get additional macro variables and
 	// PMC registers
-  char name[100];
-  int idx;
+	char name[100] = {0};
 	const static char *sDigits = "0123456789";
 
 	mMacroMin = 99999;
 	mMacroMax = 0;
 
 	// First look for macro variables
-  for (idx = 0;
-       ini_getkey("macros", idx, name, sizeof(name), aIniFile) > 0 &&
-             idx < MAX_MACROS;
+	for (int idx = 0;
+		ini_getkey("macros", idx, name, countof(name), iniFile) > 0 && idx < MAX_MACROS;
 		idx++)
 	{
-    char numbers[256];
-    ini_gets("macros", name, "", numbers, 256, aIniFile);
+		char numbers[256] = {0};
+		ini_gets("macros", name, "", numbers, countof(numbers), iniFile);
 		if (numbers[0] == '[')
 		{
 			// We have a path macro.
-      int x, y, z;
+			int x(0), y(0), z(0);
 			char *cp = numbers + 1, *n;
 			x = strtol(cp, &n, 10);
 			if (cp == n)
@@ -185,64 +221,72 @@ void FanucAdapter::configMacrosAndPMC(const char *aIniFile)
 			if (cp == n)
 				continue;
 
-      int i = mMacroPathCount++;
+			auto i = mMacroPathCount++;
 			mMacroPath[i] = new MacroPathPosition(name, x, y, z);
 			addDatum(*mMacroPath[i]);
 
-      printf("Adding path macro '%s' at location %d %d %d\n", name, x, y, z);
+			std::cout << "Adding path macro '" << name << "' at location"
+				<< x << " " << y << " " << z << std::endl;
 
-      if (x > mMacroMax) mMacroMax = x;
-      if (x < mMacroMin) mMacroMin = x;
-      if (y > mMacroMax) mMacroMax = y;
-      if (y < mMacroMin) mMacroMin = y;
-      if (z > mMacroMax) mMacroMax = z;
-      if (z < mMacroMin) mMacroMin = z;
+			if (x > mMacroMax)
+				mMacroMax = x;
+			if (x < mMacroMin)
+				mMacroMin = x;
+			if (y > mMacroMax)
+				mMacroMax = y;
+			if (y < mMacroMin)
+				mMacroMin = y;
+			if (z > mMacroMax)
+				mMacroMax = z;
+			if (z < mMacroMin)
+				mMacroMin = z;
 		}
 		else
 		{
-      char *cp = numbers, *n;
-      long v = strtol(cp, &n, 10);
+			char *cp = numbers, *n(nullptr);
+			auto v = strtol(cp, &n, 10);
 			if (cp == n)
 				continue;
-      int i = mMacroSampleCount++;
+			auto i = mMacroSampleCount++;
 			mMacroSample[i] = new MacroSample(name, v);
 			addDatum(*mMacroSample[i]);
 
-      printf("Adding sample macro '%s' at location %d\n", name, v);
+			std::cout << "Adding sample macro '" << name << "' at location " << v << std::endl;
 
-      if (v > mMacroMax) mMacroMax = v;
-      if (v < mMacroMin) mMacroMin = v;
+			if (v > mMacroMax)
+				mMacroMax = v;
+			if (v < mMacroMin)
+				mMacroMin = v;
 		}
-    
-    
 	}
 
-  for (idx = 0;
-       ini_getkey("pmc", idx, name, sizeof(name), aIniFile) > 0 &&
-             idx < MAX_PMC;
-       idx++)
+	auto pmcIdx = 0;
+	for (pmcIdx = 0;
+		ini_getkey("pmc", pmcIdx, name, countof(name), iniFile) > 0 && pmcIdx < MAX_PMC;
+		pmcIdx++)
 	{
-    long v = ini_getl("pmc", name, 0, aIniFile);
-    mPMCVariable[idx] = new IntEvent(name);
-    mPMCAddress[idx] = v;
+		auto v = ini_getl("pmc", name, 0, iniFile);
+		mPMCVariable[pmcIdx] = new IntEvent(name);
+		mPMCAddress[pmcIdx] = v;
 
-    addDatum(*mPMCVariable[idx]);
+		addDatum(*mPMCVariable[pmcIdx]);
 
-    printf("Adding pmc '%s' at location %d\n", name, v);
+		std::cout << "Adding pmc '" << name << "' at location " << v << std::endl;
 	}
-  mPMCCount = idx;
+
+	mPMCCount = pmcIdx;
 }
+
 
 void FanucAdapter::configure()
 {
 	if (mConfigured || !mConnected)
 		return;
 
-  int ret;
 	gLogger->info("Configuring...\n");
 
-  short path;
-  ret = cnc_getpath(mFlibhndl, &path, &mMaxPath);
+	short path(0);
+	auto ret = cnc_getpath(mFlibhndl, &path, &mMaxPath);
 	if (ret != EW_OK)
 	{
 		gLogger->error("Cannot find number of paths: %d", ret);
@@ -250,17 +294,16 @@ void FanucAdapter::configure()
 		path = 1;
 	}
 
-  for (int i = 1; i <= mMaxPath; i++) 
+	for (auto pathNum = 1; pathNum <= mMaxPath; pathNum++)
 	{
-    FanucPath *path = new FanucPath(this, i);
-    if (!path->configure(mFlibhndl))
+		auto fanucPath = new FanucPath(this, pathNum);
+		if (!fanucPath->configure(mFlibhndl))
 		{
-      gLogger->error("Could not configure path: %d", i);
+			gLogger->error("Could not configure path: %d", pathNum);
 			exit(1);
 		}
 
-    path->allowDNC(mAllowDNC);
-    mPaths.push_back(path);
+		mPaths.push_back(fanucPath);
 	}
 
 	gLogger->info("Current path: %d, maximum paths: %d", path, mMaxPath);
@@ -268,19 +311,37 @@ void FanucAdapter::configure()
 	mConfigured = true;
 }
 
+
 void FanucAdapter::connect()
 {
 	if (mConnected)
 		return;
 
-  printf("Connecting to Machine at %s and port %d\n", mDeviceIP, mDevicePort);
-  short ret = ::cnc_allclibhndl3(mDeviceIP, mDevicePort, 10, &mFlibhndl);
-  printf("Result: %d\n", ret);
+	std::cout << "Connecting to Machine at " << mDeviceIP << " and port " << mDevicePort << std::endl;
+
+	// If the device IP has been passed in the form HSSB_{1-9} then we should
+	// connect via HSSB
+	std::regex hssbRegEx("HSSB_([0-9])");
+	std::cmatch matches;
+	short ret = 0;
+	if(std::regex_search(mDeviceIP, matches, hssbRegEx))
+	{
+		auto res = matches[1].str();
+		int hssbAddress = std::strtol(res.c_str(), nullptr, 0);
+		ret = ::cnc_allclibhndl2(hssbAddress, &mFlibhndl);
+	}
+	else
+	{
+		ret = ::cnc_allclibhndl3(mDeviceIP, mDevicePort, 10, &mFlibhndl);
+	}
+
+	std::cout << "Result: " << ret <<std::endl;
 	if (ret == EW_OK)
 	{
 		mAvail.available();
 		mConnected = true;
-    if (!mConfigured) configure();
+		if (!mConfigured)
+			configure();
 
 		// Resets conditions to normal.
 		initializeDeviceDatum();
@@ -289,9 +350,10 @@ void FanucAdapter::connect()
 	{
 		mConnected = false;
 		unavailable();
-    Sleep(5000);
+		std::this_thread::sleep_for(std::chrono::seconds{5});
 	}
 }
+
 
 void FanucAdapter::reconnect()
 {
@@ -299,10 +361,10 @@ void FanucAdapter::reconnect()
 	{
 		cnc_freelibhndl(mFlibhndl);
 		mConnected = false;
-
 		connect();
 	}
 }
+
 
 void FanucAdapter::getMacros()
 {
@@ -314,28 +376,33 @@ void FanucAdapter::getMacros()
 
 	// For now we assume they are close in range. If this proves to not
 	// be true, we will have to get more creative.
-  IODBMR *macros = new IODBMR[mMacroMax - mMacroMin];
-  short ret = cnc_rdmacror(mFlibhndl, mMacroMin, mMacroMax, 
+	auto macros = new IODBMR[mMacroMax - mMacroMin];
+	short ret = cnc_rdmacror(mFlibhndl,
+		mMacroMin,
+		mMacroMax,
 		sizeof(IODBMR) * (mMacroMax - mMacroMin + 1),
 		macros);
 
-  if (ret == EW_OK) {
-    for (int i = 0; i < mMacroSampleCount; i++)
+	if (ret == EW_OK)
 	{
-      int off = mMacroSample[i]->getNumber() - mMacroMin;
+		for (auto i = 0; i < mMacroSampleCount; i++)
+		{
+			auto off = mMacroSample[i]->getNumber() - mMacroMin;
 			if (macros->data[off].mcr_val != 0 || macros->data[off].dec_val != -1)
 			{
 				mMacroSample[i]->setValue(((double) macros->data[off].mcr_val) /
 								pow(10.0, macros->data[off].dec_val));
-      } else {
+			}
+			else
+			{
 				mMacroSample[i]->unavailable();
 			}
 		}
-    for (int i = 0; i < mMacroPathCount; i++)
+		for (auto i = 0; i < mMacroPathCount; i++)
 		{
-      int x = mMacroPath[i]->getX() - mMacroMin;
-      int y = mMacroPath[i]->getY() - mMacroMin;
-      int z = mMacroPath[i]->getZ() - mMacroMin;
+			auto x = mMacroPath[i]->getX() - mMacroMin;
+			auto y = mMacroPath[i]->getY() - mMacroMin;
+			auto z = mMacroPath[i]->getZ() - mMacroMin;
 
 			if ((macros->data[x].mcr_val != 0 || macros->data[x].dec_val != -1) &&
 				(macros->data[y].mcr_val != 0 || macros->data[y].dec_val != -1) &&
@@ -347,18 +414,19 @@ void FanucAdapter::getMacros()
 											pow(10.0, macros->data[y].dec_val),
 										((double) macros->data[z].mcr_val) /
 											pow(10.0, macros->data[z].dec_val));
-      } else {
+			}
+			else
+			{
 				mMacroSample[i]->unavailable();
 			}
 		}
 	}
 	else
-  {
-    printf("Could not read macro variables: %d\n", ret);
-  }
+		std::cout << "Could not read macro variables: " << ret << std::endl;
 
 	delete[] macros;
 }
+
 
 void FanucAdapter::getPMC()
 {
@@ -368,8 +436,13 @@ void FanucAdapter::getPMC()
 	for (int i = 0; i < mPMCCount; i++)
 	{
 		IODBPMC buf;
-    short ret = pmc_rdpmcrng(mFlibhndl, 0 /* G */, 0 /* byte */,
-                             mPMCAddress[i], mPMCAddress[i], 8 + 1,
+		auto ret = pmc_rdpmcrng(
+			mFlibhndl,
+			0, // G
+			0, // byte
+			mPMCAddress[i],
+			mPMCAddress[i],
+			8 + 1,
 			&buf);
 		if (ret == EW_OK)
 		{
@@ -380,11 +453,14 @@ void FanucAdapter::getPMC()
 		}
 		else
 		{
-      printf("Could not retrieve PMC data at %d for %s: %d\n",
-             mPMCAddress[i], mPMCVariable[i]->getName(), ret);
+			std::cout << "Could not retrieve PMC data at " << mPMCAddress[i]
+				<< " for " << mPMCVariable[i]->getName()
+				<< ": " << ret
+				<< std::endl;
 		}
 	}
 }
+
 
 void FanucAdapter::getMessages()
 {
@@ -392,14 +468,15 @@ void FanucAdapter::getMessages()
 		return;
 
 	OPMSG messages[6];
-  int ret = cnc_rdopmsg(mFlibhndl, 0, 6 + 256, messages);
+	auto ret = cnc_rdopmsg(mFlibhndl, 0, 6 + 256, messages);
 	if (ret == EW_OK && messages->datano != -1)
 	{
-    char buf[32];
-    sprintf(buf, "%04", messages->datano);
+		char buf[32] = {0};
+		sprintf(buf, "%04d", messages->datano);
 		mMessage.setValue(messages->data, buf);
 	}
 }
+
 
 void FanucAdapter::getCounts()
 {
@@ -408,12 +485,11 @@ void FanucAdapter::getCounts()
 
 	// Should just be a parameter read
 	IODBPSD buf;
-  short ret = cnc_rdparam(mFlibhndl, 6711, 0, 8, &buf);
+	auto ret = cnc_rdparam(mFlibhndl, 6711, 0, 8, &buf);
 	if (ret == EW_OK)
-  {
 		mPartCount.setValue(buf.u.ldata);
-  }
 }
+
 
 void FanucAdapter::getPathData()
 {
@@ -432,4 +508,3 @@ void FanucAdapter::getPathData()
 	if (mConnected && i > 0)
 		cnc_setpath(mFlibhndl, 0);
 }
-

@@ -21,45 +21,45 @@
 #include "fanuc_axis.hpp"
 #include <vector>
 
+
 class StaticEvent : public Event
 {
 public:
-  StaticEvent(const char *aName = "") : Event(aName) {}      
-
-  virtual bool unavailable() {
-    return false;
+	StaticEvent(const char *name = "") :
+		Event(name)
+	{
 	}
+
+	bool unavailable() override {
+		return false; }
 };
+
 
 class FanucPath
 {
 public:
-  FanucPath(Adapter *anAdapter, short aPathNumber);
+	FanucPath(Adapter *adapter, short pathNumber);
 	~FanucPath();
 
-  void allowDNC(const bool aAllow) { mAllowDNC = aAllow; }
-  bool configure(unsigned short mFlibhndl);
-  bool gatherData(unsigned short mFlibhndl);
+	bool configure(unsigned short flibhndl);
+	bool gatherData(unsigned short flibhndl);
 
 protected:
-  bool configureAxes(unsigned short mFlibhndl);
-  bool configureSpindles(unsigned short mFlibhndl);
-  
-  bool getToolData(unsigned short aFlibhndl);
-  bool getProgramInfo(unsigned short mFlibhndl);
-  bool getStatus(unsigned short mFlibhndl);
-  bool getHeader(unsigned short aFlibhndl, int aProg);
-  bool getAxisData(unsigned short aFlibhndl);
-  bool getSpindleData(unsigned short aFlibhndl);
+	bool configureAxes(unsigned short flibhndl);
+	bool configureSpindles(unsigned short flibhndl);
 
-  void getCondition(unsigned short aFlibhndl, long aAlarm);
-  Condition *translateAlarmNo(long aNum, int aAxis);
+	bool getToolData(unsigned short flibhndl);
+	bool getProgramInfo(unsigned short flibhndl);
+	bool getStatus(unsigned short flibhndl);
+	bool getAxisData(unsigned short flibhndl);
+	bool getSpindleData(unsigned short flibhndl);
 
+	void getCondition(unsigned short flibhndl, long alarm);
+	Condition *translateAlarmNo(long num, int axis);
 
-  void addDatum(DeviceDatum &aDatum, const char *aName, const char *aSuffix);
+	void addDatum(DeviceDatum &datum, const char *name, const char *suffix);
 
 protected:
-  bool mConfigured;
 	Adapter *mAdapter;
 
 	short mPathNumber;
@@ -86,7 +86,6 @@ protected:
 
 	bool mToolManagementEnabled;
 	bool mUseModalToolData;
-  bool           mAllowDNC;
 
 	// Path related conditions
 	Condition mServo;

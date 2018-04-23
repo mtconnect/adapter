@@ -1,10 +1,3 @@
-
-#include "adapter.hpp"
-#include "condition.hpp"
-#include "device_datum.hpp"
-#include "service.hpp"
-#include "fanuc_path.hpp"
-#include "Fwlib32.h"
 //
 // Copyright Copyright 2012, System Insights, Inc.
 //
@@ -22,10 +15,17 @@
 //
 #pragma once
 #include <vector>
+#include <Fwlib32.h>
+#include <adapter.hpp>
+#include <condition.hpp>
+#include <device_datum.hpp>
+#include <service.hpp>
+#include "fanuc_path.hpp"
 
-#define MAX_MACROS 32
-#define MAX_PMC 32
-const int MAX_HOST_LEN = 64;
+
+constexpr int MAX_MACROS = 32;
+constexpr int MAX_PMC = 32;
+
 
 class MacroSample : public Sample
 {
@@ -34,45 +34,61 @@ protected:
 
 public:
 	MacroSample(const char *aName, int aNum) :
-    Sample(aName), mNumber(aNum) {}
-  int getNumber() { return mNumber; }
+		Sample(aName),
+		mNumber(aNum)
+	{
+	}
+
+	int getNumber() {
+		return mNumber; }
 };
+
 
 class MacroPathPosition : public PathPosition
 {
 protected:
-  int mX;
-  int mY;
-  int mZ;
+	int m_X;
+	int m_Y;
+	int m_Z;
 
 public:
-  MacroPathPosition(const char *aName, int aX, int aY, int aZ) :
-    PathPosition(aName), mX(aX), mY(aY), mZ(aZ) {}
-  int getX() { return mX; }
-  int getY() { return mY; }
-  int getZ() { return mZ; }
+	 MacroPathPosition(const char *name, int X, int Y, int Z) :
+		PathPosition(name),
+		 m_X(X),
+		 m_Y(Y),
+		 m_Z(Z)
+	{
+	}
+
+	int getX() {
+		return m_X; }
+	int getY() {
+		return m_Y; }
+	int getZ() {
+		return m_Z; }
 };
 
-/* 
- * Provides a connection to the data available from the FANUC Focus library.
- */
+
+//
+// Provides a connection to the data available from the FANUC Focus library.
+//
 class FanucAdapter : public Adapter, public MTConnectService
 {
 protected:
-  /* Define all the data values here */
+	// Define all the data values here
 	short mMaxPath;
 	std::vector<FanucPath*> mPaths;
 
 
-  /* Conditions */
+	// Conditions
 
-  /* Events */
+	// Events
 	Message mMessage;
 
 	Availability mAvail;
 	IntEvent mPartCount;
 
-  /* Macro variables */
+	// Macro variables
 	MacroSample *mMacroSample[MAX_MACROS];
 	MacroPathPosition *mMacroPath[MAX_MACROS];
 	int mMacroMin;
@@ -80,21 +96,20 @@ protected:
 	int mMacroSampleCount;
 	int mMacroPathCount;
 
-  /* Macro variables */
+	// Macro variables
 	IntEvent *mPMCVariable[MAX_PMC];
 	int mPMCAddress[MAX_PMC];
 	int mPMCCount;
 
 	unsigned short mFlibhndl;
 	bool mConnected, mConfigured;
-  bool mAllowDNC;
 	int mDevicePort;
-  char mDeviceIP[MAX_HOST_LEN];
+	char mDeviceIP[64];
 
 protected:
 	void connect();
 	void configure();
-  void configMacrosAndPMC(const char *aIniFile);
+	void configMacrosAndPMC(const char *iniFile);
 
 	void reconnect();
 	void disconnect();
@@ -110,13 +125,13 @@ protected:
 	void innerGatherDeviceData();
 
 public:
-  FanucAdapter(int aServerPort);
+	FanucAdapter(int serverPort);
 	~FanucAdapter();
 
 	// For Service
-  virtual void initialize(int aArgc, const char *aArgv[]);
-  virtual void start();
-  virtual void stop();
+	void initialize(int argc, const char *argv[]) final;
+	void start() final;
+	void stop() final;
 
-  virtual void gatherDeviceData();
+	void gatherDeviceData() final;
 };

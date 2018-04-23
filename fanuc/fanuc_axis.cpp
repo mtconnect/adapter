@@ -14,51 +14,55 @@
 //    limitations under the License.
 //
 #include "internal.hpp"
-#include "Fwlib32.h"
+#include "fanuc_axis.hpp"
+#include <logger.hpp>
 #include "fanuc_path.hpp"
-#include "logger.hpp"
 
 using namespace std;
 
-FanucAxis::FanucAxis(Adapter *anAdapter, string aPrefix, int aIndex)
-  : mIndex(aIndex), mDivisor(1.0)
+
+FanucAxis::FanucAxis(Adapter *adapter, string prefix, int index) :
+	mIndex(index),
+	mDivisor(1.0)
 {
-  mActual.setName((aPrefix + "act").c_str());
-  anAdapter->addDatum(mActual);
-  mLoad.setName((aPrefix + "load").c_str());
-  anAdapter->addDatum(mLoad);
-  mTravel.setName((aPrefix + "travel").c_str());
-  anAdapter->addDatum(mTravel);
-  mOverheat.setName((aPrefix + "overheat").c_str());
-  anAdapter->addDatum(mOverheat);
-  mServo.setName((aPrefix + "servo").c_str());
-  anAdapter->addDatum(mServo);
+	mActual.setName((prefix + "act").c_str());
+	adapter->addDatum(mActual);
+	mLoad.setName((prefix + "load").c_str());
+	adapter->addDatum(mLoad);
+	mTravel.setName((prefix + "travel").c_str());
+	adapter->addDatum(mTravel);
+	mOverheat.setName((prefix + "overheat").c_str());
+	adapter->addDatum(mOverheat);
+	mServo.setName((prefix + "servo").c_str());
+	adapter->addDatum(mServo);
 }
 
-bool FanucAxis::gatherData(ODBDY2 *aDynamic, ODBSVLOAD *aLoads)
+
+bool FanucAxis::gatherData(ODBDY2 *dynamic, ODBSVLOAD *loads)
 {
-  mActual.setValue(aDynamic->pos.faxis.machine[mIndex] / mDivisor);
-  mLoad.setValue(aLoads[mIndex].svload.data /
-                  pow((long double) 10.0, (long double) aLoads[mIndex].svload.dec));
+	mActual.setValue(dynamic->pos.faxis.machine[mIndex] / mDivisor);
+	mLoad.setValue(loads[mIndex].svload.data /
+					pow((long double) 10.0, (long double) loads[mIndex].svload.dec));
 	return true;
 }
 
-FanucSpindle::FanucSpindle(Adapter *anAdapter, string aPrefix, int aIndex)
-  : mIndex(aIndex)
+
+FanucSpindle::FanucSpindle(Adapter *adapter, string prefix, int index) :
+	mIndex(index)
 {
-  mSpeed.setName((aPrefix + "speed").c_str());
-  anAdapter->addDatum(mSpeed);
-  mLoad.setName((aPrefix + "load").c_str());
-  anAdapter->addDatum(mLoad);
-  mServo.setName((aPrefix + "servo").c_str());
-  anAdapter->addDatum(mServo);
+	mSpeed.setName((prefix + "speed").c_str());
+	adapter->addDatum(mSpeed);
+	mLoad.setName((prefix + "load").c_str());
+	adapter->addDatum(mLoad);
+	mServo.setName((prefix + "servo").c_str());
+	adapter->addDatum(mServo);
 }
 
-bool FanucSpindle::gatherData(ODBSPLOAD *aLoads, ODBACT2 *aSpeeds)
+
+bool FanucSpindle::gatherData(ODBSPLOAD *loads, ODBACT2 *aSpeeds)
 {
-  mLoad.setValue(aLoads[mIndex].spload.data /
-                  pow((long double) 10.0, (long double) aLoads[mIndex].spload.dec));
+	mLoad.setValue(loads[mIndex].spload.data /
+					pow((long double) 10.0, (long double) loads[mIndex].spload.dec));
 	mSpeed.setValue(aSpeeds->data[mIndex]);
 	return true;
 }
-
