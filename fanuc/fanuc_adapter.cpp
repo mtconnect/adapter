@@ -40,9 +40,6 @@ FanucAdapter::FanucAdapter(int aPort) :
 	mPartCount("part_count"),
 	mMacroMin(99999),
 	mMacroMax(0),
-	mPMCVariable{0},
-	mPMCAddress{0},
-	mPMCCount(0),
 	mFlibhndl(0),
 	mConnected(false),
 	mDevicePort(DEF_FOCAS2_PORT),
@@ -260,16 +257,13 @@ void FanucAdapter::configMacrosAndPMC(const char *iniFile)
 		ini_getkey("pmc", pmcIdx, name, countof(name), iniFile) > 0 && pmcIdx < MAX_PMC;
 		pmcIdx++)
 	{
-		auto v = ini_getl("pmc", name, 0, iniFile);
-		mPMCVariable[pmcIdx] = new IntEvent(name);
-		mPMCAddress[pmcIdx] = v;
+		auto pmcAddress = ini_getl("pmc", name, 0, iniFile);
+		auto pmcVar = new PmcVariable(name, pmcAddress);
+		mPMCVariables.push_back(pmcVar);
+		addDatum(*pmcVar);
 
-		addDatum(*mPMCVariable[pmcIdx]);
-
-		std::cout << "Adding pmc '" << name << "' at location " << v << std::endl;
+		std::cout << "Adding pmc '" << name << "' at location " << pmcAddress << std::endl;
 	}
-
-	mPMCCount = pmcIdx;
 }
 
 
@@ -429,28 +423,28 @@ void FanucAdapter::getPMC()
 	if (!mConnected)
 		return;
 
-	for (int i = 0; i < mPMCCount; i++)
+	IODBPMC buf = {0};
+	for(auto pcmVariable : mPMCVariables)
 	{
-		IODBPMC buf;
 		auto ret = pmc_rdpmcrng(
 			mFlibhndl,
 			0, // G
 			0, // byte
-			mPMCAddress[i],
-			mPMCAddress[i],
+			pcmVariable->getAddress(),
+			pcmVariable->getAddress(),
 			8 + 1,
 			&buf);
 		if (ret == EW_OK)
 		{
 			if (buf.u.cdata[0] < 0)
-				mPMCVariable[i]->setValue(-buf.u.cdata[0] - 1);
+				pcmVariable->setValue(-buf.u.cdata[0] - 1);
 			else
-				mPMCVariable[i]->setValue(buf.u.cdata[0]);
+				pcmVariable->setValue(buf.u.cdata[0]);
 		}
 		else
 		{
-			std::cout << "Could not retrieve PMC data at " << mPMCAddress[i]
-				<< " for " << mPMCVariable[i]->getName()
+			std::cout << "Could not retrieve PMC data at " << pcmVariable->getAddress()
+				<< " for " << pcmVariable->getName()
 				<< ": " << ret
 				<< std::endl;
 		}

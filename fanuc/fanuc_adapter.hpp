@@ -70,6 +70,23 @@ public:
 };
 
 
+class PmcVariable : public IntEvent
+{
+protected:
+	int mAddress;
+
+public:
+	PmcVariable(const char *name, int address) :
+		IntEvent(name),
+		mAddress(address)
+	{
+	}
+
+	int getAddress() const {
+		return mAddress; }
+};
+
+
 //
 // Provides a connection to the data available from the FANUC Focus library.
 //
@@ -94,10 +111,8 @@ protected:
 	int mMacroMin;
 	int mMacroMax;
 
-	// Macro variables
-	IntEvent *mPMCVariable[MAX_PMC];
-	int mPMCAddress[MAX_PMC];
-	int mPMCCount;
+	// PMC variables
+	std::vector<PmcVariable*> mPMCVariables;
 
 	unsigned short mFlibhndl;
 	bool mConnected, mConfigured;
