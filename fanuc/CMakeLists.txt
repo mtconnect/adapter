@@ -1,6 +1,7 @@
 set(FANUC_HEADERS
 	fanuc_adapter.hpp
 	fanuc_axis.hpp
+	fanuc_helpers.hpp
 	fanuc_path.hpp
 )
 	
@@ -19,7 +20,7 @@ set(MIN_INI_SOURCES
 	${CMAKE_SOURCE_DIR}/minIni_07/minIni.c
 )
 
-set(ADDITIONAL_HEADERS
+set(ADDITIONAL_SOURCES
 	${CMAKE_SOURCE_DIR}/src/adapter.cpp
 	${CMAKE_SOURCE_DIR}/src/client.cpp
 	${CMAKE_SOURCE_DIR}/src/condition.cpp
@@ -31,7 +32,7 @@ set(ADDITIONAL_HEADERS
 	${CMAKE_SOURCE_DIR}/src/string_buffer.cpp
 )
 
-set(ADDITIONAL_SOURCES
+set(ADDITIONAL_HEADERS
 	${CMAKE_SOURCE_DIR}/src/adapter.hpp
 	${CMAKE_SOURCE_DIR}/src/client.hpp
 	${CMAKE_SOURCE_DIR}/src/condition.hpp
@@ -67,6 +68,12 @@ add_executable(fanuc
 	${ADDITIONAL_HEADERS}
 	${ADDITIONAL_SOURCES}
 )
+
+# Add our auxilliary configurations files to the target for Visual Studio, otherwise
+# they do not show up in the UI
+if(MSVC)
+	target_sources(fanuc PRIVATE ${CONFIGURATION_FILES})
+endif()
 
 target_include_directories(fanuc
 	PRIVATE ${CMAKE_SOURCE_DIR}/minIni_07

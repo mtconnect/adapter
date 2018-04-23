@@ -261,8 +261,8 @@ bool FanucPath::configureAxes(unsigned short flibhndl)
 		return false;
 	}
 
-	for (auto i = 0u; i < mAxes.size(); i++)
-		mAxes[i]->mDivisor = pow((long double) 10.0, (long double) inprec[i]);
+	for(const auto axis : mAxes)
+		axis->mDivisor = pow((long double) 10.0, (long double) inprec[axis->mIndex]);
 
 	return true;
 }

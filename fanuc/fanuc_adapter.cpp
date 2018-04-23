@@ -21,6 +21,7 @@
 #include <thread>
 #include <chrono>
 #include <minIni.h>
+#include "fanuc_helpers.hpp"
 
 constexpr int DEF_SERVICE_PORT = 7878;
 constexpr int DEF_FOCAS2_PORT = 8193;
@@ -31,14 +32,6 @@ constexpr std::size_t countof(T const (&)[N]) noexcept
 {
 	return N;
 }
-
-
-// The Focas API returns decimal numbers with signed binary format.
-inline double convert_bin_to_dec(long numeric, short exponent)
-{
-	return pow(10.0, -exponent) * numeric;
-}
-
 
 FanucAdapter::FanucAdapter(int aPort) :
 	Adapter(aPort),

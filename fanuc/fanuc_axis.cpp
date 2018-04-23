@@ -17,6 +17,7 @@
 #include "fanuc_axis.hpp"
 #include <logger.hpp>
 #include "fanuc_path.hpp"
+#include "fanuc_helpers.hpp"
 
 using namespace std;
 
@@ -41,8 +42,7 @@ FanucAxis::FanucAxis(Adapter *adapter, string const &prefix, int index) :
 bool FanucAxis::gatherData(const ODBDY2 *dynamic, const ODBSVLOAD *loads)
 {
 	mActual.setValue(dynamic->pos.faxis.machine[mIndex] / mDivisor);
-	mLoad.setValue(loads[mIndex].svload.data /
-					pow((long double) 10.0, (long double) loads[mIndex].svload.dec));
+	mLoad.setValue( convert_bin_to_dec(loads[mIndex].svload.data, loads[mIndex].svload.dec) );
 	return true;
 }
 
@@ -61,8 +61,7 @@ FanucSpindle::FanucSpindle(Adapter *adapter, string const &prefix, int index) :
 
 bool FanucSpindle::gatherData(const ODBSPLOAD *loads, const ODBACT2 *aSpeeds)
 {
-	mLoad.setValue(loads[mIndex].spload.data /
-					pow((long double) 10.0, (long double) loads[mIndex].spload.dec));
+	mLoad.setValue( convert_bin_to_dec(loads[mIndex].spload.data, loads[mIndex].spload.dec) );
 	mSpeed.setValue(aSpeeds->data[mIndex]);
 	return true;
 }
