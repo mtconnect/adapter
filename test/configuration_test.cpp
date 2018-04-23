@@ -39,13 +39,16 @@ using namespace std;
 
 CPPUNIT_TEST_SUITE_REGISTRATION(ConfigurationTest);
 
+
 void ConfigurationTest::setUp()
 {
 }
 
+
 void ConfigurationTest::tearDown()
 {
 }
+
 
 void ConfigurationTest::testConstructor()
 {
@@ -56,7 +59,8 @@ void ConfigurationTest::testConstructor()
 	"  timeout: 10000\n";
 
 	istringstream str(config);
-  Configuration cfg(str);
+	Configuration cfg;
+	cfg.parse(str);
 
 	CPPUNIT_ASSERT_EQUAL(cfg.getPort(), 7878);
 	CPPUNIT_ASSERT_EQUAL(cfg.getScanDelay(), 100);
