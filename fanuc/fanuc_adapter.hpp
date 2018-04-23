@@ -40,7 +40,7 @@ public:
 	{
 	}
 
-	int getNumber() {
+	int getNumber() const {
 		return mNumber; }
 };
 
@@ -61,11 +61,11 @@ public:
 	{
 	}
 
-	int getX() {
+	int getX() const {
 		return m_X; }
-	int getY() {
+	int getY() const {
 		return m_Y; }
-	int getZ() {
+	int getZ() const {
 		return m_Z; }
 };
 

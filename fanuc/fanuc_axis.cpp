@@ -21,7 +21,7 @@
 using namespace std;
 
 
-FanucAxis::FanucAxis(Adapter *adapter, string prefix, int index) :
+FanucAxis::FanucAxis(Adapter *adapter, string const &prefix, int index) :
 	mIndex(index),
 	mDivisor(1.0)
 {
@@ -38,7 +38,7 @@ FanucAxis::FanucAxis(Adapter *adapter, string prefix, int index) :
 }
 
 
-bool FanucAxis::gatherData(ODBDY2 *dynamic, ODBSVLOAD *loads)
+bool FanucAxis::gatherData(const ODBDY2 *dynamic, const ODBSVLOAD *loads)
 {
 	mActual.setValue(dynamic->pos.faxis.machine[mIndex] / mDivisor);
 	mLoad.setValue(loads[mIndex].svload.data /
@@ -47,7 +47,7 @@ bool FanucAxis::gatherData(ODBDY2 *dynamic, ODBSVLOAD *loads)
 }
 
 
-FanucSpindle::FanucSpindle(Adapter *adapter, string prefix, int index) :
+FanucSpindle::FanucSpindle(Adapter *adapter, string const &prefix, int index) :
 	mIndex(index)
 {
 	mSpeed.setName((prefix + "speed").c_str());
@@ -59,7 +59,7 @@ FanucSpindle::FanucSpindle(Adapter *adapter, string prefix, int index) :
 }
 
 
-bool FanucSpindle::gatherData(ODBSPLOAD *loads, ODBACT2 *aSpeeds)
+bool FanucSpindle::gatherData(const ODBSPLOAD *loads, const ODBACT2 *aSpeeds)
 {
 	mLoad.setValue(loads[mIndex].spload.data /
 					pow((long double) 10.0, (long double) loads[mIndex].spload.dec));

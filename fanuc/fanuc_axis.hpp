@@ -25,10 +25,10 @@
 class FanucAxis
 {
 public:
-	FanucAxis(Adapter *adapter, std::string prefix, int index);
+	FanucAxis(Adapter *adapter, std::string const &prefix, int index);
 	~FanucAxis() {}
 
-	bool gatherData(ODBDY2 *dynamic, ODBSVLOAD *loads);
+	bool gatherData(const ODBDY2 *dynamic, const ODBSVLOAD *loads);
 
 public:
 	int mIndex;
@@ -44,10 +44,10 @@ public:
 class FanucSpindle
 {
 public:
-	FanucSpindle(Adapter *adapter, std::string prefix, int index);
+	FanucSpindle(Adapter *adapter, std::string const &prefix, int index);
 	~FanucSpindle() {}
 
-	bool gatherData(ODBSPLOAD *loads, ODBACT2 *speeds);
+	bool gatherData(const ODBSPLOAD *loads, const ODBACT2 *speeds);
 
 public:
 	int mIndex;

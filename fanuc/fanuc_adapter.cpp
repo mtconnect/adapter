@@ -385,7 +385,7 @@ void FanucAdapter::getMacros()
 
 	if (ret == EW_OK)
 	{
-		for (auto macroSample : mMacroSamples)
+		for (const auto macroSample : mMacroSamples)
 		{
 			auto const &variableData = rawData[0].data[macroSample->getNumber() - mMacroMin];
 			if (variableData.mcr_val != 0 || variableData.dec_val != -1)
@@ -398,7 +398,7 @@ void FanucAdapter::getMacros()
 				macroSample->unavailable();
 			}
 		}
-		for (auto macroPathPos : mMacroPathPositions)
+		for (const auto macroPathPos : mMacroPathPositions)
 		{
 			auto const &xData = rawData[0].data[macroPathPos->getX() - mMacroMin];
 			auto const &yData = rawData[0].data[macroPathPos->getY() - mMacroMin];
@@ -430,7 +430,7 @@ void FanucAdapter::getPMC()
 		return;
 
 	IODBPMC buf = {0};
-	for(auto pcmVariable : mPMCVariables)
+	for(const auto pcmVariable : mPMCVariables)
 	{
 		auto ret = pmc_rdpmcrng(
 			mFlibhndl,
@@ -463,7 +463,7 @@ void FanucAdapter::getMessages()
 	if (!mConnected)
 		return;
 
-	OPMSG messages[6];
+	OPMSG messages[6] = {0};
 	auto ret = cnc_rdopmsg(mFlibhndl, 0, 6 + 256, messages);
 	if (ret == EW_OK && messages->datano != -1)
 	{
