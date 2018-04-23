@@ -49,7 +49,7 @@ protected:
 	Component *mParent;
 
 public:
-	Component(Adapter *adapter, std::string name, Component *parent = nullptr) :
+	Component(Adapter *adapter, const std::string &name, Component *parent = nullptr) :
 		mAdapter(adapter),
 		mName(name),
 		mParent(parent)

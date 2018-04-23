@@ -65,7 +65,7 @@ protected:
 	bool mHasValue;
 
 protected:
-	void appendText(char *buffer, char *value, int maxLen);
+	static void appendText(char *buffer, char *value, int maxLen);
 
 public:
 	// The name will be supplied later...

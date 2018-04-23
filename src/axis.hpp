@@ -68,7 +68,7 @@ protected:
 	Units mUnits;
 
 public:
-	Axis(Adapter *adapter, std::string name, Component *parent = nullptr) :
+	Axis(Adapter *adapter, const std::string &name, Component *parent = nullptr) :
 		Component(adapter, name, parent),
 		mNumber(0),
 		mMode(INDEX),
@@ -95,7 +95,7 @@ protected:
 	Sample mCommandedPosition;
 
 public:
-	Linear(Adapter *adapter, std::string name, Component *parent = nullptr) :
+	Linear(Adapter *adapter, const std::string &name, Component *parent = nullptr) :
 		Axis(adapter, name, parent)
 	{
 		mType = LINEAR;

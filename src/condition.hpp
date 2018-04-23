@@ -140,7 +140,7 @@ protected:
 
 	void add(ActiveCondition *condition);
 
-	void append(
+	static void append(
 		StringBuffer &stringBuffer,
 		char *buffer,
 		ActiveCondition *cond,
