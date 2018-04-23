@@ -48,6 +48,7 @@ target_link_libraries(test
 if(WIN32)
 	target_link_libraries(test
 		PRIVATE wsock32.lib
+		PRIVATE Ws2_32.lib
 	)
 endif()
 

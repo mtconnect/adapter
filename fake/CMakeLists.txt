@@ -43,6 +43,7 @@ target_include_directories(fake_adapter
 if(WIN32)
 	target_link_libraries(fake_adapter
 		PRIVATE wsock32.lib
+		PRIVATE Ws2_32.lib
 	)
 endif()
 

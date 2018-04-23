@@ -87,6 +87,7 @@ target_compile_definitions(fanuc
 if(WIN32)
 	target_link_libraries(fanuc
 		PRIVATE wsock32.lib
+		PRIVATE Ws2_32.lib
 	)
 endif()
 

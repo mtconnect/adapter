@@ -35,12 +35,15 @@
 #ifdef WIN32
 	#define _CRT_SECURE_NO_DEPRECATE 1
 
-	/* Windows specific include files and types */
-	#include "winsock2.h"
+	// Windows specific include files and types
+	#include <winsock2.h>
+	#include <Ws2tcpip.h>
 	#ifndef AFX
-		#include "windows.h"
+		#include <windows.h>
 	#endif
-	#include "errno.h"
+	#include <errno.h>
+
+	#define inet_ntop InetNtop
 
 	#define SHUT_RDWR SD_BOTH
 	typedef int socklen_t;

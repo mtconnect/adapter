@@ -243,7 +243,9 @@ Client *Server::connectToClients()
 			return 0;
 		}
 
-		gLogger->info("Connected to: %s on port %d", inet_ntoa(addr.sin_addr), ntohs(addr.sin_port));
+		char targetNameBuffer[INET_ADDRSTRLEN] = {0};
+		auto targetName = inet_ntop(AF_INET, &addr.sin_addr, targetNameBuffer, sizeof(targetNameBuffer));
+		gLogger->info("Connected to: %s on port %d", targetName, ntohs(addr.sin_port));
 
 		int flag = 1;
 		::setsockopt(socket, IPPROTO_TCP, TCP_NODELAY, (const char *) &flag, sizeof(int));
