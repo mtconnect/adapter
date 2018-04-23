@@ -43,8 +43,7 @@ MTConnectService::MTConnectService() :
 
 void MTConnectService::setName(const char *name)
 {
-	strncpy(mName, name, 78);
-	mName[79] = '\0';
+	strncpy_s(mName, sizeof(mName), name,  sizeof(mName) - 1);
 }
 
 void MTConnectService::initialize(int aArgc, const char *aArgv[])
@@ -277,7 +276,7 @@ void MTConnectService::install(int argc, const char *argv[])
 	int d = 0;
 	for (int i = 0; i < argc; i++)
 	{
-		strcpy(arguments + d, argv[i]);
+		strcpy_s(arguments + d, 2048 - d, argv[i]);
 		d += strlen(arguments + d) + 1;
 	}
 
@@ -546,7 +545,7 @@ VOID SvcReportEvent(LPTSTR functionName)
 
 	if (hEventSource)
 	{
-		sprintf(Buffer, "%-60s failed with %d", functionName, GetLastError());
+		snprintf(Buffer, _countof(Buffer), "%-60s failed with %d", functionName, GetLastError());
 
 		lpszStrings[0] = gService->name();
 		lpszStrings[1] = Buffer;
