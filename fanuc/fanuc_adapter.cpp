@@ -33,6 +33,13 @@ constexpr std::size_t countof(T const (&)[N]) noexcept
 }
 
 
+// The Focas API returns decimal numbers with signed binary format.
+inline double convert_bin_to_dec(long numeric, short exponent)
+{
+	return pow(10.0, -exponent) * numeric;
+}
+
+
 FanucAdapter::FanucAdapter(int aPort) :
 	Adapter(aPort),
 	mMessage("message"),
@@ -217,7 +224,7 @@ void FanucAdapter::configMacrosAndPMC(const char *iniFile)
 			mMacroPathPositions.push_back(macroPathPos);
 			addDatum(*macroPathPos);
 
-			std::cout << "Adding path macro '" << name << "' at location"
+			std::cout << "Adding path macro '" << name << "' at location "
 				<< x << " " << y << " " << z << std::endl;
 
 			if (x > mMacroMax)
@@ -367,7 +374,7 @@ void FanucAdapter::getMacros()
 	// be true, we will have to get more creative.
 	std::vector<IODBMR> rawData;
 	auto count = (mMacroMax - mMacroMin) + 1;
-	rawData.resize(count);
+	rawData.resize(count, {0});
 
 	short ret = cnc_rdmacror(
 		mFlibhndl,
@@ -380,12 +387,11 @@ void FanucAdapter::getMacros()
 	{
 		for (auto macroSample : mMacroSamples)
 		{
-			auto off = macroSample->getNumber() - mMacroMin;
-			auto const &variableData = rawData[0].data[off];
+			auto const &variableData = rawData[0].data[macroSample->getNumber() - mMacroMin];
 			if (variableData.mcr_val != 0 || variableData.dec_val != -1)
 			{
 				macroSample->setValue(
-					((double) variableData.mcr_val) / pow(10.0, variableData.dec_val));
+					convert_bin_to_dec(variableData.mcr_val, variableData.dec_val));
 			}
 			else
 			{
@@ -394,18 +400,18 @@ void FanucAdapter::getMacros()
 		}
 		for (auto macroPathPos : mMacroPathPositions)
 		{
-			auto x = macroPathPos->getX() - mMacroMin;
-			auto y = macroPathPos->getY() - mMacroMin;
-			auto z = macroPathPos->getZ() - mMacroMin;
+			auto const &xData = rawData[0].data[macroPathPos->getX() - mMacroMin];
+			auto const &yData = rawData[0].data[macroPathPos->getY() - mMacroMin];
+			auto const &zData = rawData[0].data[macroPathPos->getZ() - mMacroMin];
 
-			if ((rawData[0].data[x].mcr_val != 0 || rawData[0].data[x].dec_val != -1) &&
-				(rawData[0].data[y].mcr_val != 0 || rawData[0].data[y].dec_val != -1) &&
-				(rawData[0].data[z].mcr_val != 0 || rawData[0].data[z].dec_val != -1))
+			if ((xData.mcr_val != 0 || xData.dec_val != -1) &&
+				(yData.mcr_val != 0 || yData.dec_val != -1) &&
+				(zData.mcr_val != 0 || zData.dec_val != -1))
 			{
 				macroPathPos->setValue(
-					((double) rawData[0].data[x].mcr_val) / pow(10.0, rawData[0].data[x].dec_val),
-					((double) rawData[0].data[y].mcr_val) / pow(10.0, rawData[0].data[y].dec_val),
-					((double) rawData[0].data[z].mcr_val) / pow(10.0, rawData[0].data[z].dec_val));
+					convert_bin_to_dec(xData.mcr_val, xData.dec_val),
+					convert_bin_to_dec(yData.mcr_val, yData.dec_val),
+					convert_bin_to_dec(zData.mcr_val, zData.dec_val) );
 			}
 			else
 			{
