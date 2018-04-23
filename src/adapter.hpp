@@ -35,9 +35,11 @@
 #include <vector>
 #include <chrono>
 #include <memory>
+#include <thread>
+#include <mutex>
 #include "server.hpp"
 #include "string_buffer.hpp"
-#include "threading.hpp"
+
 
 class DeviceDatum;
 class CuttingTool;
@@ -71,7 +73,7 @@ protected:
 		pthread_t mServerThread;
 	#endif
 #endif
-	 MTCMutex mGatherLock;
+	std::mutex mGatherLock;
 
 protected:
 	void sleepMs(std::chrono::milliseconds ms);

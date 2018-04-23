@@ -34,55 +34,32 @@
 
 #ifdef THREADED
 
-#ifndef WIN32
-	#include <pthread.h>
-#endif
+#include <mutex>
+
 
 class MTCMutex
 {
 public:
 	MTCMutex()
 	{
-#ifdef WIN32
-		InitializeCriticalSection(&mLock);
-#else
-		pthread_mutex_init(&mLock, NULL);
-#endif
 	}
 
 	~MTCMutex()
 	{
-#ifdef WIN32
-		DeleteCriticalSection(&mLock);
-#else
-		 pthread_mutex_destroy(&mLock);
-#endif
 	}
 
 	void lock()
 	{
-#ifdef WIN32
-		EnterCriticalSection(&mLock);
-#else
-		pthread_mutex_lock(&mLock);
-#endif
+		m_Mutex.lock();
 	}
 
 	void unlock()
 	{
-#ifdef WIN32
-		LeaveCriticalSection(&mLock);
-#else
-		pthread_mutex_unlock(&mLock);
-#endif
+		m_Mutex.unlock();
 	}
 
 protected:
-#ifdef WIN32
-	CRITICAL_SECTION mLock;
-#else
-	pthread_mutex_t mLock;
-#endif
+	std::mutex m_Mutex;
 
 private:
 	MTCMutex(const MTCMutex& aMutex)

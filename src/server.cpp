@@ -112,7 +112,7 @@ Server::~Server()
 
 void Server::readFromClients()
 {
-	MTCAutoLock lock(mListLock);
+	std::lock_guard<std::mutex> lock(mListLock);
 
 	fd_set rset;
 	FD_ZERO(&rset);
@@ -202,7 +202,7 @@ void Server::sendToClient(Client *client, const char *string)
 
 void Server::sendToClients(const char *string)
 {
-	MTCAutoLock lock(mListLock);
+	std::lock_guard<std::mutex> lock(mListLock);
 
 	for (int i = mNumClients - 1; i >= 0; i--)
 	{
@@ -290,14 +290,14 @@ void Server::removeClientInternal(Client *client)
 //
 void Server::removeClient(Client *client)
 {
-	MTCAutoLock lock(mListLock);
+	std::lock_guard<std::mutex> lock(mListLock);
 	removeClientInternal(client);
 }
 
 
 Client *Server::addClient(Client *client)
 {
-	MTCAutoLock lock(mListLock);
+	std::lock_guard<std::mutex> lock(mListLock);
 
 	if (mNumClients < MAX_CLIENTS)
 	{

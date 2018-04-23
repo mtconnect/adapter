@@ -53,7 +53,7 @@ Client::~Client()
 int Client::write(const char *string)
 {
 	int res;
-	MTCAutoLock lock(mWriteLock);
+	std::lock_guard<std::mutex> lock(mWriteLock);
 
 	try
 	{

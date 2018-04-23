@@ -32,7 +32,7 @@
 //
 #pragma once
 
-#include "threading.hpp"
+#include <mutex>
 
 
 //
@@ -44,7 +44,7 @@ class Client
 // Instance Variables
 protected:
 	SOCKET mSocket;
-	MTCMutex mWriteLock;
+	std::mutex mWriteLock;
 
 // class methods
 public:

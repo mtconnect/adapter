@@ -112,7 +112,7 @@ bool Adapter::startServerThread()
 	}
 	else
 	{
-		sleepMs(10ms);
+		sleepMs(std::chrono::milliseconds(10));
 	}
 
 	return true;
@@ -254,7 +254,7 @@ void Adapter::startServer()
 		// Don't bother getting data if we don't have anyone to read it
 		if (mServer->numClients() > 0)
 		{
-			MTCAutoLock lock(mGatherLock);
+			std::lock_guard<std::mutex> lock(mGatherLock);
 
 			begin();
 			mBuffer.timestamp();
@@ -355,7 +355,7 @@ void Adapter::sendBuffer()
 // Send the initial values to a client
 void Adapter::sendInitialData(Client *client)
 {
-	MTCAutoLock lock(mGatherLock);
+	std::lock_guard<std::mutex> lock(mGatherLock);
 
 	mInitializeClient = client;
 	mDisableFlush = true;

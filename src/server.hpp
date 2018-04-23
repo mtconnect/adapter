@@ -32,7 +32,7 @@
 //
 #pragma once
 
-#include "threading.hpp"
+#include <mutex>
 
 class Client;
 
@@ -49,7 +49,7 @@ protected:
 	char mPong[32];
 	int mTimeout;
 
-	MTCMutex mListLock;
+	std::mutex mListLock;
 
 protected:
 	// Assumes the mutex is already locked.
