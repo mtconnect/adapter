@@ -80,6 +80,7 @@ void ConditionTest::testAdd()
 
 	cond.begin();
 	CPPUNIT_ASSERT(cond.add(Condition::eFAULT, "A Fault", "123", "HIGH", "1"));
+	cond.prepare();
 	CPPUNIT_ASSERT(cond.append(buffer));
   CPPUNIT_ASSERT_EQUAL(string("|Test|FAULT|123|1|HIGH|A Fault"), string((const char*) buffer));
 	cond.cleanup();
@@ -92,6 +93,7 @@ void ConditionTest::testActive()
 
 	cond.begin();
 	CPPUNIT_ASSERT(cond.add(Condition::eFAULT, "A Fault", "123", "HIGH", "1"));
+	cond.prepare();
 	CPPUNIT_ASSERT(cond.append(buffer));
   CPPUNIT_ASSERT_EQUAL(string("|Test|FAULT|123|1|HIGH|A Fault"), string((const char*) buffer));
 
@@ -107,6 +109,7 @@ void ConditionTest::testCleanup()
 
 	cond.begin();
 	CPPUNIT_ASSERT(cond.add(Condition::eFAULT, "A Fault", "123", "HIGH", "1"));
+	cond.prepare();
 	CPPUNIT_ASSERT(cond.append(buffer));
   CPPUNIT_ASSERT_EQUAL(string("|Test|FAULT|123|1|HIGH|A Fault"), string((const char*) buffer));
 	cond.cleanup();
@@ -114,6 +117,7 @@ void ConditionTest::testCleanup()
 	buffer.reset();
 
 	cond.begin();
+	cond.prepare();
 	cond.append(buffer);
   CPPUNIT_ASSERT_EQUAL(string("|Test|NORMAL||||"), string((const char*) buffer));
 	cond.cleanup();
@@ -123,6 +127,7 @@ void ConditionTest::testCleanup()
 	cond.begin();
 	CPPUNIT_ASSERT(cond.add(Condition::eFAULT, "A Fault", "123", "HIGH", "1"));
 	CPPUNIT_ASSERT(cond.add(Condition::eFAULT, "Another Fault", "124", "HIGH", "1"));
+	cond.prepare();
 	CPPUNIT_ASSERT(cond.append(buffer));
 	CPPUNIT_ASSERT_EQUAL(string("|Test|FAULT|124|1|HIGH|Another Fault\n"
 				"|Test|FAULT|123|1|HIGH|A Fault"),
@@ -137,6 +142,7 @@ void ConditionTest::testCleanup()
 	cond.begin();
 	CPPUNIT_ASSERT(!cond.add(Condition::eFAULT, "A Fault", "123", "HIGH", "1"));
   
+	cond.prepare();
 	cond.append(buffer);
   CPPUNIT_ASSERT_EQUAL(string("|Test|NORMAL|124|||"), string((const char*) buffer));
 	cond.cleanup();
