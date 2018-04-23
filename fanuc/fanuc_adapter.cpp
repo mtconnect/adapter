@@ -38,12 +38,8 @@ FanucAdapter::FanucAdapter(int aPort) :
 	mMessage("message"),
 	mAvail("avail"),
 	mPartCount("part_count"),
-	mMacroSample{0},
-	mMacroPath{0},
 	mMacroMin(99999),
 	mMacroMax(0),
-	mMacroSampleCount(0),
-	mMacroPathCount(0),
 	mPMCVariable{0},
 	mPMCAddress{0},
 	mPMCCount(0),
@@ -220,9 +216,9 @@ void FanucAdapter::configMacrosAndPMC(const char *iniFile)
 			if (cp == n)
 				continue;
 
-			auto i = mMacroPathCount++;
-			mMacroPath[i] = new MacroPathPosition(name, x, y, z);
-			addDatum(*mMacroPath[i]);
+			auto macroPathPos = new MacroPathPosition(name, x, y, z);
+			mMacroPathPositions.push_back(macroPathPos);
+			addDatum(*macroPathPos);
 
 			std::cout << "Adding path macro '" << name << "' at location"
 				<< x << " " << y << " " << z << std::endl;
@@ -246,9 +242,9 @@ void FanucAdapter::configMacrosAndPMC(const char *iniFile)
 			auto v = strtol(cp, &n, 10);
 			if (cp == n)
 				continue;
-			auto i = mMacroSampleCount++;
-			mMacroSample[i] = new MacroSample(name, v);
-			addDatum(*mMacroSample[i]);
+			auto macroSample = new MacroSample(name, v);
+			mMacroSamples.push_back(macroSample);
+			addDatum(*macroSample);
 
 			std::cout << "Adding sample macro '" << name << "' at location " << v << std::endl;
 
@@ -370,7 +366,7 @@ void FanucAdapter::getMacros()
 	if (!mConnected)
 		return;
 
-	if (mMacroSampleCount == 0 && mMacroPathCount == 0)
+	if (mMacroSamples.size() == 0 && mMacroPathPositions.size() == 0)
 		return;
 
 	// For now we assume they are close in range. If this proves to not
@@ -388,40 +384,38 @@ void FanucAdapter::getMacros()
 
 	if (ret == EW_OK)
 	{
-		for (auto i = 0; i < mMacroSampleCount; i++)
+		for (auto macroSample : mMacroSamples)
 		{
-			auto off = mMacroSample[i]->getNumber() - mMacroMin;
+			auto off = macroSample->getNumber() - mMacroMin;
 			auto const &variableData = rawData[0].data[off];
 			if (variableData.mcr_val != 0 || variableData.dec_val != -1)
 			{
-				mMacroSample[i]->setValue(((double) variableData.mcr_val) /
-								pow(10.0, variableData.dec_val));
+				macroSample->setValue(
+					((double) variableData.mcr_val) / pow(10.0, variableData.dec_val));
 			}
 			else
 			{
-				mMacroSample[i]->unavailable();
+				macroSample->unavailable();
 			}
 		}
-		for (auto i = 0; i < mMacroPathCount; i++)
+		for (auto macroPathPos : mMacroPathPositions)
 		{
-			auto x = mMacroPath[i]->getX() - mMacroMin;
-			auto y = mMacroPath[i]->getY() - mMacroMin;
-			auto z = mMacroPath[i]->getZ() - mMacroMin;
+			auto x = macroPathPos->getX() - mMacroMin;
+			auto y = macroPathPos->getY() - mMacroMin;
+			auto z = macroPathPos->getZ() - mMacroMin;
 
 			if ((rawData[0].data[x].mcr_val != 0 || rawData[0].data[x].dec_val != -1) &&
 				(rawData[0].data[y].mcr_val != 0 || rawData[0].data[y].dec_val != -1) &&
 				(rawData[0].data[z].mcr_val != 0 || rawData[0].data[z].dec_val != -1))
 			{
-				mMacroPath[i]->setValue(((double) rawData[0].data[x].mcr_val) /
-											pow(10.0, rawData[0].data[x].dec_val),
-										((double) rawData[0].data[y].mcr_val) /
-											pow(10.0, rawData[0].data[y].dec_val),
-										((double) rawData[0].data[z].mcr_val) /
-											pow(10.0, rawData[0].data[z].dec_val));
+				macroPathPos->setValue(
+					((double) rawData[0].data[x].mcr_val) / pow(10.0, rawData[0].data[x].dec_val),
+					((double) rawData[0].data[y].mcr_val) / pow(10.0, rawData[0].data[y].dec_val),
+					((double) rawData[0].data[z].mcr_val) / pow(10.0, rawData[0].data[z].dec_val));
 			}
 			else
 			{
-				mMacroPath[i]->unavailable();
+				macroPathPos->unavailable();
 			}
 		}
 	}

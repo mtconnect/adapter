@@ -24,7 +24,7 @@
 #include "fanuc_path.hpp"
 
 
-constexpr int MAX_MACROS = 32;
+constexpr int MAX_MACROS = 256; // Max number of entries in the ini file
 constexpr int MAX_PMC = 32;
 
 
@@ -89,12 +89,10 @@ protected:
 	IntEvent mPartCount;
 
 	// Macro variables
-	MacroSample *mMacroSample[MAX_MACROS];
-	MacroPathPosition *mMacroPath[MAX_MACROS];
+	std::vector<MacroSample*> mMacroSamples;
+	std::vector<MacroPathPosition*> mMacroPathPositions;
 	int mMacroMin;
 	int mMacroMax;
-	int mMacroSampleCount;
-	int mMacroPathCount;
 
 	// Macro variables
 	IntEvent *mPMCVariable[MAX_PMC];
