@@ -54,8 +54,8 @@ void TimeSeriesTest::testTimeSeries()
 	StringBuffer buffer;
 	TimeSeries series("test");
 
-  for (int i = 0; i < 5; i++)
-    series.addValue((double) i);
+	for (auto i = 0.0f; i < 5.0f; i++)
+		series.addValue(i);
 
 	series.append(buffer);
 	CPPUNIT_ASSERT_EQUAL(
@@ -72,8 +72,8 @@ void TimeSeriesTest::testTimeSeries()
 
 	buffer.reset();
 
-  series.addValue(2.0);
-  series.addValue(4.0);
+	series.addValue(2.0f);
+	series.addValue(4.0f);
 	series.setRate(42000);
 
 	series.append(buffer);
