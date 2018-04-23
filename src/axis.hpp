@@ -40,17 +40,20 @@
 class Axis : public Component
 {
 public:
-  enum Type {
+	enum Type
+	{
 		LINEAR,
 		ROTARY
 	};
 
-  enum Units {
+	enum Units
+	{
 		INCH,
 		MM
 	};
 
-  enum Mode {
+	enum Mode
+	{
 		INDEX,
 		SPINDLE,
 		CONTOUR
@@ -64,18 +67,26 @@ protected:
 	Type mType;
 	Units mUnits;
 
-  string mName;
-  
 public:
-  Axis(Adapter *anAdapter, std::string aName, Component *aParent = NULL);
+	Axis(Adapter *adapter, std::string name, Component *parent = nullptr) :
+		Component(adapter, name, parent),
+		mNumber(0),
+		mMode(INDEX),
+		mType(LINEAR),
+		mUnits(MM)
+	{
+	}
 
-  Mode getMode() const { return mMode; }
-  Type getType() const { return mType; }
-  Units getUnits() const { return mUnits; }
-  const std::string &getName() { return mName; }
+	Mode getMode() const {
+		return mMode; }
+	Type getType() const {
+		return mType; }
+	Units getUnits() const {
+		return mUnits; }
 
-  virtual bool gatherData(void *aArg) = 0;
+	virtual void gatherData(void *context) = 0;
 };
+
 
 class Linear : public Axis
 {
@@ -84,6 +95,13 @@ protected:
 	Sample mCommandedPosition;
 
 public:
-  Linear(Adapter *anAdapter, std::string aName, Component *aParent = NULL);
-};
+	Linear(Adapter *adapter, std::string name, Component *parent = nullptr) :
+		Axis(adapter, name, parent)
+	{
+		mType = LINEAR;
+	}
 
+	void gatherData(void *) override
+	{
+	}
+};
