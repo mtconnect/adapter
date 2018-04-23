@@ -31,6 +31,9 @@
 // SUCH PARTY HAD ADVANCE NOTICE OF THE POSSIBILITY OF SUCH DAMAGES.
 //
 #pragma once
+
+#include <vector>
+#include <chrono>
 #include "server.hpp"
 #include "string_buffer.hpp"
 #include "threading.hpp"
@@ -38,67 +41,63 @@
 class DeviceDatum;
 class CuttingTool;
 
-const int INITIAL_MAX_DEVICE_DATA = 128;
+constexpr size_t INITIAL_MAX_DEVICE_DATA = 128u;
 
-/*
- * Abstract adapter that manages all the data values and writing them
- * to the clients.
- *
- * Subclasses of this class will add the data values and interact with the
- * vendor specifc API. This class provides all the common functionality.
- */
+//
+// Abstract adapter that manages all the data values and writing them
+// to the clients.
+//
+// Subclasses of this class will add the data values and interact with the
+// vendor specifc API. This class provides all the common functionality.
+//
 class Adapter
 {
 protected:
-  Server *mServer;         /* The socket server */
-  StringBuffer mBuffer;    /* A string buffer to hold the string we
-			    * write to the streams */
-  int mMaxDatum;          /* The max number of device datums */
-  DeviceDatum **mDeviceData; /* A 0 terminated array of data value objects */
-  int mScanDelay;          /* How long to sleep (in ms) between scans */
-  int mNumDeviceData;     /* The number of data values */
-  int mPort;              /* The server port we bind to */
-  bool mDisableFlush;     /* Used for initial data collection */
-  int mHeartbeatFrequency; /* The frequency (ms) to heartbeat
-			    * server. Responds to Ping. Default 10 sec */
+	Server *mServer;           // The socket server
+	StringBuffer mBuffer;      // A string buffer to hold the string we write to the streams
+	std::vector<DeviceDatum *> mDeviceData;
+	std::chrono::milliseconds mScanDelay; // How long to sleep (in ms) between scans
+	int mPort;                 // The server port we bind to
+	bool mDisableFlush;        // Used for initial data collection
+	int mHeartbeatFrequency;   // The frequency (ms) to heartbeat server. Responds to Ping. Default 10 sec
 	bool mRunning;
-  Client *mInitializeClient; /* If we are sending initial data to a client */
+	Client *mInitializeClient; // If we are sending initial data to a client
 
 #ifdef THREADED
-#ifdef WIN32
+	#ifdef WIN32
 		HANDLE mServerThread;
-#else
+	#else
 		pthread_t mServerThread;
-#endif
+	#endif
 #endif
 	 MTCMutex mGatherLock;
 
 protected:
-  void sleepMs(int aMs);
+	void sleepMs(std::chrono::milliseconds ms);
 
-  /* Internal buffer sending methods */
+	// Internal buffer sending methods
 	void sendBuffer();
-  void sendDatum(DeviceDatum *aValue);
-  virtual void sendInitialData(Client *aClient);
+	void sendDatum(DeviceDatum *value);
+	virtual void sendInitialData(Client *client);
 	virtual void sendChangedData();
 	virtual void flush();
 	void timestamp() { mBuffer.timestamp(); }
 	virtual void unavailable();
 	virtual void initializeDeviceDatum();
 
-  virtual void addAsset(const char *aId, const char *aType, const char *aData);
-  virtual void updateAsset(const char *aId, const char *aData);
-  virtual void addAsset(CuttingTool *aTool);
-  virtual void updateAsset(CuttingTool *aTool);
+	virtual void addAsset(const char *id, const char *type, const char *data);
+	virtual void updateAsset(const char *id, const char *data);
+	virtual void addAsset(CuttingTool *tool);
+	virtual void updateAsset(CuttingTool *tool);
 
 public:
-  Adapter(int aPort, int aScanDelay = 100);
+	Adapter(int port, int scanDelayMs = 100);
 	~Adapter();
 
 	void readFromClients();
 	void connectToClients();
 
-  /* Start the server and never return */
+	// Start the server and never return
 #ifdef THREADED
 	bool startServerThread();
 	void serverThread();
@@ -109,47 +108,53 @@ public:
 #endif
 
 	void startServer();
-  void addDatum(DeviceDatum &aValue);
+	void addDatum(DeviceDatum &value);
 
-  /* Stop server */
+	// Stop server
 	virtual void stopServer();
 
-  /* Pure virtual method to get the data from the device. */
+	// Pure virtual method to get the data from the device.
 	virtual void gatherDeviceData() = 0;
 	virtual void begin();
 	virtual void prepare();
 	virtual void cleanup();
 
-  /* For multithreaded async gathering */
-  virtual void beginGather(const char *aTs = NULL, bool aSweep = true);
+	// For multithreaded async gathering
+	virtual void beginGather(const char *timestamp = nullptr, bool sweep = true);
 	virtual void completeGather();
 
-  /* Overload this method to handle situation when all clients disconnect */
+	// Overload this method to handle situation when all clients disconnect
 	virtual void clientsDisconnected();
 };
 
-class AutoGather {
+
+class AutoGather
+{
 public:
-  AutoGather(Adapter *anAdapter = NULL, const char *aTs = NULL, bool aSweep = true) 
-    : mAdapter(anAdapter) {
-    if (mAdapter != NULL)
-      mAdapter->beginGather(aTs, aSweep);
+	AutoGather(Adapter *adapter = nullptr, const char *timestamp = nullptr, bool sweep = true)
+		: mAdapter(adapter)
+	{
+		if (mAdapter)
+			mAdapter->beginGather(timestamp, sweep);
 	}
 
-  void begin(Adapter *anAdapter, const char *aTs = NULL, bool aSweep = true) {
-    mAdapter = anAdapter;
-    if (mAdapter != NULL)
-      mAdapter->beginGather(aTs, aSweep);
+	void begin(Adapter *adapter, const char *timestamp = nullptr, bool sweep = true)
+	{
+		mAdapter = adapter;
+		if (mAdapter)
+			mAdapter->beginGather(timestamp, sweep);
 	}
 
-  void complete() {
-    if (mAdapter != NULL)
+	void complete()
+	{
+		if (mAdapter)
 			mAdapter->completeGather();
-    mAdapter = NULL;
+		mAdapter = nullptr;
 	}
 
-  ~AutoGather() {
-    if (mAdapter != NULL)
+	~AutoGather()
+	{
+		if (mAdapter)
 			mAdapter->completeGather();
 	}
 

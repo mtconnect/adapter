@@ -32,96 +32,103 @@
 //
 #include "internal.hpp"
 #include "adapter.hpp"
+#include <thread>
+#include <chrono>
 #include "device_datum.hpp"
 #include "cutting_tool.hpp"
 #include "logger.hpp"
 
-Adapter::Adapter(int aPort, int aScanDelay)
- : mNumDeviceData(0), mInitializeClient(NULL)
+
+Adapter::Adapter(int port, int scanDelayMs) :
+	mServer(nullptr),
+	mScanDelay{scanDelayMs},
+	mPort(port),
+	mDisableFlush(false),
+	mHeartbeatFrequency(10000),
+	mRunning(false),
+	mInitializeClient(nullptr)
 {
-  mScanDelay = aScanDelay;
-  mServer = 0;
-  mPort = aPort;
-  mHeartbeatFrequency = 10000;
-  mMaxDatum = INITIAL_MAX_DEVICE_DATA;
-  mRunning = false;
-  mDeviceData = new DeviceDatum*[mMaxDatum];
+
 #ifdef THREADED
-  mServerThread = 0;
+	mServerThread = nullptr;
 #endif
+
+	mDeviceData.reserve(INITIAL_MAX_DEVICE_DATA);
 }
+
 
 Adapter::~Adapter()
 {
 	mRunning = false;
 	if (mServer)
+	{
 		delete mServer;
+		mServer = nullptr;
+	}
 
-  delete[] mDeviceData;
+	for(auto value : mDeviceData)
+		delete value;
+	mDeviceData.clear();
 }
 
-/* Add a data value to the list of data values */
-void Adapter::addDatum(DeviceDatum &aValue)
+
+// Add a data value to the list of data values
+void Adapter::addDatum(DeviceDatum &value)
 {
-  if (mNumDeviceData >= mMaxDatum - 1)
-  {
-    DeviceDatum** devData = new DeviceDatum*[mMaxDatum * 2];
-    memcpy(devData, mDeviceData, sizeof(DeviceDatum*) * mMaxDatum);
-    delete[] mDeviceData;
+	// If we are approaching our capacity then resize
+	if(mDeviceData.size() == mDeviceData.capacity())
+		mDeviceData.reserve(mDeviceData.capacity() * 2u);
 
-    mDeviceData = devData;
-    mMaxDatum *= 2;
-  }
-
-  mDeviceData[mNumDeviceData++] = &aValue;
-  mDeviceData[mNumDeviceData] = 0;
+	mDeviceData.push_back(&value);
 }
 
-void Adapter::sleepMs(int aMs)
-{
-#ifndef WIN32
-    usleep(aMs * 1000);
-#else
-    Sleep(aMs);
-#endif
 
+void Adapter::sleepMs(std::chrono::milliseconds ms)
+{
+	std::this_thread::sleep_for(ms);
 }
 
 #if THREADED
 
 #ifdef WIN32
 
-static int ServerThread(void *aArg)
+static int ServerThread(void *arg)
 {
-  Adapter *adapter = (Adapter*) aArg;
+	auto adapter = (Adapter*)arg;
 	adapter->serverThread();
 	return 0;
 }
 
 bool Adapter::startServerThread()
 {
-  if (gLogger == NULL) gLogger = new Logger();
+	if (!gLogger)
+		gLogger = new Logger();
 
 	mServer = new Server(mPort, mHeartbeatFrequency);
 	mRunning = true;
 
 	mServerThread = CreateThread(0, 0, (LPTHREAD_START_ROUTINE) &ServerThread, this, 0, 0);
-  if (mServerThread == NULL) {
+	if (!mServerThread)
+	{
 		fprintf(stderr, "Cannot create server thread");
-    delete mServer;
+		delete mServer; mServer = nullptr;
 		return false;
-  } else {
-    Sleep(10);
+	}
+	else
+	{
+		sleepMs(10ms);
 	}
 
 	return true;
 }
 
+
 int Adapter::waitUntilDone()
 {
 	int ret = 1;
-  if (mServerThread != 0) {
-    DWORD res = WaitForSingleObject(mServerThread, INFINITE);
+	if (mServerThread != 0)
+	{
+		auto res = WaitForSingleObject(mServerThread, INFINITE);
 		if (res == WAIT_OBJECT_0)
 		{
 			if (GetExitCodeThread(mServerThread, &res))
@@ -133,9 +140,9 @@ int Adapter::waitUntilDone()
 
 #else
 
-static void *ServerThread(void *aArg)
+static void *ServerThread(void *arg)
 {
-  Adapter *adapter = (Adapter*) aArg;
+	auto adapter = (Adapter*)arg;
 	adapter->serverThread();
 
 	static int res = 0;
@@ -145,40 +152,46 @@ static void *ServerThread(void *aArg)
 
 bool Adapter::startServerThread()
 {
-  if (gLogger == NULL) gLogger = new Logger();
+	if (!gLogger)
+		gLogger = new Logger();
 
 	mServer = new Server(mPort, mHeartbeatFrequency);
 	mRunning = true;
 
-  int res = pthread_create(&mServerThread, NULL, ::ServerThread, this);
-  if (res != 0) {
+	auto res = pthread_create(&mServerThread, nullptr, ::ServerThread, this);
+	if (res != 0)
+	{
 		fprintf(stderr, "Cannot create server thread");
-    delete mServer;
+		delete mServer; mServer = nullptr;
 		return false;
 	}
 
 	return true;
 }
 
+
 int Adapter::waitUntilDone()
 {
 	int ret = 1;
-  if (mServerThread != 0) {
-    int *value;
-    int res = pthread_join(mServerThread, (void**) &value);
-    if (res != 0) ret = *value;
+	if (mServerThread != 0)
+	{
+		int *value(nullptr);
+		auto res = pthread_join(mServerThread, (void**) &value);
+		if (res != 0)
+			ret = *value;
 	}
 	return ret;
 }
 
 #endif
 
-/* Poll every second for activity. We could do blocking but it complicates 
- * list management and locking. May refactor this when we have more time.
- */
+// Poll every second for activity. We could do blocking but it complicates
+// list management and locking. May refactor this when we have more time.
+//
 void Adapter::serverThread()
 {
-  while (mRunning) {
+	while (mRunning)
+	{
 		connectToClients();
 		readFromClients();
 
@@ -190,56 +203,59 @@ void Adapter::serverThread()
 
 #endif
 
-/*
- * Reads from clients, either blocking or polling.
- */
+
+//
+// Reads from clients, either blocking or polling.
+//
 void Adapter::readFromClients()
 {
 	mServer->readFromClients();
 }
 
-/*
- * Checks for new client connections, either blocking or polling.
- */
 
+//
+// Checks for new client connections, either blocking or polling.
+//
 void Adapter::connectToClients()
 {
-  /* Check if we have any new clients */
-  Client *client = mServer->connectToClients();
-  if (client != NULL)
+	// Check if we have any new clients
+	auto client = mServer->connectToClients();
+	if (client)
 		sendInitialData(client);
 }
 
-/*  
- * This is the main loop of the application. Once the server is started and 
- * the application runs forever until it is killed. The process follows this flow:
- *    See if any new clients have arrived.
- *      If new clients are present, sent the initial values to them.
- *    Read from the clients any data that is currently in the socket to keep anyone from
- *      blocking.
- *    If we have at least one client:
- *      Timestamp the buffer
- *      gather data from the API
- *      send the data values that have changed to the clients
- *    Sleep for a few millies and repeat.
- */
+
+//
+// This is the main loop of the application. Once the server is started and
+// the application runs forever until it is killed. The process follows this flow:
+//    See if any new clients have arrived.
+//      If new clients are present, sent the initial values to them.
+//    Read from the clients any data that is currently in the socket to keep anyone from
+//      blocking.
+//    If we have at least one client:
+//      Timestamp the buffer
+//      gather data from the API
+//      send the data values that have changed to the clients
+//    Sleep for a few millies and repeat.
+//
 void Adapter::startServer()
 {
-  if (gLogger == NULL) gLogger = new Logger();
+	if (!gLogger)
+		gLogger = new Logger();
 
 	mServer = new Server(mPort, mHeartbeatFrequency);
 	mRunning = true;
 
-  /* Process untill stopped */
+	// Process untill stopped
 	while (mRunning)
 	{
-    /* Check if we have any new clients */
+		// Check if we have any new clients
 		connectToClients();
 
-    /* Read and all data from the clients */
+		// Read and all data from the clients
 		readFromClients();
 
-    /* Don't bother getting data if we don't have anyone to read it */
+		// Don't bother getting data if we don't have anyone to read it
 		if (mServer->numClients() > 0)
 		{
 			MTCAutoLock lock(mGatherLock);
@@ -253,56 +269,51 @@ void Adapter::startServer()
 			cleanup();
 		}
 		else if (mServer->hasClients())
-    {
 			clientsDisconnected();
-    }
 
 		sleepMs(mScanDelay);
 	}
 
 	delete mServer;
-  mServer = NULL;
+	mServer = nullptr;
 }
+
 
 void Adapter::begin()
 {
-  for (int i = 0; i < mNumDeviceData; i++)
-  {
-    DeviceDatum *value = mDeviceData[i];
+	for(auto value : mDeviceData)
 		value->begin();
-  }
 }
+
 
 void Adapter::prepare()
 {
-  for (int i = 0; i < mNumDeviceData; i++)
-  {
-    DeviceDatum *value = mDeviceData[i];
+	for(auto value : mDeviceData)
 		value->prepare();
-  }
 }
+
 
 void Adapter::cleanup()
 {
-  for (int i = 0; i < mNumDeviceData; i++)
-  {
-    DeviceDatum *value = mDeviceData[i];
+	for(auto value : mDeviceData)
 		value->cleanup();
-  }
 }
 
-void Adapter::beginGather(const char *aTs, bool aSweep)
+
+void Adapter::beginGather(const char *timestamp, bool sweep)
 {
 	mGatherLock.lock();
 
-  if (aSweep) begin();
+	if (sweep)
+		begin();
 
 	mBuffer.reset();
-  if (aTs != NULL)
-    mBuffer.setTimestamp(aTs);
+	if (timestamp)
+		mBuffer.setTimestamp(timestamp);
 	else
 		mBuffer.timestamp();
 }
+
 
 void Adapter::completeGather()
 {
@@ -313,28 +324,31 @@ void Adapter::completeGather()
 	mGatherLock.unlock();
 }
 
+
 void Adapter::stopServer()
 {
 	mRunning = false;
 }
 
-/* Send a single value to the buffer. */
-void Adapter::sendDatum(DeviceDatum *aValue)
+
+// Send a single value to the buffer.
+void Adapter::sendDatum(DeviceDatum *value)
 {
-  if (aValue->requiresFlush())
+	if (value->requiresFlush())
 		sendBuffer();
-  aValue->append(mBuffer);
-  if (aValue->requiresFlush())
+	value->append(mBuffer);
+	if (value->requiresFlush())
 		sendBuffer();
 }
 
-/* Send the buffer to the clients. Only sends if there is something in the buffer. */
+
+// Send the buffer to the clients. Only sends if there is something in the buffer.
 void Adapter::sendBuffer()
 {
-  if (mServer != 0 && mBuffer.length() > 0)
+	if (mServer && mBuffer.length())
 	{
 		mBuffer.append("\n");
-    if (mInitializeClient != NULL)
+		if (mInitializeClient)
 			mServer->sendToClient(mInitializeClient, mBuffer);
 		else
 			mServer->sendToClients(mBuffer);
@@ -342,114 +356,120 @@ void Adapter::sendBuffer()
 	}
 }
 
-/* Send the initial values to a client */
-void Adapter::sendInitialData(Client *aClient)
+
+// Send the initial values to a client
+void Adapter::sendInitialData(Client *client)
 {
 	MTCAutoLock lock(mGatherLock);
 
-  mInitializeClient = aClient;
+	mInitializeClient = client;
 	mDisableFlush = true;
 	mBuffer.timestamp();
 	gatherDeviceData();
 
-  for (int i = 0; i < mNumDeviceData; i++)
+	for(auto value : mDeviceData)
 	{
-    DeviceDatum *value = mDeviceData[i];
-    if (value->hasInitialValue())
+		if(value->hasInitialValue())
 			sendDatum(value);
 	}
+
 	sendBuffer();
 
 	mDisableFlush = false;
-  mInitializeClient = NULL;
+	mInitializeClient = nullptr;
 }
 
-/* Send the values that have changed to the clients */
+
+// Send the values that have changed to the clients
 void Adapter::sendChangedData()
 {
-  for (int i = 0; i < mNumDeviceData; i++)
+	for(auto value : mDeviceData)
 	{
-    DeviceDatum *value = mDeviceData[i];
-    if (value->changed())
+		if(value->changed())
 			sendDatum(value);
 	}
+
 	sendBuffer();
 }
 
+
 void Adapter::flush()
 {
-  if (!mDisableFlush)
-  {
+	if (mDisableFlush)
+		return;
+
 	sendChangedData();
 	mBuffer.reset();
 	mBuffer.timestamp();
-  }
 }
+
 
 void Adapter::clientsDisconnected()
 {
-  /* Do nothing for now ... */
+	// Do nothing for now ...
 	gLogger->info("All clients have disconnected");
 }
 
+
 void Adapter::unavailable()
 {
-  for (int i = 0; i < mNumDeviceData; i++)
-  {
-    DeviceDatum *value = mDeviceData[i];
+	for(auto value : mDeviceData)
 		value->unavailable();
-  }
+
 	flush();
 }
+
 
 void Adapter::initializeDeviceDatum()
 {
-  for (int i = 0; i < mNumDeviceData; i++)
-  {
-    DeviceDatum *value = mDeviceData[i];
+	for(auto value : mDeviceData)
 		value->initialize();
-  }
+
 	flush();
 }
 
-void Adapter::addAsset(const char *aId, const char *aType, const char *aData)
+
+void Adapter::addAsset(const char *id, const char *type, const char *data)
 {
 	sendBuffer();
 	mBuffer.timestamp();
 
 	mBuffer.append("|@ASSET@|");
-  mBuffer.append(aId);
+	mBuffer.append(id);
 	mBuffer.append("|");
-  mBuffer.append(aType);
+	mBuffer.append(type);
 	mBuffer.append("|--multiline--ABCD\n");
-  mBuffer.append(aData);
+	mBuffer.append(data);
 	mBuffer.append("\n--multiline--ABCD");
 
 	sendBuffer();
 	mBuffer.timestamp();
 }
 
-void Adapter::updateAsset(const char *aId, const char *aData)
+
+void Adapter::updateAsset(const char *id, const char *data)
 {
 	sendBuffer();
 	mBuffer.timestamp();
 
 	mBuffer.append("|@UPDATE_ASSET@|");
-  mBuffer.append(aId);
+	mBuffer.append(id);
 	mBuffer.append("|");
-  mBuffer.append(aData);  
+	mBuffer.append(data);
 
 	sendBuffer();
 	mBuffer.timestamp();
 }
 
-void Adapter::addAsset(CuttingTool *aTool)
+
+void Adapter::addAsset(CuttingTool *tool)
 {
-  addAsset(aTool->getAssetId().c_str(), "CuttingTool", aTool->toString().c_str());
+	addAsset(tool->getAssetId().c_str(), "CuttingTool", tool->toString().c_str());
 }
 
-void Adapter::updateAsset(CuttingTool *aTool)
+
+void Adapter::updateAsset(CuttingTool *tool)
 {
-  updateAsset(aTool->getAssetId().c_str(), aTool->toString().c_str());  
+	updateAsset(tool->getAssetId().c_str(), tool->toString().c_str());
 }
 
