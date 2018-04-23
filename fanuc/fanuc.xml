@@ -7,6 +7,10 @@
                         </Description>
       <DataItems>
         <DataItem category="EVENT" id="avail_01" name="avail" type="AVAILABILITY"/>
+        <DataItem type="VARIABLE" category="EVENT" id="macro500" name="Macro500" />
+        <DataItem type="VARIABLE" category="EVENT" id="macro501" name="Macro501" />
+        <DataItem type="VARIABLE" category="EVENT" id="macro502" name="Macro502" />
+        <DataItem type="VARIABLE" category="EVENT" id="macroPos" name="MacroPos" />
       </DataItems>
       <Components>
         <Linear id="x1_01" name="X">
