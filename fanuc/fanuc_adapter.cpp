@@ -422,7 +422,7 @@ void FanucAdapter::getMacros()
 			}
 			else
 			{
-				mMacroSample[i]->unavailable();
+				mMacroPath[i]->unavailable();
 			}
 		}
 	}
