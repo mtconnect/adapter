@@ -1,4 +1,35 @@
-
+//
+// Copyright (c) 2008, AMT - The Association For Manufacturing Technology ("AMT")
+// All rights reserved.
+//
+// Redistribution and use in source and binary forms, with or without
+// modification, are permitted provided that the following conditions are met:
+//     * Redistributions of source code must retain the above copyright
+//       notice, this list of conditions and the following disclaimer.
+//     * Redistributions in binary form must reproduce the above copyright
+//       notice, this list of conditions and the following disclaimer in the
+//       documentation and/or other materials provided with the distribution.
+//     * Neither the name of the AMT nor the
+//       names of its contributors may be used to endorse or promote products
+//       derived from this software without specific prior written permission.
+//
+// DISCLAIMER OF WARRANTY. ALL MTCONNECT MATERIALS AND SPECIFICATIONS PROVIDED
+// BY AMT, MTCONNECT OR ANY PARTICIPANT TO YOU OR ANY PARTY ARE PROVIDED "AS IS"
+// AND WITHOUT ANY WARRANTY OF ANY KIND. AMT, MTCONNECT, AND EACH OF THEIR
+// RESPECTIVE MEMBERS, OFFICERS, DIRECTORS, AFFILIATES, SPONSORS, AND AGENTS
+// (COLLECTIVELY, THE "AMT PARTIES") AND PARTICIPANTS MAKE NO REPRESENTATION OR
+// WARRANTY OF ANY KIND WHATSOEVER RELATING TO THESE MATERIALS, INCLUDING, WITHOUT
+// LIMITATION, ANY EXPRESS OR IMPLIED WARRANTY OF NONINFRINGEMENT,
+// MERCHANTABILITY, OR FITNESS FOR A PARTICULAR PURPOSE.
+//
+// LIMITATION OF LIABILITY. IN NO EVENT SHALL AMT, MTCONNECT, ANY OTHER AMT
+// PARTY, OR ANY PARTICIPANT BE LIABLE FOR THE COST OF PROCURING SUBSTITUTE GOODS
+// OR SERVICES, LOST PROFITS, LOSS OF USE, LOSS OF DATA OR ANY INCIDENTAL,
+// CONSEQUENTIAL, INDIRECT, SPECIAL OR PUNITIVE DAMAGES OR OTHER DIRECT DAMAGES,
+// WHETHER UNDER CONTRACT, TORT, WARRANTY OR OTHERWISE, ARISING IN ANY WAY OUT OF
+// THIS AGREEMENT, USE OR INABILITY TO USE MTCONNECT MATERIALS, WHETHER OR NOT
+// SUCH PARTY HAD ADVANCE NOTICE OF THE POSSIBILITY OF SUCH DAMAGES.
+//
 #include "internal.hpp"
 #include "condition.hpp"
 #include "string_buffer.hpp"
@@ -11,13 +42,13 @@ Condition::Condition(const char *aName, bool aSimple) :
   mActiveSize = mInitialActiveListSize;
   mActiveCount = 0;
   mActiveList = new ActiveCondition*[mActiveSize];
-  mHasValue = true;
-  unavailable();
+	mHasValue = true;
+	unavailable();
 }
 
 Condition::~Condition()
 {
-  removeAll();
+	removeAll();
   delete[] mActiveList;
 }
 
@@ -30,12 +61,12 @@ void Condition::removeAll()
 
 bool Condition::requiresFlush()
 {
-  return true;
+	return true;
 }
 
 bool Condition::unavailable()
 {
-  return add(eUNAVAILABLE);
+	return add(eUNAVAILABLE);
 }
 
 char *Condition::toString(char *aBuffer, int aMaxLen)
@@ -49,21 +80,21 @@ void Condition::begin()
     for (int i = 0; i < mActiveCount; i++) {
       mActiveList[i]->clear();
     }
-  }
-  mPrepared = false;
-  mBegun = true;
-  mChanged = false;
+	}
+	mPrepared = false;
+	mBegun = true;
+	mChanged = false;
 }
 
 void Condition::cleanup()
 {
-  mBegun = false;
-  mPrepared = false;
+	mBegun = false;
+	mPrepared = false;
 }
 
 void Condition::initialize()
 {
-  normal();
+	normal();
 }
 
 void Condition::append(StringBuffer &aStringBuffer, char *aBuffer,
@@ -71,11 +102,11 @@ void Condition::append(StringBuffer &aStringBuffer, char *aBuffer,
 {
   if (!aFirst)
     aStringBuffer.newline();
-  else
+	else
     aFirst = false;
 
   char *cp = aBuffer + strlen(aBuffer);
-      
+
   aCond->toString(cp, aMaxLen);
   appendText(aBuffer, (char*) aCond->getText(), aMaxLen);
   aStringBuffer.append(aBuffer);
@@ -85,74 +116,74 @@ void Condition::prepare()
 {
   if (mBegun)
   {
-    bool marked = false;
+	bool marked = false;
 
-    // Check to see if we have no marked conditions
+	// Check to see if we have no marked conditions
     for (int i = 0; !marked && i < mActiveCount; i++)
-    {
+		{
       if (mActiveList[i]->isPlaceHolder() || mActiveList[i]->isMarked())
-        marked = true;
-    }
+			marked = true;
+	}
 
-    if (!marked)
-      normal();
-  
-    // Sweep old conditions
+	if (!marked)
+		normal();
+
+	// Sweep old conditions
     for (int i = mActiveCount - 1; i >= 0; i--)
     {
       ActiveCondition *cond = mActiveList[i];
       if (!cond->isPlaceHolder() && !cond->isMarked())
-      {
+	{
         cond->setValue(eNORMAL, "", cond->getNativeCode());
       }
-    
+
       if (cond->hasChanged()) {
-        mChanged = true;
-      }
+			mChanged = true;
+	}
     }
-    mPrepared = true;
+	mPrepared = true;
   }
 }
 
 bool Condition::append(StringBuffer &aBuffer)
 {
-  if (!mBegun) 
-  {
+	if (!mBegun)
+	{
     char buffer[1024];
-    bool first = true;
-    buffer[0] = '|';
-    strcpy(buffer + 1, mName);
+		bool first = true;
+		buffer[0] = '|';
+		strcpy(buffer + 1, mName);
     char *cp = buffer + strlen(buffer);
     int max = 1024 - strlen(buffer);
     for (int i = 0; i < mActiveCount; i++)
-    {
-      *cp = '\0';
+		{
+			*cp = '\0';
       append(aBuffer, buffer, mActiveList[i], first, max);
-    }
+		}
   } else if (mBegun && mPrepared) {
     char buffer[1024];
-    bool first = true;
-    buffer[0] = '|';
-    strcpy(buffer + 1, mName);
+		bool first = true;
+		buffer[0] = '|';
+		strcpy(buffer + 1, mName);
     char *cp = buffer + strlen(buffer);
     int max = 1024 - strlen(buffer);
-  
-    // Sweep old conditions
+		
+		// Sweep old conditions
     for (int i = mActiveCount - 1; i >= 0; i--)
-    {
+			{
       ActiveCondition *cond = mActiveList[i];
       if (cond->hasChanged()) {
-        *cp = '\0';
+				*cp = '\0';
         append(aBuffer, buffer, cond, first, max);
-      }
-      
+		}
+
       // Remove stale conditions since they have now been generated.
       if (!cond->isPlaceHolder() && !cond->isMarked())
         removeAt(i);
-    }
-  }
-  
-  return mChanged;
+			}
+	}
+
+	return mChanged;
 }
 
 bool Condition::isActive(const char *aNativeCode)
@@ -170,74 +201,74 @@ bool Condition::add(ELevels aLevel, const char *aText, const char *aCode,
 {
   ActiveCondition *cond = NULL;
   bool res;
-  // First check for a unassociated normal or a unavailable.
+	// First check for a unassociated normal or a unavailable.
   if ((aLevel == eNORMAL || aLevel == eUNAVAILABLE) &&
       aCode[0] == '\0')
-  {
-    // See if we are already in this state.
+	{
+		// See if we are already in this state.
     if (mActiveCount == 1 && mActiveList[0]->getNativeCode()[0] == '\0' &&
         mActiveList[0]->getLevel() == aLevel)
-    {
-      mActiveList[0]->mark();
-      res = false;
-    }
-    else
-    {
-      // Clear all existing conditions and add one with this state.
-      removeAll();
+		{
+			mActiveList[0]->mark();
+			res = false;
+		}
+		else
+		{
+			// Clear all existing conditions and add one with this state.
+			removeAll();
       cond = new ActiveCondition(aLevel);
       add(cond);
-      res = mChanged = true;
-    }
-  }
-  else
-  {
+			res = mChanged = true;
+		}
+	}
+	else
+	{
     if (mActiveCount == 1 &&
-        (mActiveList[0]->getLevel() == eNORMAL ||
-         mActiveList[0]->getLevel() == eUNAVAILABLE)) 
-    {
-      removeAll();
-    }
-    
-    // We have a code specific condition or a ab-normal
+			(mActiveList[0]->getLevel() == eNORMAL ||
+			 mActiveList[0]->getLevel() == eUNAVAILABLE))
+		{
+			removeAll();
+		}
+
+		// We have a code specific condition or a ab-normal
     int i;
     for (i = 0; i < mActiveCount; i++)
       if (strcmp(aCode, mActiveList[i]->getNativeCode()) == 0)
         break;
-    
+
     if (i < mActiveCount)
-    {
+		{
       res = mChanged = mActiveList[i]->setValue(aLevel, aText, aCode, aQualifier, aSeverity);
       mActiveList[i]->mark();
-    }
-    else
-    {
-      // New condition
+		}
+		else
+		{
+			// New condition
       cond = new ActiveCondition(aLevel, aText, aCode, aQualifier, aSeverity);
       add(cond);
-      res = mChanged = true;
-    }
-  }
-  
-  return res;
+			res = mChanged = true;
+		}
+	}
+
+	return res;
 }
 
 void Condition::remove(const char *aCode)
 {
-  // We have a code specific condition or a ab-normal
+	// We have a code specific condition or a ab-normal
   int i;
   for (i = 0; i < mActiveCount; i++) {
     if (strcmp(aCode, mActiveList[i]->getNativeCode()) == 0) {
       if (mActiveCount == 1)
-        normal();
+			normal();
       else {
         mActiveList[i]->setValue(eNORMAL, "", aCode);
         mActiveList[i]->clear();
       }
       mChanged = true;
       break;      
-    }
-  }
+		}
+	}
 }
 
 
@@ -251,7 +282,7 @@ void Condition::add(ActiveCondition *aCond)
     mActiveList = newList;
     mActiveSize *= 2;
   }
-  
+
   mActiveList[mActiveCount++] = aCond;
 }
 
@@ -264,7 +295,7 @@ bool Condition::removeAt(int i)
   mActiveCount--;
   memmove(mActiveList + i, mActiveList + i + 1,
           sizeof(ActiveCondition*) * (mActiveCount - i));
-  
+
   return true;
 }
 
@@ -278,11 +309,11 @@ char *Condition::ActiveCondition::toString(char *aBuffer, int aMaxLen)
   case eWARNING: text = "WARNING"; break;
   case eFAULT: text = "FAULT"; break;
   default: text = ""; break;
-  }
+	}
   snprintf(aBuffer, aMaxLen, "|%s|%s|%s|%s|", text, mNativeCode, mNativeSeverity,
                 mQualifier);
 
-  mChanged = false;
+	mChanged = false;
   return aBuffer;
 }
 
@@ -290,31 +321,31 @@ bool Condition::ActiveCondition::setValue(ELevels aLevel, const char *aText, con
                           const char *aQualifier, const char *aSeverity)
 {
   if ((aLevel == eNORMAL || aLevel == eUNAVAILABLE) && aCode[0] == '\0')
-    mPlaceHolder = true;
-  
+		mPlaceHolder = true;
+
   if (mLevel != aLevel ||
       strncmp(aCode, mNativeCode, EVENT_VALUE_LEN) != 0 ||
       strncmp(aQualifier, mQualifier, EVENT_VALUE_LEN) != 0 ||
       strncmp(aSeverity, mNativeSeverity, EVENT_VALUE_LEN) != 0 ||
       strncmp(aText, mText, EVENT_VALUE_LEN) != 0)
-  {
+	{
     mLevel = aLevel;
-    
+
     strncpy(mNativeCode, aCode, EVENT_VALUE_LEN);
-    mNativeCode[EVENT_VALUE_LEN - 1] = '\0';
-    
+		mNativeCode[EVENT_VALUE_LEN - 1] = '\0';
+
     strncpy(mQualifier, aQualifier, EVENT_VALUE_LEN);
-    mQualifier[EVENT_VALUE_LEN - 1] = '\0';
+		mQualifier[EVENT_VALUE_LEN - 1] = '\0';
 
     strncpy(mNativeSeverity, aSeverity, EVENT_VALUE_LEN);
-    mNativeSeverity[EVENT_VALUE_LEN - 1] = '\0';
+		mNativeSeverity[EVENT_VALUE_LEN - 1] = '\0';
 
     strncpy(mText, aText, EVENT_VALUE_LEN);
-    mText[EVENT_VALUE_LEN - 1] = '\0';
-    
-    mChanged = true;
-  }
-  
-  return mChanged;
+		mText[EVENT_VALUE_LEN - 1] = '\0';
+
+		mChanged = true;
+	}
+
+	return mChanged;
 }
 
