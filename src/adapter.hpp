@@ -34,6 +34,7 @@
 
 #include <vector>
 #include <chrono>
+#include <memory>
 #include "server.hpp"
 #include "string_buffer.hpp"
 #include "threading.hpp"
@@ -53,15 +54,15 @@ constexpr size_t INITIAL_MAX_DEVICE_DATA = 128u;
 class Adapter
 {
 protected:
-	Server *mServer;           // The socket server
-	StringBuffer mBuffer;      // A string buffer to hold the string we write to the streams
+	std::unique_ptr<Server> mServer;		// The socket server
+	StringBuffer mBuffer;					// A string buffer to hold the string we write to the streams
 	std::vector<DeviceDatum *> mDeviceData;
-	std::chrono::milliseconds mScanDelay; // How long to sleep (in ms) between scans
-	int mPort;                 // The server port we bind to
-	bool mDisableFlush;        // Used for initial data collection
-	int mHeartbeatFrequency;   // The frequency (ms) to heartbeat server. Responds to Ping. Default 10 sec
+	std::chrono::milliseconds mScanDelay;	// How long to sleep (in ms) between scans
+	int mPort;								// The server port we bind to
+	bool mDisableFlush;						// Used for initial data collection
+	int mHeartbeatFrequency;				// The frequency (ms) to heartbeat server. Responds to Ping. Default 10 sec
 	bool mRunning;
-	Client *mInitializeClient; // If we are sending initial data to a client
+	Client *mInitializeClient;				// If we are sending initial data to a client
 
 #ifdef THREADED
 	#ifdef WIN32

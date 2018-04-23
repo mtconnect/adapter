@@ -60,11 +60,7 @@ Adapter::Adapter(int port, int scanDelayMs) :
 Adapter::~Adapter()
 {
 	mRunning = false;
-	if (mServer)
-	{
-		delete mServer;
-		mServer = nullptr;
-	}
+	mServer.reset();
 
 	for(auto value : mDeviceData)
 		delete value;
@@ -104,14 +100,14 @@ bool Adapter::startServerThread()
 	if (!gLogger)
 		gLogger = new Logger();
 
-	mServer = new Server(mPort, mHeartbeatFrequency);
+	mServer = std::make_unique<Server>(mPort, mHeartbeatFrequency);
 	mRunning = true;
 
 	mServerThread = CreateThread(0, 0, (LPTHREAD_START_ROUTINE) &ServerThread, this, 0, 0);
 	if (!mServerThread)
 	{
 		fprintf(stderr, "Cannot create server thread");
-		delete mServer; mServer = nullptr;
+		mServer.reset();
 		return false;
 	}
 	else
@@ -155,14 +151,14 @@ bool Adapter::startServerThread()
 	if (!gLogger)
 		gLogger = new Logger();
 
-	mServer = new Server(mPort, mHeartbeatFrequency);
+	mServer = std::make_unique<Server>(mPort, mHeartbeatFrequency);
 	mRunning = true;
 
 	auto res = pthread_create(&mServerThread, nullptr, ::ServerThread, this);
 	if (res != 0)
 	{
 		fprintf(stderr, "Cannot create server thread");
-		delete mServer; mServer = nullptr;
+		mServer.reset();
 		return false;
 	}
 
@@ -243,7 +239,7 @@ void Adapter::startServer()
 	if (!gLogger)
 		gLogger = new Logger();
 
-	mServer = new Server(mPort, mHeartbeatFrequency);
+	mServer = std::make_unique<Server>(mPort, mHeartbeatFrequency);
 	mRunning = true;
 
 	// Process untill stopped
@@ -274,8 +270,7 @@ void Adapter::startServer()
 		sleepMs(mScanDelay);
 	}
 
-	delete mServer;
-	mServer = nullptr;
+	mServer.reset();
 }
 
 
