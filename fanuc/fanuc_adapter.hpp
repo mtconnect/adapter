@@ -1,6 +1,3 @@
- 
-#ifndef FANUC_ADAPTER_HPP
-#define FANUC_ADAPTER_HPP
 
 #include "adapter.hpp"
 #include "condition.hpp"
@@ -23,6 +20,7 @@
 //    See the License for the specific language governing permissions and
 //    limitations under the License.
 //
+#pragma once
 #include <vector>
 
 #define MAX_MACROS 32
@@ -122,5 +120,3 @@ public:
 
   virtual void gatherDeviceData();
 };
-
-#endif

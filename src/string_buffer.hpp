@@ -30,9 +30,8 @@
 // THIS AGREEMENT, USE OR INABILITY TO USE MTCONNECT MATERIALS, WHETHER OR NOT
 // SUCH PARTY HAD ADVANCE NOTICE OF THE POSSIBILITY OF SUCH DAMAGES.
 //
+#pragma once
 
-#ifndef STRING_BUFFER_HPP
-#define STRING_BUFFER_HPP
 
 /*
  * A simple extensible string that can be appended to. The memory will be reused
@@ -62,5 +61,3 @@ public:
   size_t  length() { return mLength; }
 	void newline();
 };
-
-#endif

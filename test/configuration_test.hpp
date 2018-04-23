@@ -1,6 +1,3 @@
-
-#ifndef CONFIGURATION_TEST_HPP
-#define CONFIGURATION_TEST_HPP
 //
 // Copyright (c) 2008, AMT - The Association For Manufacturing Technology ("AMT")
 // All rights reserved.
@@ -33,6 +30,7 @@
 // THIS AGREEMENT, USE OR INABILITY TO USE MTCONNECT MATERIALS, WHETHER OR NOT
 // SUCH PARTY HAD ADVANCE NOTICE OF THE POSSIBILITY OF SUCH DAMAGES.
 //
+#pragma once
 
 #include <cppunit/TestFixture.h>
 #include <cppunit/extensions/HelperMacros.h>
@@ -52,6 +50,4 @@ public:
 	void setUp();
 	void tearDown();
 };
-
-#endif
 

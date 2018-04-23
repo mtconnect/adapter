@@ -1,5 +1,3 @@
-#ifndef MTC_INTERNAL_HPP
-#define MTC_INTERNAL_HPP
 //
 // Copyright (c) 2008, AMT - The Association For Manufacturing Technology ("AMT")
 // All rights reserved.
@@ -32,6 +30,7 @@
 // THIS AGREEMENT, USE OR INABILITY TO USE MTCONNECT MATERIALS, WHETHER OR NOT
 // SUCH PARTY HAD ADVANCE NOTICE OF THE POSSIBILITY OF SUCH DAMAGES.
 //
+#pragma once
 
 #ifdef WIN32
 #define _CRT_SECURE_NO_DEPRECATE 1
@@ -91,5 +90,3 @@ typedef struct sockaddr SOCKADDR;
 #include <string.h>
 #include <signal.h>
 #include <math.h>
-
-#endif

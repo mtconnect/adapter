@@ -30,10 +30,8 @@
 // THIS AGREEMENT, USE OR INABILITY TO USE MTCONNECT MATERIALS, WHETHER OR NOT
 // SUCH PARTY HAD ADVANCE NOTICE OF THE POSSIBILITY OF SUCH DAMAGES.
 //
+#pragma once
 
-
-#ifndef STRING_ARRAY_HPP
-#define STRING_ARRAY_HPP
 
 /*
  * A string array that atomaticially resizes when the size is
@@ -73,8 +71,3 @@ inline const char *StringArray::stringAt(int index)
 	else
     return 0;
 }
-
-#endif
-  
-  
-  

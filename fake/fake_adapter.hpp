@@ -30,6 +30,7 @@
 // THIS AGREEMENT, USE OR INABILITY TO USE MTCONNECT MATERIALS, WHETHER OR NOT
 // SUCH PARTY HAD ADVANCE NOTICE OF THE POSSIBILITY OF SUCH DAMAGES.
 //
+#pragma once
 
 #include "adapter.hpp"
 #include "device_datum.hpp"
@@ -56,6 +57,4 @@ public:
   virtual void stop();
   virtual void gatherDeviceData();
 };
-
-#endif
 

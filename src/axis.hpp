@@ -1,6 +1,3 @@
-
-#ifndef AXIS_HPP
-#define AXIS_HPP
 //
 // Copyright (c) 2008, AMT - The Association For Manufacturing Technology ("AMT")
 // All rights reserved.
@@ -33,6 +30,7 @@
 // THIS AGREEMENT, USE OR INABILITY TO USE MTCONNECT MATERIALS, WHETHER OR NOT
 // SUCH PARTY HAD ADVANCE NOTICE OF THE POSSIBILITY OF SUCH DAMAGES.
 //
+#pragma once
 
 #include "component.hpp"
 #include "device_datum.hpp"
@@ -89,4 +87,3 @@ public:
   Linear(Adapter *anAdapter, std::string aName, Component *aParent = NULL);
 };
 
-#endif // AXIS_HPP

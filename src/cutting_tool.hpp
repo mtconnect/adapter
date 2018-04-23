@@ -1,7 +1,3 @@
-
-#ifndef CUTTING_TOOL_HPP
-#define CUTTING_TOOL_HPP
-
 //
 // Copyright (c) 2008, AMT - The Association For Manufacturing Technology ("AMT")
 // All rights reserved.
@@ -34,6 +30,7 @@
 // THIS AGREEMENT, USE OR INABILITY TO USE MTCONNECT MATERIALS, WHETHER OR NOT
 // SUCH PARTY HAD ADVANCE NOTICE OF THE POSSIBILITY OF SUCH DAMAGES.
 //
+#pragma once
 #include <string>
 #include <map>
 #include <vector>
@@ -120,5 +117,3 @@ protected:
 	int mToolNumber;
 	std::string mDescription;
 };
-
-#endif

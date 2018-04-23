@@ -1,7 +1,4 @@
 
-#ifndef DEVICE_DATUM_HPP
-#define DEVICE_DATUM_HPP
-
 /* Forward class definitions */
 //
 // Copyright (c) 2008, AMT - The Association For Manufacturing Technology ("AMT")
@@ -35,6 +32,7 @@
 // THIS AGREEMENT, USE OR INABILITY TO USE MTCONNECT MATERIALS, WHETHER OR NOT
 // SUCH PARTY HAD ADVANCE NOTICE OF THE POSSIBILITY OF SUCH DAMAGES.
 //
+#pragma once
 class StringBuffer;
 
 /* Some constants for field lengths */
@@ -407,4 +405,3 @@ public:
   virtual bool unavailable();  
 };
 
-#endif

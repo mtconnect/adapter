@@ -30,10 +30,9 @@
 // THIS AGREEMENT, USE OR INABILITY TO USE MTCONNECT MATERIALS, WHETHER OR NOT
 // SUCH PARTY HAD ADVANCE NOTICE OF THE POSSIBILITY OF SUCH DAMAGES.
 //
+#pragma once
 
 
-#ifndef CLIENT_HPP
-#define CLIENT_HPP
 
 #include "threading.hpp"
 /*
@@ -61,4 +60,3 @@ public:
   SOCKET socket() { return mSocket; }
 };
 
-#endif
