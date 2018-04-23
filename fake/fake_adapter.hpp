@@ -50,9 +50,9 @@ public:
 	FakeAdapter(int port);
 	~FakeAdapter();
   
-  virtual void initialize(int aArgc, const char *aArgv[]);
-  virtual void start();
-  virtual void stop();
-  virtual void gatherDeviceData();
+	void initialize(int argc, const char *argv[]) final;
+	void start() final;
+	void stop() final;
+	void gatherDeviceData() final;
 };
 
