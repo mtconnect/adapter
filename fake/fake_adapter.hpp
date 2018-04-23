@@ -40,16 +40,14 @@
 class FakeAdapter : public Adapter, public MTConnectService
 {
 protected:
-  /* Define all the data values here */
-  
-  /* Events */
+	// Events
 	Availability mAvailability; 
 	Condition mSystem; 
 	Sample mPos;
 	Execution mExecution;
 
 public:
-  FakeAdapter(int aPort);
+	FakeAdapter(int port);
 	~FakeAdapter();
   
   virtual void initialize(int aArgc, const char *aArgv[]);

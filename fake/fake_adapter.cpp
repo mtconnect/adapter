@@ -34,9 +34,11 @@
 #include "internal.hpp"
 #include "fake_adapter.hpp"
 
-FakeAdapter::FakeAdapter(int aPort)
-  : Adapter(aPort, 1000), 
-    mAvailability("avail"), mSystem("system"), mPos("pos"),
+FakeAdapter::FakeAdapter(int aPort) :
+	Adapter(aPort, 1000),
+	mAvailability("avail"),
+	mSystem("system"),
+	mPos("pos"),
 	mExecution("exec")
 {
 	addDatum(mAvailability);
@@ -45,27 +47,32 @@ FakeAdapter::FakeAdapter(int aPort)
 	addDatum(mExecution);
 }
 
+
 FakeAdapter::~FakeAdapter()
 {
 }
 
-void FakeAdapter::initialize(int aArgc, const char *aArgv[])
+
+void FakeAdapter::initialize(int argc, const char *argv[])
 {
-  MTConnectService::initialize(aArgc, aArgv);
-  if (aArgc > 1) {
-    mPort = atoi(aArgv[1]);
-  }
+	MTConnectService::initialize(argc, argv);
+
+	if (argc > 1)
+		mPort = atoi(argv[1]);
 }
+
 
 void FakeAdapter::start()
 {
 	startServer();
 }
 
+
 void FakeAdapter::stop()
 {
 	stopServer();
 }
+
 
 static int count = 0;
 void FakeAdapter::gatherDeviceData()
@@ -74,6 +81,7 @@ void FakeAdapter::gatherDeviceData()
 
 	printf("Count: %d\n", count);
 	mPos.setValue(count);
+
 	switch (count % 6)
 	{
 	case 0:

@@ -36,9 +36,10 @@
 #include "server.hpp"
 #include "string_buffer.hpp"
 
+
 int main(int aArgc, const char *aArgv[])
 {
-  /* Construct the adapter and start the server */
+	// Construct the adapter and start the server
 	FakeAdapter *adapter = new FakeAdapter(7878);
 	adapter->setName("Fake MTConnect Adapter");
 	return adapter->main(aArgc, aArgv);
