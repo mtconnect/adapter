@@ -33,25 +33,30 @@
 #include "service.hpp"
 #include "string.h"
 
+
 MTConnectService::MTConnectService() :
-  mIsService(false), mDebug(false)
+	mName{0},
+	mIsService(false),
+	mDebug(false)
 {
 }
 
-void MTConnectService::setName(const char *aName)
+void MTConnectService::setName(const char *name)
 {
-  strncpy(mName, aName, 78);
+	strncpy(mName, name, 78);
 	mName[79] = '\0';
 }
 
 void MTConnectService::initialize(int aArgc, const char *aArgv[])
 {
-  if (gLogger == NULL) {
+	if (!gLogger)
+	{
 		if (mIsService)
 			gLogger = new ServiceLogger();
 		else
 			gLogger = new Logger();
 	}
+
 	if (mDebug)
 		gLogger->setLogLevel(Logger::eDEBUG);
 }
@@ -70,14 +75,14 @@ void MTConnectService::initialize(int aArgc, const char *aArgv[])
 SERVICE_STATUS			gSvcStatus;
 SERVICE_STATUS_HANDLE	gSvcStatusHandle;
 
-VOID WINAPI SvcCtrlHandler( DWORD ); 
-VOID WINAPI SvcMain( DWORD, LPTSTR * ); 
+VOID WINAPI SvcCtrlHandler(DWORD);
+VOID WINAPI SvcMain(DWORD, LPTSTR *);
 
-VOID ReportSvcStatus( DWORD, DWORD, DWORD );
-VOID SvcInit( DWORD, LPTSTR * ); 
-VOID SvcReportEvent( LPTSTR );
+VOID ReportSvcStatus(DWORD, DWORD, DWORD);
+VOID SvcInit(DWORD, LPTSTR *);
+VOID SvcReportEvent(LPTSTR);
 
-MTConnectService *gService = NULL;
+MTConnectService *gService = nullptr;
 
 
 
@@ -96,23 +101,31 @@ int MTConnectService::main(int argc, const char *argv[])
 	// If command-line parameter is "install", install the service.
 	// Otherwise, the service is probably being started by the SCM.
 
-  if(argc > 1) {
-    if (stricmp( argv[1], "debug") == 0 ) {
+	if (argc > 1)
+	{
+		if (!stricmp(argv[1], "debug"))
 			mDebug = true;
-    }
+
 		initialize(argc - 2, argv + 2);
-    if (stricmp( argv[1], "install") == 0 )
+
+		if (!stricmp(argv[1], "install"))
 		{
 			install(argc - 2, argv + 2);
 			return 0;
-    } else if (stricmp( argv[1], "remove") == 0 ) {
+		}
+		else if (!stricmp(argv[1], "remove"))
+		{
 			remove();
 			return 0;
-	} else if (stricmp( argv[1], "debug") == 0) {
+		}
+		else if (!stricmp(argv[1], "debug"))
+		{
 			gLogger->setLogLevel(Logger::eDEBUG);
 			start();
 			return 0;
-    } else if (stricmp( argv[1], "run") == 0) {
+		}
+		else if (!stricmp(argv[1], "run"))
+		{
 			start();
 			return 0;
 		}
@@ -122,15 +135,13 @@ int MTConnectService::main(int argc, const char *argv[])
 	SERVICE_TABLE_ENTRY DispatchTable[] =
 	{
 		{ mName, (LPSERVICE_MAIN_FUNCTION) SvcMain },
-      { NULL, NULL } 
+		{ nullptr, nullptr }
 	};
 
 	gService = this;
 
-  if (!StartServiceCtrlDispatcher( DispatchTable )) 
-  { 
+	if (!StartServiceCtrlDispatcherA(DispatchTable))
 		SvcReportEvent("StartServiceCtrlDispatcher");
-  } 
 
 	return 0;
 }
@@ -147,53 +158,51 @@ int MTConnectService::main(int argc, const char *argv[])
 //
 void MTConnectService::install(int argc, const char *argv[])
 {
-  SC_HANDLE schSCManager;
-  SC_HANDLE schService;
-  char szPath[MAX_PATH];
-
-  if( !GetModuleFileName( NULL, szPath, MAX_PATH ) )
+	char szPath[MAX_PATH] = {0};
+	if (!GetModuleFileNameA(nullptr, szPath, MAX_PATH))
 	{
 		printf("Cannot install service (%d)\n", GetLastError());
 		return;
 	}
 
 	// Get a handle to the SCM database.
-
-  schSCManager = OpenSCManager( 
-    NULL,                    // local computer
-    NULL,                    // ServicesActive database 
+	auto schSCManager = OpenSCManagerA(
+		nullptr,					// local computer
+		nullptr,					// ServicesActive database
 		SC_MANAGER_ALL_ACCESS);		// full access rights
 
-  if (NULL == schSCManager) 
+	if (!schSCManager)
 	{
 		printf("OpenSCManager failed (%d)\n", GetLastError());
 		return;
 	}
 
-  schService = OpenService(schSCManager, mName, SC_MANAGER_ALL_ACCESS);
-  if (schService != NULL) {
-    if (! ChangeServiceConfig( 
+	auto schService = OpenServiceA(schSCManager, mName, SC_MANAGER_ALL_ACCESS);
+	if (schService)
+	{
+		if (! ChangeServiceConfigA(
 			schService,						// handle of service
 			SERVICE_WIN32_OWN_PROCESS |
 			SERVICE_INTERACTIVE_PROCESS,	// service type: no change
 			SERVICE_AUTO_START,				// service start type
 			SERVICE_NO_CHANGE,				// error control: no change
 			szPath,							// binary path: no change
-	  NULL,                  // load order group: no change 
-	  NULL,                  // tag ID: no change 
-	  NULL,                  // dependencies: no change 
-	  NULL,                  // account name: no change 
-	  NULL,                  // password: no change 
-	  NULL) )                // display name: no change
+			nullptr,						// load order group: no change
+			nullptr,						// tag ID: no change
+			nullptr,						// dependencies: no change
+			nullptr,						// account name: no change
+			nullptr,						// password: no change
+			nullptr) )						// display name: no change
 		{
 			printf("ChangeServiceConfig failed (%d)\n", GetLastError());
 		}
-    else printf("Service updated successfully.\n"); 
-  } else {
-
+		else
+			printf("Service updated successfully.\n");
+	}
+	else
+	{
 		// Create the service
-
-    schService = CreateService( 
+		schService = CreateServiceA(
 				 schSCManager,					// SCM database
 				 mName,							// name of service
 				 mName,							// service name to display
@@ -203,38 +212,39 @@ void MTConnectService::install(int argc, const char *argv[])
 				 SERVICE_AUTO_START,			// start type
 				 SERVICE_ERROR_NORMAL,			// error control type
 				 szPath,						// path to service's binary
-      NULL,                      // no load ordering group 
-      NULL,                      // no tag identifier 
-      NULL,                      // no dependencies 
-      NULL,                      // LocalSystem account 
-      NULL);                     // no password 
+				 nullptr,						// no load ordering group
+				 nullptr,						// no tag identifier
+				 nullptr,						// no dependencies
+				 nullptr,						// LocalSystem account
+				 nullptr);						// no password
 
-    if (schService == NULL) 
+		if (!schService)
 		{
 			printf("CreateService failed (%d)\n", GetLastError());
 			CloseServiceHandle(schSCManager);
 			return;
 		}
-    else printf("Service installed successfully\n"); 
+		else
+			printf("Service installed successfully\n");
 	}
 
-  CloseServiceHandle(schService); 
-  CloseServiceHandle(schSCManager);
+	CloseServiceHandle(schService); schService = nullptr;
+	CloseServiceHandle(schSCManager); schSCManager = nullptr;
 
-  HKEY software;
-  LONG res = RegOpenKey(HKEY_LOCAL_MACHINE, "SOFTWARE", &software);
+	HKEY software(nullptr);
+	auto res = RegOpenKeyA(HKEY_LOCAL_MACHINE, "SOFTWARE", &software);
 	if (res != ERROR_SUCCESS)
 	{
 		printf("Could not open software key: %d\n", res);
 		return;
 	}
 
-  HKEY mtc;
-  res = RegOpenKey(software, "MTConnect", &mtc);
+	HKEY mtc(nullptr);
+	res = RegOpenKeyA(software, "MTConnect", &mtc);
 	if (res != ERROR_SUCCESS)
 	{
 		//printf("Could not open MTConnect, creating: %d\n", res);
-    res = RegCreateKey(software, "MTConnect", &mtc);
+		res = RegCreateKeyA(software, "MTConnect", &mtc);
 		if (res != ERROR_SUCCESS)
 		{
 			RegCloseKey(software);
@@ -242,15 +252,16 @@ void MTConnectService::install(int argc, const char *argv[])
 			return;
 		}
 	}
+
 	RegCloseKey(software);
 
 	// Create Service Key
-  HKEY adapter;
-  res = RegOpenKey(mtc, mName, &adapter);
+	HKEY adapter(nullptr);
+	res = RegOpenKeyA(mtc, mName, &adapter);
 	if (res != ERROR_SUCCESS)
 	{
 		//printf("Could not open %s, creating: %d\n", mName, res);
-    res = RegCreateKey(mtc, mName, &adapter);
+		res = RegCreateKeyA(mtc, mName, &adapter);
 		if (res != ERROR_SUCCESS)
 		{
 			RegCloseKey(mtc);
@@ -258,43 +269,46 @@ void MTConnectService::install(int argc, const char *argv[])
 			return;
 		}
 	}
+
 	RegCloseKey(mtc);
 
-  char arguments[2048];
+	char arguments[2048] = {0};
 	// TODO: create registry entries for arguments to be passed in later to create the adapter multi_sz
 	int d = 0;
-  for (int i = 0; i < argc; i++) { 
+	for (int i = 0; i < argc; i++)
+	{
 		strcpy(arguments + d, argv[i]);
 		d += strlen(arguments + d) + 1;
 	}
 
 	arguments[d] = '\0';
-  RegSetValueEx(adapter, "Arguments", 0, REG_MULTI_SZ, (const BYTE*) arguments, d);
+	RegSetValueExA(adapter, "Arguments", 0, REG_MULTI_SZ, (const BYTE *) arguments, d);
 	RegCloseKey(adapter);
 }
 
+
 void MTConnectService::remove()
 {
-  SC_HANDLE manager;
-  SC_HANDLE service;
-  manager = OpenSCManager(NULL, NULL, SC_MANAGER_ALL_ACCESS);
-  
-  if (manager == NULL) {
+	auto manager = OpenSCManagerA(nullptr, nullptr, SC_MANAGER_ALL_ACCESS);
+	if (!manager)
+	{
 		printf("Could not open Service Control Manager");
 		return;
 	}
-  service = ::OpenService(manager, mName, SERVICE_ALL_ACCESS);
+
+	auto service = ::OpenServiceA(manager, mName, SERVICE_ALL_ACCESS);
 	CloseServiceHandle(manager);
-  if (service == NULL) {
+
+	if (!service)
+	{
 		printf("Could not open Service ");
 		return;
 	}
 
-  if(::DeleteService(service) == 0) {
+	if (!::DeleteService(service))
 		printf("Could delete service %s\n", mName);
-  } else {
+	else
 		printf("Successfully removed service %s\n", mName);
-  }
 
 	::CloseServiceHandle(service);
 }
@@ -313,48 +327,48 @@ void MTConnectService::remove()
 // Return value:
 //   None.
 //
-VOID WINAPI SvcMain( DWORD dwArgc, LPTSTR *lpszArgv )
+VOID WINAPI SvcMain(DWORD dwArgc, LPTSTR *lpszArgv)
 {
 	// Register the handler function for the service
-  char path[MAX_PATH];
-  if( !GetModuleFileName(NULL, path, MAX_PATH ) )
+	char path[MAX_PATH] = {0};
+
+	if (!GetModuleFileNameA(nullptr, path, MAX_PATH))
 	{
 		printf("Cannot get path of executable (%d)\n", GetLastError());
 		return;
 	}
 
-  char *cp = strrchr(path, '\\');
-  if (cp != NULL)
+	auto cp = strrchr(path, '\\');
+	if (cp != nullptr)
 	{
 		*cp = '\0';
-    SetCurrentDirectory(path);
+		SetCurrentDirectoryA(path);
 	}
 
 	gService->setName(lpszArgv[0]);
-  gSvcStatusHandle = RegisterServiceCtrlHandler( 
+	gSvcStatusHandle = RegisterServiceCtrlHandlerA(
 		gService->name(),
 		SvcCtrlHandler);
 
-  if( !gSvcStatusHandle )
+	if (!gSvcStatusHandle)
 	{
 		SvcReportEvent("RegisterServiceCtrlHandler");
 		return;
 	}
 
 	// These SERVICE_STATUS members remain as set here
-
 	gSvcStatus.dwServiceType = SERVICE_WIN32_OWN_PROCESS;
 	gSvcStatus.dwServiceSpecificExitCode = 0;
 
 	// Report initial status to the SCM
-
-  ReportSvcStatus( SERVICE_START_PENDING, NO_ERROR, 10000 );
+	ReportSvcStatus(SERVICE_START_PENDING, NO_ERROR, 10000ul);
 
 	// Perform service-specific initialization and work.
 	Sleep(20000);
 
-  SvcInit( dwArgc, lpszArgv );
+	SvcInit(dwArgc, lpszArgv);
 }
+
 
 //
 // Purpose:
@@ -369,43 +383,47 @@ VOID WINAPI SvcMain( DWORD dwArgc, LPTSTR *lpszArgv )
 // Return value:
 //   None
 //
-VOID SvcInit( DWORD dwArgc, LPTSTR *lpszArgv)
+VOID SvcInit(DWORD dwArgc, LPTSTR *lpszArgv)
 {
 	// Get the real arguments from the registry
-  char key[1024];
+	char key[1024] = {0};
 	snprintf(key, 1022, "SOFTWARE\\MTConnect\\%s", gService->name());
 	key[1023] = '\0';
 
-  HKEY adapter;
-  LONG res = RegOpenKeyEx(HKEY_LOCAL_MACHINE, key, 0, KEY_READ, &adapter);
+	HKEY adapter(nullptr);
+	auto res = RegOpenKeyExA(HKEY_LOCAL_MACHINE, key, 0, KEY_READ, &adapter);
 	if (res != ERROR_SUCCESS)
 	{
 		SvcReportEvent("RegOpenKey: Could not open Adapter");
-    ReportSvcStatus( SERVICE_STOPPED, 1, 0 );
+		ReportSvcStatus(SERVICE_STOPPED, 1ul, 0ul);
 		return;
 	}
 
-  char *argp[64];
-  BYTE arguments[2048];
-  DWORD len = 2047, type, argc = 0;
-  res = RegQueryValueEx(adapter, "Arguments", 0, &type, (BYTE*) arguments, &len);
+	char *argp[64] = {0};
+	BYTE arguments[2048] = {0};
+	DWORD len = 2047ul, type, argc = 0ul;
+	res = RegQueryValueExA(adapter, "Arguments", 0, &type, (BYTE *) arguments, &len);
 	if (res == ERROR_SUCCESS)
 	{
-    DWORD i = 0;
-    while (i < len) {
-      argp[argc] = (char*) arguments + i;
-      i += strlen((char*) arguments + i) + 1;
+		DWORD i = 0ul;
+		while (i < len)
+		{
+			argp[argc] = (char *) arguments + i;
+			i += strlen((char *) arguments + i) + 1ul;
 			argc++;
 		}
+
 		argp[argc] = 0;
-  } else {
+	}
+	else
+	{
 		SvcReportEvent("RegOpenKey: Could not get Arguments");
 		RegCloseKey(adapter);
-    ReportSvcStatus( SERVICE_STOPPED, 1, 0 );
+		ReportSvcStatus(SERVICE_STOPPED, 1ul, 0ul);
 		return;
 	}
 
-  gService->initialize(argc, (const char**) argp);
+	gService->initialize(argc, (const char **) argp);
 
 	// TO_DO: Declare and set any required variables.
 	//   Be sure to periodically call ReportSvcStatus() with
@@ -416,14 +434,13 @@ VOID SvcInit( DWORD dwArgc, LPTSTR *lpszArgv)
 	// signals this event when it receives the stop control code.
 
 	// Report running status when initialization is complete.
-
-  ReportSvcStatus( SERVICE_RUNNING, NO_ERROR, 0 );
+	ReportSvcStatus(SERVICE_RUNNING, NO_ERROR, 0ul);
 
 	// TO_DO: Perform work until service stops.
 	gService->start();
-
-  ReportSvcStatus( SERVICE_STOPPED, NO_ERROR, 0 );
+	ReportSvcStatus(SERVICE_STOPPED, NO_ERROR, 0ul);
 }
+
 
 //
 // Purpose:
@@ -438,11 +455,12 @@ VOID SvcInit( DWORD dwArgc, LPTSTR *lpszArgv)
 // Return value:
 //   None
 //
-VOID ReportSvcStatus( DWORD dwCurrentState,
+VOID ReportSvcStatus(
+	DWORD dwCurrentState,
 	DWORD dwWin32ExitCode,
 	DWORD dwWaitHint)
 {
-  static DWORD dwCheckPoint = 1;
+	static DWORD dwCheckPoint = 1ul;
 
 	// Fill in the SERVICE_STATUS structure.
 
@@ -455,15 +473,18 @@ VOID ReportSvcStatus( DWORD dwCurrentState,
 	else
 		gSvcStatus.dwControlsAccepted = SERVICE_ACCEPT_STOP;
 
-  if ( (dwCurrentState == SERVICE_RUNNING) ||
-       (dwCurrentState == SERVICE_STOPPED) )
+	if (dwCurrentState == SERVICE_RUNNING ||
+		dwCurrentState == SERVICE_STOPPED )
+	{
 		gSvcStatus.dwCheckPoint = 0;
+	}
 	else
 		gSvcStatus.dwCheckPoint = dwCheckPoint++;
 
 	// Report the status of the service to the SCM.
-  SetServiceStatus( gSvcStatusHandle, &gSvcStatus );
+	SetServiceStatus(gSvcStatusHandle, &gSvcStatus);
 }
+
 
 //
 // Purpose:
@@ -476,17 +497,19 @@ VOID ReportSvcStatus( DWORD dwCurrentState,
 // Return value:
 //   None
 //
-VOID WINAPI SvcCtrlHandler( DWORD dwCtrl )
+VOID WINAPI SvcCtrlHandler(DWORD dwCtrl)
 {
 	// Handle the requested control code.
 
-  switch(dwCtrl) 
+	switch (dwCtrl)
 	{
 	case SERVICE_CONTROL_STOP:
-    ReportSvcStatus(SERVICE_STOP_PENDING, NO_ERROR, 0);
-    if (gService != NULL)
+		ReportSvcStatus(SERVICE_STOP_PENDING, NO_ERROR, 0ul);
+
+		if (gService)
 			gService->stop();
-    ReportSvcStatus(gSvcStatus.dwCurrentState, NO_ERROR, 0);
+
+		ReportSvcStatus(gSvcStatus.dwCurrentState, NO_ERROR, 0ul);
 
 		return;
 
@@ -498,6 +521,7 @@ VOID WINAPI SvcCtrlHandler( DWORD dwCtrl )
 	}
 
 }
+
 
 //
 // Purpose:
@@ -512,91 +536,102 @@ VOID WINAPI SvcCtrlHandler( DWORD dwCtrl )
 // Remarks:
 //   The service must have an entry in the Application event log.
 //
-VOID SvcReportEvent(LPTSTR szFunction) 
+VOID SvcReportEvent(LPTSTR functionName)
 {
-  HANDLE hEventSource;
-  LPCTSTR lpszStrings[2];
-  char Buffer[80];
+	HANDLE hEventSource(nullptr);
+	LPCTSTR lpszStrings[2] = {nullptr, nullptr};
+	char Buffer[80] = {0};
 
-  hEventSource = RegisterEventSource(NULL, gService->name());
+	hEventSource = RegisterEventSourceA(nullptr, gService->name());
 
-  if( NULL != hEventSource )
+	if (hEventSource)
 	{
-    sprintf(Buffer, "%-60s failed with %d", szFunction, GetLastError());
+		sprintf(Buffer, "%-60s failed with %d", functionName, GetLastError());
 
 		lpszStrings[0] = gService->name();
 		lpszStrings[1] = Buffer;
 
-    ReportEvent(hEventSource,        // event log handle
+		ReportEventA(hEventSource,		// event log handle
 				EVENTLOG_ERROR_TYPE,	// event type
 				0,						// event category
 				SVC_ERROR,				// event identifier
-		NULL,                // no security identifier
+				nullptr,				// no security identifier
 				2,						// size of lpszStrings array
-		0,                   // no binary data
+				0ul,					// no binary data
 				lpszStrings,			// array of strings
-		NULL);               // no binary data
+				nullptr);				// no binary data
 
 		DeregisterEventSource(hEventSource);
 	}
 }
 
-VOID SvcLogEvent(WORD aType, DWORD aId, LPSTR aText) 
-{ 
-  HANDLE hEventSource;
-  LPCTSTR lpszStrings[3];
 
-  hEventSource = RegisterEventSource(NULL, gService->name());
+VOID SvcLogEvent(WORD type, DWORD id, LPSTR text)
+{
+	HANDLE hEventSource(nullptr);
+	LPCTSTR lpszStrings[3] = {nullptr};
 
-  if( NULL != hEventSource )
+	hEventSource = RegisterEventSourceA(nullptr, gService->name());
+	if (hEventSource)
 	{
 		lpszStrings[0] = gService->name();
 		lpszStrings[1] = "\n\n";
-    lpszStrings[2] = aText;
+		lpszStrings[2] = text;
 
-    ReportEvent(hEventSource,        // event log handle
-		aType, // event type
+		ReportEventA(hEventSource,	// event log handle
+				type,				// event type
 				0,					// event category
-		aId,           // event identifier
-		NULL,                // no security identifier
+				id,					// event identifier
+				nullptr,			// no security identifier
 				3,					// size of lpszStrings array
 				0,					// no binary data
 				lpszStrings,		// array of strings
-		NULL);               // no binary data
+				nullptr);			// no binary data
 
 		DeregisterEventSource(hEventSource);
 	}
 }
 
 
-void ServiceLogger::error(const char *aFormat, ...)
+void ServiceLogger::error(const char *inputFormat, ...)
 {
-  char buffer[LOGGER_BUFFER_SIZE];
+	char buffer[LOGGER_BUFFER_SIZE] = {0};
 	va_list args;
-  va_start (args, aFormat);
-  SvcLogEvent(EVENTLOG_ERROR_TYPE, SVC_ERROR, (LPSTR) format(buffer, LOGGER_BUFFER_SIZE, aFormat, args));
-  va_end (args);
+	va_start(args, inputFormat);
+	SvcLogEvent(
+		EVENTLOG_ERROR_TYPE,
+		SVC_ERROR,
+		(LPSTR)format(buffer, LOGGER_BUFFER_SIZE, inputFormat, args));
+	va_end(args);
 }
 
-void ServiceLogger::warning(const char *aFormat, ...)
+
+void ServiceLogger::warning(const char *inputFormat, ...)
 {
-  char buffer[LOGGER_BUFFER_SIZE];
+	char buffer[LOGGER_BUFFER_SIZE] = {0};
 	va_list args;
-  va_start (args, aFormat);
-  SvcLogEvent(EVENTLOG_WARNING_TYPE, SVC_WARNING, (LPSTR) format(buffer, LOGGER_BUFFER_SIZE, aFormat, args));
-  va_end (args);
+	va_start(args, inputFormat);
+	SvcLogEvent(
+		EVENTLOG_WARNING_TYPE,
+		SVC_WARNING, (LPSTR)format(buffer, LOGGER_BUFFER_SIZE, inputFormat, args));
+	va_end(args);
 }
 
-void ServiceLogger::info(const char *aFormat, ...)
+
+void ServiceLogger::info(const char *inputFormat, ...)
 {
-  char buffer[LOGGER_BUFFER_SIZE];
+	char buffer[LOGGER_BUFFER_SIZE] = {0};
 	va_list args;
-  va_start (args, aFormat);
-  SvcLogEvent(EVENTLOG_INFORMATION_TYPE, SVC_INFO, (LPSTR) format(buffer, LOGGER_BUFFER_SIZE, aFormat, args));
-  va_end (args);
+	va_start(args, inputFormat);
+	SvcLogEvent(
+		EVENTLOG_INFORMATION_TYPE,
+		SVC_INFO,
+		(LPSTR) format(buffer, LOGGER_BUFFER_SIZE, inputFormat, args));
+	va_end(args);
 }
 
-void ServiceLogger::debug(const char *aFormat, ...)
+
+void ServiceLogger::debug(const char *inputFormat, ...)
 {
 	// Debug service logging is not supported
 }

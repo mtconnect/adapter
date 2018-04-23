@@ -32,12 +32,10 @@
 //
 #pragma once
 
-
-/*
- * A string array that atomaticially resizes when the size is
- * exceeded. Used for storing the program codes
- */
-
+//
+// A string array that atomaticially resizes when the size is
+// exceeded. Used for storing the program codes
+//
 class StringArray
 {
 protected:
@@ -49,25 +47,28 @@ public:
 	StringArray();
 	~StringArray();
 
-  int length() { return mLength; }
+	int length() const {
+		return mLength; }
 
 	// Copies the string when it is appended
-  void append(const char *aString);
+	void append(const char *string);
 	void clear();
 
 	// Getters
-  const char *stringAt(int index);
-  const char *operator[](int index) { return stringAt(index); }
+	const char *stringAt(int index) const;
+	const char *operator[](int index) const {
+		return stringAt(index); }
 
 	// File Handler method, should be another class...
 	// Returns file size.
-  int readFile(const char *aFileName);
+	int readFile(const char *fileName);
 };
 
-inline const char *StringArray::stringAt(int index)
+
+inline const char *StringArray::stringAt(int index) const
 {
 	if (index >= 0 && index < mLength)
 		return mArray[index];
 	else
-    return 0;
+		return nullptr;
 }

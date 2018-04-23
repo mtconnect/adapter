@@ -34,12 +34,14 @@
 #include "client.hpp"
 #include "server.hpp"
 
-/* Instance methods */
-Client::Client(SOCKET aSocket)
+
+
+Client::Client(SOCKET socket)
 {
-  mSocket = aSocket;
+	mSocket = socket;
 	mHeartbeats = false;
 }
+
 
 Client::~Client()
 {
@@ -47,27 +49,30 @@ Client::~Client()
 	::closesocket(mSocket);
 }
 
-int Client::write(const char *aString)
+
+int Client::write(const char *string)
 {
 	int res;
 	MTCAutoLock lock(mWriteLock);
 
-  try {
-    res = ::send(mSocket, aString, (int) strlen(aString), 0);
+	try
+	{
+		res = ::send(mSocket, string, (int) strlen(string), 0);
 	}
-
-  catch(...) {
+	catch(...)
+	{
 		res = -1;
 	}
 
 	return res;
 }
 
-int Client::read(char *aBuffer, int aMaxLen)
+
+int Client::read(char *buffer, int maxLen)
 {
-  int len = recv(mSocket, aBuffer, aMaxLen, 0);
+	int len = recv(mSocket, buffer, maxLen, 0);
 	if (len >= 0)
-  	aBuffer[len] = 0;
+		buffer[len] = 0;
 
 	return len;
 }

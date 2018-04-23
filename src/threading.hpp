@@ -35,13 +35,14 @@
 #ifdef THREADED
 
 #ifndef WIN32
-#include <pthread.h>
+	#include <pthread.h>
 #endif
 
 class MTCMutex
 {
 public:
-  MTCMutex() {
+	MTCMutex()
+	{
 #ifdef WIN32
 		InitializeCriticalSection(&mLock);
 #else
@@ -49,7 +50,8 @@ public:
 #endif
 	}
 
-  ~MTCMutex() {
+	~MTCMutex()
+	{
 #ifdef WIN32
 		DeleteCriticalSection(&mLock);
 #else
@@ -57,7 +59,8 @@ public:
 #endif
 	}
 
-  void lock() {
+	void lock()
+	{
 #ifdef WIN32
 		EnterCriticalSection(&mLock);
 #else
@@ -65,7 +68,8 @@ public:
 #endif
 	}
 
-  void unlock() {
+	void unlock()
+	{
 #ifdef WIN32
 		LeaveCriticalSection(&mLock);
 #else
@@ -81,7 +85,8 @@ protected:
 #endif
 
 private:
-  MTCMutex(const MTCMutex& aMutex) {
+	MTCMutex(const MTCMutex& aMutex)
+	{
 		// No copy constructor is possible
 	}
 };
@@ -97,13 +102,17 @@ public:
 
 #endif
 
-class MTCAutoLock {
+class MTCAutoLock
+{
 public:
-  MTCAutoLock(MTCMutex &aMutex) : mMutex(&aMutex) {
+	MTCAutoLock(MTCMutex &aMutex) :
+		mMutex(&aMutex)
+	{
 		mMutex->lock();
 	}
 
-  ~MTCAutoLock() {
+	~MTCAutoLock()
+	{
 		mMutex->unlock();
 	}
 
@@ -111,5 +120,8 @@ protected:
 	MTCMutex *mMutex;
 
 private:
-  MTCAutoLock() : mMutex(NULL) {}
+	MTCAutoLock() :
+		mMutex(nullptr)
+	{
+	}
 };

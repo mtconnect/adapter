@@ -33,72 +33,88 @@
 #include "internal.hpp"
 #include "logger.hpp"
 
-Logger *gLogger = NULL;
+Logger *gLogger = nullptr;
 
-void Logger::error(const char *aFormat, ...)
+
+void Logger::error(const char *inputformat, ...)
 {
 	char buffer[LOGGER_BUFFER_SIZE];
 	char ts[32];
 	va_list args;
-  va_start (args, aFormat);
-  fprintf(mFile, "%s - Error: %s\n", timestamp(ts), format(buffer, LOGGER_BUFFER_SIZE, aFormat, args));
+	va_start(args, inputformat);
+	fprintf(mFile, "%s - Error: %s\n",
+		timestamp(ts),
+		format(buffer, LOGGER_BUFFER_SIZE, inputformat, args));
 	fflush(mFile);
-  va_end (args);
+	va_end(args);
 }
 
-void Logger::warning(const char *aFormat, ...)
+
+void Logger::warning(const char *inputformat, ...)
 {
-  if (mLogLevel > eWARNING) return;
+	if (mLogLevel > eWARNING)
+		return;
 
 	char buffer[LOGGER_BUFFER_SIZE];
 	char ts[32];
 	va_list args;
-  va_start (args, aFormat);
-  fprintf(mFile, "%s - Warning: %s\n", timestamp(ts), format(buffer, LOGGER_BUFFER_SIZE, aFormat, args));
+	va_start(args, inputformat);
+	fprintf(mFile, "%s - Warning: %s\n",
+		timestamp(ts),
+		format(buffer, LOGGER_BUFFER_SIZE, inputformat, args));
 	fflush(mFile);
-  va_end (args);
+	va_end(args);
 }
 
-void Logger::info(const char *aFormat, ...)
+
+void Logger::info(const char *inputformat, ...)
 {
-  if (mLogLevel > eINFO) return;
+	if (mLogLevel > eINFO)
+		return;
 
 	char buffer[LOGGER_BUFFER_SIZE];
 	char ts[32];
 	va_list args;
-  va_start (args, aFormat);
-  fprintf(mFile, "%s - Info: %s\n", timestamp(ts), format(buffer, LOGGER_BUFFER_SIZE, aFormat, args));
+	va_start(args, inputformat);
+	fprintf(mFile, "%s - Info: %s\n",
+		timestamp(ts),
+		format(buffer, LOGGER_BUFFER_SIZE, inputformat, args));
 	fflush(mFile);
-  va_end (args);
+	va_end(args);
 }
 
-void Logger::debug(const char *aFormat, ...)
+
+void Logger::debug(const char *inputformat, ...)
 {
-  if (mLogLevel > eDEBUG) return;
+	if (mLogLevel > eDEBUG)
+		return;
 
 	char buffer[LOGGER_BUFFER_SIZE];
 	char ts[32];
 	va_list args;
-  va_start (args, aFormat);
-  fprintf(mFile, "%s - Debug: %s\n", timestamp(ts), format(buffer, LOGGER_BUFFER_SIZE, aFormat, args));
+	va_start(args, inputformat);
+	fprintf(mFile, "%s - Debug: %s\n",
+		timestamp(ts),
+		format(buffer, LOGGER_BUFFER_SIZE, inputformat, args));
 	fflush(mFile);
-  va_end (args);
+	va_end(args);
 }
 
 
-const char *Logger::format(char *aBuffer, int aLen, const char *aFormat, va_list args)
+const char *Logger::format(char *buffer, int aLen, const char *inputformat, va_list args)
 {
-  vsprintf(aBuffer, aFormat, args);
-  aBuffer[aLen - 1] = '\0';
-  return aBuffer;
+	vsprintf(buffer, inputformat, args);
+	buffer[aLen - 1] = '\0';
+	return buffer;
 }
 
-const char *Logger::timestamp(char *aBuffer)
+
+const char *Logger::timestamp(char *buffer)
 {
 #ifdef WIN32
 	SYSTEMTIME st;
 	GetSystemTime(&st);
-  sprintf(aBuffer, "%4d-%02d-%02dT%02d:%02d:%02d.%03dZ", st.wYear, st.wMonth, st.wDay, st.wHour, 
+	sprintf(buffer, "%4d-%02d-%02dT%02d:%02d:%02d.%03dZ", st.wYear, st.wMonth, st.wDay, st.wHour,
 		st.wMinute, st.wSecond, st.wMilliseconds);
 #else
 	struct timeval tv;
@@ -106,9 +122,9 @@ const char *Logger::timestamp(char *aBuffer)
 
 	gettimeofday(&tv, &tz);
 
-  strftime(aBuffer, 64, "%Y-%m-%dT%H:%M:%S", gmtime(&tv.tv_sec));
-  sprintf(aBuffer + strlen(aBuffer), ".%06dZ", tv.tv_usec);
+	strftime(buffer, 64, "%Y-%m-%dT%H:%M:%S", gmtime(&tv.tv_sec));
+	sprintf(buffer + strlen(buffer), ".%06dZ", tv.tv_usec);
 #endif
 
-  return aBuffer;
+	return buffer;
 }

@@ -36,10 +36,9 @@
 
 class Client;
 
-/* Some constants */
 const int MAX_CLIENTS = 64;
 
-/* A socket server abstraction */
+// A socket server abstraction
 class Server
 {
 protected:
@@ -54,12 +53,11 @@ protected:
 
 protected:
 	// Assumes the mutex is already locked.
-  void removeClientInternal(Client *aClient);
+	void removeClientInternal(Client *client);
 
 	// Locks the mutex.
-  void removeClient(Client *aClient);
-  
-  Client *addClient(Client *aClient);
+	void removeClient(Client *client);
+	Client *addClient(Client *client);
 	unsigned int getTimestamp();
 	unsigned int deltaTimestamp(unsigned int, unsigned int);
 
@@ -68,13 +66,12 @@ public:
 	~Server();
 
 	// Returns the new client.
-  Client *connectToClients(); /* Client factory */
+	Client *connectToClients(); // Client factory
 
-  /* I/O methods */
-  void readFromClients();         /* discard data on read side of
-					                              sockets */
-  void sendToClients(const char *aString);
-  void sendToClient(Client *aClient, const char *aString);
+	// I/O methods
+	void readFromClients(); // discard data on read side of sockets
+	void sendToClients(const char *string);
+	void sendToClient(Client *client, const char *string);
 
 	/* Getters */
 	int numClients() { return mNumClients; }

@@ -36,16 +36,20 @@
 
 #define SERVICE_NAME_LEN 80
 
-class MTConnectService {
+
+class MTConnectService
+{
 public:
 	MTConnectService();
-  virtual int main(int aArgc, const char *aArgv[]);
-  virtual void initialize(int aArgc, const char *aArgv[]) = 0;
 
-  void setName(const char *aName);
+	virtual int main(int argc, const char *argv[]);
+	virtual void initialize(int argc, const char *argv[]) = 0;
 	virtual void stop() = 0;
 	virtual void start() = 0;
-  const char *name() { return mName; }
+
+	void setName(const char *name);
+	const char *name() const {
+		return mName; }
 
 protected:
 	char mName[SERVICE_NAME_LEN];
@@ -56,16 +60,18 @@ protected:
 	void remove();
 };
 
-#ifdef WIN32
-class ServiceLogger : public Logger {
-public:
-  virtual void error(const char *aFormat, ...);
-  virtual void warning(const char *aFormat, ...);
-  virtual void info(const char *aFormat, ...);  
-  virtual void debug(const char *aFormat, ...);  
 
-protected:
-};
+#ifdef WIN32
+	class ServiceLogger : public Logger
+	{
+	public:
+		void error(const char *inputFormat, ...) override;
+		void warning(const char *inputFormat, ...) override;
+		void info(const char *inputFormat, ...) override;
+		void debug(const char *inputFormat, ...) override;
+
+	protected:
+	};
 #else
-class ServiceLogger : public Logger {};
+	class ServiceLogger : public Logger {};
 #endif

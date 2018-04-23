@@ -46,13 +46,21 @@ class Component
 protected:
 	Adapter *mAdapter;
 	std::string mName;
-  Component *aParent;
+	Component *mParent;
 
 public:
-  Component(Adapter *anAdapter, std::string aName, Component *aParent = NULL);
-  virtual ~Component();
-  virtual void initialize();
-  virtual void gatherData(void *aContext) = 0;
-};
+	Component(Adapter *adapter, std::string name, Component *parent = nullptr) :
+		mAdapter(adapter),
+		mName(name),
+		mParent(parent)
+	{
+	}
 
+	const std::string &getName() const {
+		return mName; }
+
+	virtual ~Component(){}
+	virtual void initialize(){}
+	virtual void gatherData(void *context) = 0;
+};
 

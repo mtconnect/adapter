@@ -36,27 +36,29 @@
 
 using namespace std;
 
-/*
- * TimeSeries methods
- */
-TimeSeries::TimeSeries(const char *aName, float aEpsilon, float aRate)
-  : DeviceDatum(aName), mEpsilon(aEpsilon), mRate(aRate)
+
+TimeSeries::TimeSeries(const char *name, float epsilon, float rate) :
+	DeviceDatum(name),
+	mUnavailable(false),
+	mEpsilon(epsilon),
+	mRate(rate)
 {
-  mUnavailable = false;
 }
 
-void TimeSeries::addValue(float aValue)
+
+void TimeSeries::addValue(float value)
 {
-  mValues.push_back(aValue);
+	mValues.push_back(value);
 
 	mChanged = true;
 	mHasValue = true;
 	mUnavailable = false;
 }
 
-bool TimeSeries::setValue(std::vector<float> aValues)
+
+bool TimeSeries::setValue(std::vector<float> values)
 {
-  mValues = aValues;
+	mValues = values;
 
 	mChanged = true;
 	mHasValue = true;
@@ -65,25 +67,26 @@ bool TimeSeries::setValue(std::vector<float> aValues)
 	return true;
 }
 
-bool TimeSeries::append(StringBuffer &aStringBuffer)
+
+bool TimeSeries::append(StringBuffer &stringBuffer)
 {
-  char buffer[1024];
+	char buffer[1024] = {0};
 	if (mUnavailable)
 	{
-    snprintf(buffer, 1023, "|%s|0||UNAVAILABLE", mName);
-    aStringBuffer.append(buffer);
+		snprintf(buffer, 1023u, "|%s|0||UNAVAILABLE", mName);
+		stringBuffer.append(buffer);
 	}
 	else
 	{
 		if (mRate > 0)
-      snprintf(buffer, 1023, "|%s|%d|%g|", mName, (int) mValues.size(), mRate);
+			snprintf(buffer, 1023u, "|%s|%d|%g|", mName, (int) mValues.size(), mRate);
 		else
-      snprintf(buffer, 1023, "|%s|%d||", mName, (int) mValues.size());
-    aStringBuffer.append(buffer);
-    for (size_t i = 0; i < mValues.size(); i++)
+			snprintf(buffer, 1023u, "|%s|%d||", mName, (int) mValues.size());
+		stringBuffer.append(buffer);
+		for (auto i = 0u; i < mValues.size(); i++)
 		{
 			snprintf(buffer, 1023, "%.10g ", mValues[i]);
-      aStringBuffer.append(buffer);
+			stringBuffer.append(buffer);
 		}
 	}
 
@@ -91,10 +94,12 @@ bool TimeSeries::append(StringBuffer &aStringBuffer)
 	return true;
 }
 
-char *TimeSeries::toString(char *aBuffer, int aMaxLen)
+
+char *TimeSeries::toString(char *buffer, int maxLen)
 {
-  return aBuffer;
+	return buffer;
 }
+
 
 bool TimeSeries::unavailable()
 {
@@ -108,7 +113,8 @@ bool TimeSeries::unavailable()
 	return mChanged;
 }
 
-bool TimeSeries::requiresFlush()
+
+bool TimeSeries::requiresFlush() const
 {
 	return true;
 }

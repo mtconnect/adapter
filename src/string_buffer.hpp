@@ -32,32 +32,35 @@
 //
 #pragma once
 
-
-/*
- * A simple extensible string that can be appended to. The memory will be reused
- * since it maintains its length. The string buffer also supports setting a timestamp
- * that will be prepended to the string once some data is appended.
- *
- * Currently allocating in 1k increments.
- */
+//
+// A simple extensible string that can be appended to. The memory will be reused
+// since it maintains its length. The string buffer also supports setting a timestamp
+// that will be prepended to the string once some data is appended.
+//
+// Currently allocating in 1k increments.
+//
 class StringBuffer
 {
 protected:
-  char *mBuffer; /* A resizable character buffer */
-  size_t mSize;     /* The allocated size of the string */
-  size_t mLength;   /* The length of the string */
+	char *mBuffer;		// A resizable character buffer
+	size_t mSize;		// The allocated size of the string
+	size_t mLength;		// The length of the string
 	char mTimestamp[64];
 
 public:
-  StringBuffer(const char *aString = 0);
+	StringBuffer(const char *string = nullptr);
 	~StringBuffer();
 
-  operator const char *() { return mBuffer; }
-  const char *append(const char *aString);
-  const char* operator<<(const char *aString) { return append(aString); }
+	operator const char *() const {
+		return mBuffer; }
+	const char *append(const char *string);
+	const char *operator<<(const char *string) {
+		return append(string); }
 	void reset();
 	void timestamp();
-  void setTimestamp(const char *aTs) { strcpy(mTimestamp, aTs); }
-  size_t  length() { return mLength; }
+	void setTimestamp(const char *timestamp) {
+		strcpy_s(mTimestamp, timestamp); }
+	size_t length() const {
+		return mLength; }
 	void newline();
 };

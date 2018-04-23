@@ -35,10 +35,9 @@
 #include "client.hpp"
 #include "logger.hpp"
 
-/* Constants */
 const int READ_BUFFER_LEN = 8092;
 
-/* Create the server and bind to the port */
+// Create the server and bind to the port
 Server::Server(int aPort, int aHeartbeatFreq)
 {
 	mNumClients = 0;
@@ -53,15 +52,18 @@ Server::Server(int aPort, int aHeartbeatFreq)
 	WSADATA w;
 	int iResult = WSAStartup(MAKEWORD(2, 2), &w);
 
-  if (iResult != NO_ERROR) {
+	if (iResult != NO_ERROR)
+	{
 		gLogger->error("Error at WSAStartup()\n");
 		exit(1);
 	}
+
 #endif
 
 	mSocket = ::socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
 
-  if (mSocket == INVALID_SOCKET) {
+	if (mSocket == INVALID_SOCKET)
+	{
 		gLogger->error("Error at socket().", stderr);
 		delete this;
 		exit(1);
@@ -71,13 +73,15 @@ Server::Server(int aPort, int aHeartbeatFreq)
 	t.sin_port = htons(aPort);
 	t.sin_addr.s_addr = htonl(INADDR_ANY);
 
-  if (::bind(mSocket, (SOCKADDR *)&t, sizeof(t)) == SOCKET_ERROR) {
+	if (::bind(mSocket, (SOCKADDR *)&t, sizeof(t)) == SOCKET_ERROR)
+	{
 		gLogger->error("Failed to bind on port %d",  aPort);
 		delete this;
 		exit(1);
 	}
 
-  if (listen(mSocket, 4) == SOCKET_ERROR) {
+	if (listen(mSocket, 4) == SOCKET_ERROR)
+	{
 		gLogger->error("Error listening.");
 		delete this;
 		exit(1);
@@ -88,6 +92,7 @@ Server::Server(int aPort, int aHeartbeatFreq)
 
 	gLogger->info("Server started, waiting on port %d", aPort);
 }
+
 
 Server::~Server()
 {
@@ -104,6 +109,7 @@ Server::~Server()
 #endif
 }
 
+
 void Server::readFromClients()
 {
 	MTCAutoLock lock(mListLock);
@@ -111,15 +117,19 @@ void Server::readFromClients()
 	fd_set rset;
 	FD_ZERO(&rset);
 	int nfds = 0;
+
 	for (int i = 0; i < mNumClients; i++)
 	{
 		Client *client = mClients[i];
 		FD_SET(client->socket(), &rset);
 #ifndef WIN32
+
 		if (client->socket() > nfds)
 			nfds = client->socket();
+
 #endif
 	}
+
 #ifdef WIN32
 	nfds = mNumClients;
 #else
@@ -134,13 +144,15 @@ void Server::readFromClients()
 		char buffer[READ_BUFFER_LEN];
 		int len;
 
-    /* Since clients can be removed, we need to iterate backwards */
+		// Since clients can be removed, we need to iterate backwards
 		for (int i = mNumClients - 1; i >= 0; i--)
 		{
 			Client *client = mClients[i];
+
 			if (FD_ISSET(client->socket(), &rset))
 			{
 				len = client->read(buffer, READ_BUFFER_LEN);
+
 				if (len > 0)
 				{
 					// Check for heartbeat
@@ -148,6 +160,7 @@ void Server::readFromClients()
 					{
 						if (!client->mHeartbeats)
 							client->mHeartbeats = true;
+
 						client->mLastHeartbeat = getTimestamp();
 						client->write(mPong);
 					}
@@ -166,6 +179,7 @@ void Server::readFromClients()
 	{
 		Client *client = mClients[i];
 		unsigned int now = getTimestamp();
+
 		if (client->mHeartbeats)
 		{
 			if (deltaTimestamp(now, client->mLastHeartbeat) > (unsigned int) mTimeout)
@@ -178,22 +192,25 @@ void Server::readFromClients()
 	}
 }
 
-void Server::sendToClient(Client *aClient, const char *aString)
+
+void Server::sendToClient(Client *client, const char *string)
 {
-  if (aClient->write(aString) < 0)
-    removeClient(aClient);
+	if (client->write(string) < 0)
+		removeClient(client);
 }
 
-void Server::sendToClients(const char *aString)
+
+void Server::sendToClients(const char *string)
 {
 	MTCAutoLock lock(mListLock);
 
 	for (int i = mNumClients - 1; i >= 0; i--)
 	{
-    if (mClients[i]->write(aString) < 0)
+		if (mClients[i]->write(string) < 0)
 			removeClientInternal(mClients[i]);
 	}
 }
+
 
 Client *Server::connectToClients()
 {
@@ -209,7 +226,7 @@ Client *Server::connectToClients()
 	struct timeval timeout;
 	::memset(&timeout, 0, sizeof(timeout));
 
-  Client *client = NULL;
+	Client *client = nullptr;
 	bool added = false;
 
 	if (::select(nfds, &rset, 0, 0, &timeout) > 0)
@@ -218,15 +235,18 @@ Client *Server::connectToClients()
 		socklen_t len = sizeof(addr);
 		memset(&addr, 0, sizeof(addr));
 
-    SOCKET socket = ::accept(mSocket, (SOCKADDR*) &addr, &len);
-    if (socket == INVALID_SOCKET) {
+		SOCKET socket = ::accept(mSocket, (SOCKADDR *) &addr, &len);
+
+		if (socket == INVALID_SOCKET)
+		{
 			gLogger->error("Error at accept().");
 			return 0;
 		}
+
 		gLogger->info("Connected to: %s on port %d", inet_ntoa(addr.sin_addr), ntohs(addr.sin_port));
 
 		int flag = 1;
-    ::setsockopt(socket, IPPROTO_TCP, TCP_NODELAY, (const char*) &flag, sizeof(int));
+		::setsockopt(socket, IPPROTO_TCP, TCP_NODELAY, (const char *) &flag, sizeof(int));
 
 		client = addClient(new Client(socket));
 		added = true;
@@ -236,58 +256,63 @@ Client *Server::connectToClients()
 }
 
 
-void Server::removeClientInternal(Client *aClient)
+void Server::removeClientInternal(Client *client)
 {
 	int pos = 0;
+
 	for (pos = 0; pos < mNumClients; pos++)
 	{
-    if (mClients[pos] == aClient)
+		if (mClients[pos] == client)
 			break;
 	}
 
 	if (pos < mNumClients)
 	{
 		mNumClients--;
+
 		if (pos < mNumClients)
 		{
-      /* Shift the array left to remove the item */
+			// Shift the array left to remove the item
 			memmove(mClients + pos,
 				mClients + (pos + 1),
-              (mNumClients - pos) * sizeof(Client*));
+				(mNumClients - pos) * sizeof(Client *));
 		}
-    delete aClient;
-    mClients[mNumClients + 1] = 0;
+
+		delete client; client = nullptr;
+		mClients[mNumClients + 1] = nullptr;
 	}
 }
 
-/* Removes a client from the client list.
-* Because the client can be removed during list iteration, lists
-* should always be iterated from last to first. 
-*/
-void Server::removeClient(Client *aClient)
+
+// Removes a client from the client list.
+// Because the client can be removed during list iteration, lists
+// should always be iterated from last to first.
+//
+void Server::removeClient(Client *client)
 {
 	MTCAutoLock lock(mListLock);
-  
-  removeClientInternal(aClient);
+	removeClientInternal(client);
 }
 
-Client *Server::addClient(Client *aClient)
+
+Client *Server::addClient(Client *client)
 {
 	MTCAutoLock lock(mListLock);
 
 	if (mNumClients < MAX_CLIENTS)
 	{
-    mClients[mNumClients] = aClient;
+		mClients[mNumClients] = client;
 		mNumClients++;
 	}
 	else
 	{
-    delete aClient;
-    aClient = NULL;
+		delete client;
+		client = nullptr;
 	}
 
-  return aClient;
+	return client;
 }
+
 
 unsigned int Server::getTimestamp()
 {
@@ -306,15 +331,18 @@ unsigned int Server::getTimestamp()
 #endif
 }
 
+
 unsigned int Server::deltaTimestamp(unsigned int a, unsigned int b)
 {
 	// Assume we are doing a - b where a should be larger, if it is not
 	// we have a wrap-around
 	unsigned int res;
-  if ( a >= b )
+
+	if (a >= b)
 		res = a - b;
 	else // b > a, Compute the distance from the end:
 		res = a + (0xFFFFFFFF - b);
+
 	return res;
 }
 

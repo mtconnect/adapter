@@ -35,31 +35,38 @@
 
 #define BLOCK_SIZE 256
 
+
 StringArray::StringArray()
 {
 	mLength = 0;
 	mSize = BLOCK_SIZE;
-  mArray = (char **) malloc(sizeof(char*) * mSize);
+	mArray = (char **) malloc(sizeof(char *) * mSize);
 	mArray[mLength = 0];
 }
+
 
 StringArray::~StringArray()
 {
 	clear();
 	free(mArray);
+	mArray = nullptr;
 }
+
 
 void StringArray::clear()
 {
 	for (int i = 0; i < mLength; i++)
 		free(mArray[i]);
+
 	mLength = 0;
 }
 
-void StringArray::append(const char *aString)
+
+void StringArray::append(const char *string)
 {
-  char *dup = strdup(aString);
-  if (dup == 0)
+	char *dup = strdup(string);
+
+	if (!dup)
 	{
 		perror("StringArray::append");
 		exit(2);
@@ -68,8 +75,9 @@ void StringArray::append(const char *aString)
 	if (mLength >= mSize - 1)
 	{
 		mSize += BLOCK_SIZE;
-    mArray = (char**) realloc(mArray, mSize * sizeof(char*));
-    if (mArray == 0)
+		mArray = (char **) realloc(mArray, mSize * sizeof(char *));
+
+		if (!mArray)
 		{
 			perror("StringArray::append");
 			exit(2);
@@ -79,33 +87,33 @@ void StringArray::append(const char *aString)
 	mArray[mLength++] = dup;
 }
 
-int StringArray::readFile(const char *aFileName)
+
+int StringArray::readFile(const char *fileName)
 {
 	// First clear out existing contents
 	clear();
 
 	// Parse file.
-  FILE *file = fopen(aFileName, "r");
-  if (file == 0)
-  {
-    printf("Could not open file: %s\n", aFileName);
-  }
+	auto file = fopen(fileName, "r");
+
+	if (!file)
+		printf("Could not open file: %s\n", fileName);
 	else
 	{
-    printf("Parsing file: %s\n", aFileName);
-    char buffer[1024];
+		printf("Parsing file: %s\n", fileName);
+		char buffer[1024] = {0};
+
 		while (fgets(buffer, 1024, file) != 0)
 		{
 			int last = strlen(buffer) - 1;
+
 			if (last > 0 && buffer[last] == '\n')
 				buffer[last] = 0;
+
 			append(buffer);
 		}
 	}
+
 	return mLength;
 }
 
-
-
-
-  

@@ -37,27 +37,36 @@
 
 #define LOGGER_BUFFER_SIZE 1024
 
-class Logger {
+class Logger
+{
 public:
-  enum LogLevel {
+	enum LogLevel
+	{
 		eDEBUG,
 		eINFO,
 		eWARNING,
 		eERROR
 	};
 
-  Logger(FILE *aFile = stderr) : mFile(aFile) { mLogLevel = eINFO; }
-  void setLogLevel(LogLevel aLevel) { mLogLevel = aLevel; }
-  LogLevel getLogLevel() { return mLogLevel; }
+	Logger(FILE *aFile = stderr) :
+		mFile(aFile),
+		mLogLevel(eINFO)
+	{
+	}
 
-  virtual void error(const char *aFormat, ...);
-  virtual void warning(const char *aFormat, ...);
-  virtual void info(const char *aFormat, ...);
-  virtual void debug(const char *aFormat, ...);
+	void setLogLevel(LogLevel aLevel) {
+		mLogLevel = aLevel; }
+	LogLevel getLogLevel() const {
+		return mLogLevel; }
+
+	virtual void error(const char *format, ...);
+	virtual void warning(const char *format, ...);
+	virtual void info(const char *format, ...);
+	virtual void debug(const char *format, ...);
 
 protected:
-  const char *format(char *aBuffer, int aLen, const char *aFormat, va_list args);
-  const char *timestamp(char *aBuffer);
+	const char *format(char *buffer, int aLen, const char *format, va_list args);
+	const char *timestamp(char *buffer);
 
 	LogLevel mLogLevel;
 	FILE *mFile;

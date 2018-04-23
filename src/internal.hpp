@@ -33,56 +33,60 @@
 #pragma once
 
 #ifdef WIN32
-#define _CRT_SECURE_NO_DEPRECATE 1
+	#define _CRT_SECURE_NO_DEPRECATE 1
 
-/* Windows specific include files and types */
-#include "winsock2.h"
-#ifndef AFX
-#include "windows.h"
-#endif
-#include "errno.h"
+	/* Windows specific include files and types */
+	#include "winsock2.h"
+	#ifndef AFX
+		#include "windows.h"
+	#endif
+	#include "errno.h"
 
-#define SHUT_RDWR SD_BOTH
-typedef int socklen_t;
-#define snprintf _snprintf
-#define strdup _strdup
-#define stricmp _stricmp
-#define strdup _strdup
+	#define SHUT_RDWR SD_BOTH
+	typedef int socklen_t;
+	#if _MSC_VER < 1900
+		#define snprintf _snprintf
+	#endif
+	#define strdup _strdup
+	#define stricmp _stricmp
+	#define strdup _strdup
 
-/* Internal types */
-typedef unsigned char uint8_t;
-typedef unsigned short uint16_t;
-typedef unsigned int uint32_t;
-typedef unsigned __int64 uint64_t;
+	/* Internal types */
+	typedef unsigned char uint8_t;
+	typedef unsigned short uint16_t;
+	typedef unsigned int uint32_t;
+	typedef unsigned __int64 uint64_t;
 
-#define UINT16_MAX 0xFFFF
+	#if _MSC_VER < 1900
+		#define UINT16_MAX 0xFFFF
+	#endif
 
-#define sleep(t) Sleep(t * 1000)
-#define usleep(t) Sleep(t / 1000)
+	#define sleep(t) Sleep(t * 1000)
+	#define usleep(t) Sleep(t / 1000)
 
 #else /* WIN32 */
 
-/* Unix specifc include files */
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <netinet/tcp.h>
-#include <sys/time.h>
-#include <time.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
-#include <unistd.h>
-#include <stdlib.h>
-#include <stdint.h>
-#include <termios.h>
-#include <fcntl.h>
-#include <errno.h>
+	/* Unix specifc include files */
+	#include <sys/types.h>
+	#include <sys/socket.h>
+	#include <netinet/tcp.h>
+	#include <sys/time.h>
+	#include <time.h>
+	#include <netinet/in.h>
+	#include <arpa/inet.h>
+	#include <unistd.h>
+	#include <stdlib.h>
+	#include <stdint.h>
+	#include <termios.h>
+	#include <fcntl.h>
+	#include <errno.h>
 
-typedef struct sockaddr_in SOCKADDR_IN;
-typedef struct sockaddr SOCKADDR;
-#define INVALID_SOCKET -1
-#define SOCKET_ERROR -1
-#define SOCKET int
-#define closesocket close
+	typedef struct sockaddr_in SOCKADDR_IN;
+	typedef struct sockaddr SOCKADDR;
+	#define INVALID_SOCKET -1
+	#define SOCKET_ERROR -1
+	#define SOCKET int
+	#define closesocket close
 
 #endif /* WIN32 */
 
