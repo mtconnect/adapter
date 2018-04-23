@@ -47,7 +47,7 @@ class TimeSeriesTest : public CppUnit::TestFixture
 protected:
 	void testTimeSeries();
 
-public:
+	public:
 	void setUp();
 	void tearDown();
 };

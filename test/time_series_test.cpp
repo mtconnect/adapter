@@ -38,13 +38,16 @@ using namespace std;
 
 CPPUNIT_TEST_SUITE_REGISTRATION(TimeSeriesTest);
 
+
 void TimeSeriesTest::setUp()
 {
 }
 
+
 void TimeSeriesTest::tearDown()
 {
 }
+
 
 void TimeSeriesTest::testTimeSeries()
 {
@@ -55,15 +58,17 @@ void TimeSeriesTest::testTimeSeries()
     series.addValue((double) i);
 
 	series.append(buffer);
-  CPPUNIT_ASSERT_EQUAL(string("|test|5||0 1 2 3 4 "),
-		       string((const char*) buffer));
+	CPPUNIT_ASSERT_EQUAL(
+		string("|test|5||0 1 2 3 4 "),
+		string((const char *) buffer));
 
 	series.clear();
 	buffer.reset();
 
 	series.append(buffer);
-  CPPUNIT_ASSERT_EQUAL(string("|test|0||"),
-		       string((const char*) buffer));
+	CPPUNIT_ASSERT_EQUAL(
+		string("|test|0||"),
+		string((const char *) buffer));
 
 	buffer.reset();
 
@@ -72,6 +77,7 @@ void TimeSeriesTest::testTimeSeries()
 	series.setRate(42000);
 
 	series.append(buffer);
-  CPPUNIT_ASSERT_EQUAL(string("|test|2|42000|2 4 "),
-		       string((const char*) buffer));
+	CPPUNIT_ASSERT_EQUAL(
+		string("|test|2|42000|2 4 "),
+		string((const char *) buffer));
 }

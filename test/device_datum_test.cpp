@@ -38,13 +38,16 @@ using namespace std;
 
 CPPUNIT_TEST_SUITE_REGISTRATION(DeviceDatumTest);
 
+
 void DeviceDatumTest::setUp()
 {
 }
 
+
 void DeviceDatumTest::tearDown()
 {
 }
+
 
 void DeviceDatumTest::testEvent()
 {
@@ -79,6 +82,7 @@ void DeviceDatumTest::testEvent()
 
 	CPPUNIT_ASSERT(!event.setValue("Hello"));
 }
+
 
 void DeviceDatumTest::testSample()
 {
