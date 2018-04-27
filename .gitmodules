@@ -1,3 +1,6 @@
 [submodule "cppunit"]
 	path = cppunit
 	url = http://anongit.freedesktop.org/git/libreoffice/cppunit
+[submodule "date"]
+	path = date
+	url = https://github.com/HowardHinnant/date.git
