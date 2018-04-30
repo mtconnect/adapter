@@ -34,15 +34,16 @@
 #include "server.hpp"
 #include "client.hpp"
 #include "logger.hpp"
+#include <chrono>
 
 const int READ_BUFFER_LEN = 8092;
 
 // Create the server and bind to the port
-Server::Server(int aPort, int aHeartbeatFreq)
+Server::Server(int port, std::chrono::milliseconds heartbeatFreq)
 {
 	mNumClients = 0;
-	mPort = aPort;
-	mTimeout = aHeartbeatFreq * 2;
+	mPort = port;
+	mTimeout = heartbeatFreq * 2;
 
 	SOCKADDR_IN t;
 
@@ -70,12 +71,12 @@ Server::Server(int aPort, int aHeartbeatFreq)
 	}
 
 	t.sin_family = AF_INET;
-	t.sin_port = htons(aPort);
+	t.sin_port = htons(port);
 	t.sin_addr.s_addr = htonl(INADDR_ANY);
 
 	if (::bind(mSocket, (SOCKADDR *)&t, sizeof(t)) == SOCKET_ERROR)
 	{
-		gLogger->error("Failed to bind on port %d",  aPort);
+		gLogger->error("Failed to bind on port %d",  port);
 		delete this;
 		exit(1);
 	}
@@ -88,9 +89,9 @@ Server::Server(int aPort, int aHeartbeatFreq)
 	}
 
 	// Default to a 10 second heartbeat
-	sprintf(mPong, "* PONG %d\n", aHeartbeatFreq);
+	sprintf(mPong, "* PONG %I64d\n", heartbeatFreq.count());
 
-	gLogger->info("Server started, waiting on port %d", aPort);
+	gLogger->info("Server started, waiting on port %d", port);
 }
 
 
@@ -161,7 +162,7 @@ void Server::readFromClients()
 						if (!client->mHeartbeats)
 							client->mHeartbeats = true;
 
-						client->mLastHeartbeat = getTimestamp();
+						client->mLastHeartbeat = std::chrono::system_clock::now();
 						client->write(mPong);
 					}
 					else
@@ -177,12 +178,12 @@ void Server::readFromClients()
 	// Check heartbeats
 	for (int i = mNumClients - 1; i >= 0; i--)
 	{
-		Client *client = mClients[i];
-		unsigned int now = getTimestamp();
+		auto client = mClients[i];
+		auto now = std::chrono::system_clock::now();
 
 		if (client->mHeartbeats)
 		{
-			if (deltaTimestamp(now, client->mLastHeartbeat) > (unsigned int) mTimeout)
+			if(now - client->mLastHeartbeat >mTimeout)
 			{
 				gLogger->warning("Client has not sent heartbeat in over %d ms, disconnecting",
 						 mTimeout);
@@ -314,37 +315,3 @@ Client *Server::addClient(Client *client)
 
 	return client;
 }
-
-
-unsigned int Server::getTimestamp()
-{
-#ifdef WIN32
-	return GetTickCount();
-#else
-	timeval curtime;
-	gettimeofday(&curtime, 0);
-
-	unsigned long ts = (unsigned long) curtime.tv_sec;
-	// Allow to truncate
-	ts *= 1000;
-	ts += curtime.tv_usec / 1000;
-
-	return ts;
-#endif
-}
-
-
-unsigned int Server::deltaTimestamp(unsigned int a, unsigned int b)
-{
-	// Assume we are doing a - b where a should be larger, if it is not
-	// we have a wrap-around
-	unsigned int res;
-
-	if (a >= b)
-		res = a - b;
-	else // b > a, Compute the distance from the end:
-		res = a + (0xFFFFFFFF - b);
-
-	return res;
-}
-

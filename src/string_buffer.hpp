@@ -31,6 +31,7 @@
 // SUCH PARTY HAD ADVANCE NOTICE OF THE POSSIBILITY OF SUCH DAMAGES.
 //
 #pragma once
+#include <string>
 
 //
 // A simple extensible string that can be appended to. The memory will be reused
@@ -45,7 +46,8 @@ protected:
 	char *mBuffer;		// A resizable character buffer
 	size_t mSize;		// The allocated size of the string
 	size_t mLength;		// The length of the string
-	char mTimestamp[64];
+	std::string mTimestamp;
+
 
 public:
 	StringBuffer(const char *string = nullptr);
@@ -59,7 +61,7 @@ public:
 	void reset();
 	void timestamp();
 	void setTimestamp(const char *timestamp) {
-		strcpy_s(mTimestamp, timestamp); }
+		mTimestamp = timestamp; }
 	size_t length() const {
 		return mLength; }
 	void newline();

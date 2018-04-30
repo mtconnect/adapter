@@ -33,6 +33,7 @@
 #pragma once
 
 #include <mutex>
+#include <chrono>
 
 
 //
@@ -49,7 +50,7 @@ protected:
 // class methods
 public:
 	bool mHeartbeats;
-	unsigned int mLastHeartbeat;
+	std::chrono::time_point<std::chrono::system_clock> mLastHeartbeat;
 
 // Instance methods
 public:

@@ -25,6 +25,7 @@ endif()
 include(cmake/osx_no_app_or_frameworks.cmake)
 include(cmake/msvc_xp_support.cmake)
 include(cmake/vs_set_working_directory.cmake)
+include(cmake/date.cmake)
 include(cmake/adapter_fanuc.cmake)
 
 # Add our dependency projects

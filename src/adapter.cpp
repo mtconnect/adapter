@@ -44,7 +44,7 @@ Adapter::Adapter(int port, int scanDelayMs) :
 	mScanDelay{scanDelayMs},
 	mPort(port),
 	mDisableFlush(false),
-	mHeartbeatFrequency(10000),
+	mHeartbeatFrequency{10000},
 	mRunning(false),
 	mInitializeClient(nullptr)
 {

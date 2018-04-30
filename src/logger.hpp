@@ -34,6 +34,7 @@
 
 #include <stdarg.h>
 #include <stdio.h>
+#include <string>
 
 #define LOGGER_BUFFER_SIZE 1024
 
@@ -66,7 +67,7 @@ public:
 
 protected:
 	const char *format(char *buffer, int aLen, const char *format, va_list args);
-	const char *timestamp(char *buffer);
+	std::string timestamp();
 
 	LogLevel mLogLevel;
 	FILE *mFile;

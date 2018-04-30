@@ -48,3 +48,4 @@ if(WIN32)
 endif()
 
 AddMsvcXPSupport(fake_adapter) #This will only apply if an XP compatible toolset has been selected in CMake
+AddDateSupport(fake_adapter)

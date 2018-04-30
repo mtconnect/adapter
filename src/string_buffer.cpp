@@ -32,13 +32,18 @@
 //
 #include "internal.hpp"
 #include "string_buffer.hpp"
-
+#ifdef min
+	#undef min
+#endif
+#ifdef max
+	#undef max
+#endif
+#include <date/date.h>
 
 StringBuffer::StringBuffer(const char *string) :
 	mBuffer(nullptr),
 	mSize(0u),
-	mLength(0u),
-	mTimestamp{0}
+	mLength(0u)
 {
 	if (string)
 		append(string);
@@ -60,7 +65,7 @@ const char *StringBuffer::append(const char *string)
 	// Include additional length for timestamp
 	auto len = strlen(string);
 	auto totalLength = mLength + len;
-	auto tsLen = strlen(mTimestamp);
+	auto tsLen = mTimestamp.size();
 
 	if (!mLength)
 		totalLength += tsLen;
@@ -78,7 +83,7 @@ const char *StringBuffer::append(const char *string)
 
 	if (!mLength && tsLen > 0)
 	{
-		strcpy(mBuffer, mTimestamp);
+		strcpy(mBuffer, mTimestamp.c_str());
 		mLength += tsLen;
 	}
 
@@ -92,7 +97,7 @@ const char *StringBuffer::append(const char *string)
 void StringBuffer::newline()
 {
 	append("\n");
-	append(mTimestamp);
+	append(mTimestamp.c_str());
 }
 
 
@@ -108,30 +113,6 @@ void StringBuffer::reset()
 
 void StringBuffer::timestamp()
 {
-#ifdef WIN32
-	SYSTEMTIME st;
-	GetSystemTime(&st);
-	sprintf(
-		mTimestamp,
-		"%4d-%02d-%02dT%02d:%02d:%02d.%03dZ", 
-		st.wYear,
-		st.wMonth,
-		st.wDay,
-		st.wHour,
-		st.wMinute,
-		st.wSecond,
-		st.wMilliseconds);
-#else
-	struct timeval tv;
-	struct timezone tz;
-
-	gettimeofday(&tv, &tz);
-
-	strftime(
-		mTimestamp,
-		64,
-		"%Y-%m-%dT%H:%M:%S",
-		gmtime(&tv.tv_sec));
-	sprintf(mTimestamp + strlen(mTimestamp), ".%06dZ", tv.tv_usec);
-#endif
+	mTimestamp = date::format("%FT%TZ",
+				std::chrono::time_point_cast<std::chrono::milliseconds>(std::chrono::system_clock::now()));
 }

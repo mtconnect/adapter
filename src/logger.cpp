@@ -32,6 +32,14 @@
 //
 #include "internal.hpp"
 #include "logger.hpp"
+#ifdef min
+	#undef min
+#endif
+#ifdef max
+	#undef max
+#endif
+#include <date/date.h>
+#include <chrono>
 
 Logger *gLogger = nullptr;
 
@@ -39,11 +47,10 @@ Logger *gLogger = nullptr;
 void Logger::error(const char *inputformat, ...)
 {
 	char buffer[LOGGER_BUFFER_SIZE];
-	char ts[32];
 	va_list args;
 	va_start(args, inputformat);
 	fprintf(mFile, "%s - Error: %s\n",
-		timestamp(ts),
+		timestamp().c_str(),
 		format(buffer, LOGGER_BUFFER_SIZE, inputformat, args));
 	fflush(mFile);
 	va_end(args);
@@ -56,11 +63,10 @@ void Logger::warning(const char *inputformat, ...)
 		return;
 
 	char buffer[LOGGER_BUFFER_SIZE];
-	char ts[32];
 	va_list args;
 	va_start(args, inputformat);
 	fprintf(mFile, "%s - Warning: %s\n",
-		timestamp(ts),
+		timestamp().c_str(),
 		format(buffer, LOGGER_BUFFER_SIZE, inputformat, args));
 	fflush(mFile);
 	va_end(args);
@@ -73,11 +79,10 @@ void Logger::info(const char *inputformat, ...)
 		return;
 
 	char buffer[LOGGER_BUFFER_SIZE];
-	char ts[32];
 	va_list args;
 	va_start(args, inputformat);
 	fprintf(mFile, "%s - Info: %s\n",
-		timestamp(ts),
+		timestamp().c_str(),
 		format(buffer, LOGGER_BUFFER_SIZE, inputformat, args));
 	fflush(mFile);
 	va_end(args);
@@ -90,11 +95,10 @@ void Logger::debug(const char *inputformat, ...)
 		return;
 
 	char buffer[LOGGER_BUFFER_SIZE];
-	char ts[32];
 	va_list args;
 	va_start(args, inputformat);
 	fprintf(mFile, "%s - Debug: %s\n",
-		timestamp(ts),
+		timestamp().c_str(),
 		format(buffer, LOGGER_BUFFER_SIZE, inputformat, args));
 	fflush(mFile);
 	va_end(args);
@@ -109,22 +113,8 @@ const char *Logger::format(char *buffer, int aLen, const char *inputformat, va_l
 }
 
 
-const char *Logger::timestamp(char *buffer)
+std::string Logger::timestamp()
 {
-#ifdef WIN32
-	SYSTEMTIME st;
-	GetSystemTime(&st);
-	sprintf(buffer, "%4d-%02d-%02dT%02d:%02d:%02d.%03dZ", st.wYear, st.wMonth, st.wDay, st.wHour,
-		st.wMinute, st.wSecond, st.wMilliseconds);
-#else
-	struct timeval tv;
-	struct timezone tz;
-
-	gettimeofday(&tv, &tz);
-
-	strftime(buffer, 64, "%Y-%m-%dT%H:%M:%S", gmtime(&tv.tv_sec));
-	sprintf(buffer + strlen(buffer), ".%06dZ", tv.tv_usec);
-#endif
-
-	return buffer;
+	return date::format("%FT%TZ",
+				std::chrono::time_point_cast<std::chrono::milliseconds>(std::chrono::system_clock::now()));
 }

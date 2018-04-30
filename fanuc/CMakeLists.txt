@@ -93,6 +93,7 @@ endif()
 
 AddFocas2Support(fanuc)
 AddMsvcXPSupport(fanuc) #This will only apply if an XP compatible toolset has been selected in CMake
+AddDateSupport(fanuc)
 
 # Copy the ini file and devices XML to our output directory
 file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/adapter.ini DESTINATION ./Debug/)

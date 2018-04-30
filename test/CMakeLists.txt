@@ -52,5 +52,6 @@ if(WIN32)
 	)
 endif()
 
-AddMsvcXPSupport(fanuc) #This will only apply if an XP compatible toolset has been selected in CMake
+AddMsvcXPSupport(test) #This will only apply if an XP compatible toolset has been selected in CMake
 AddCppUnitSupport(test)
+AddDateSupport(test)

@@ -33,6 +33,7 @@
 #pragma once
 
 #include <mutex>
+#include <chrono>
 
 class Client;
 
@@ -47,7 +48,7 @@ protected:
 	int mNumClients;
 	int mPort;
 	char mPong[32];
-	int mTimeout;
+	std::chrono::milliseconds mTimeout;
 
 	std::mutex mListLock;
 
@@ -58,11 +59,9 @@ protected:
 	// Locks the mutex.
 	void removeClient(Client *client);
 	Client *addClient(Client *client);
-	unsigned int getTimestamp();
-	unsigned int deltaTimestamp(unsigned int, unsigned int);
 
 public:
-	Server(int aPort, int aHeartbeatFreq);
+	Server(int port, std::chrono::milliseconds heartbeatFreq);
 	~Server();
 
 	// Returns the new client.

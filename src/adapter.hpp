@@ -62,7 +62,7 @@ protected:
 	std::chrono::milliseconds mScanDelay;	// How long to sleep (in ms) between scans
 	int mPort;								// The server port we bind to
 	bool mDisableFlush;						// Used for initial data collection
-	int mHeartbeatFrequency;				// The frequency (ms) to heartbeat server. Responds to Ping. Default 10 sec
+	std::chrono::milliseconds mHeartbeatFrequency; // The frequency (ms) to heartbeat server. Responds to Ping. Default 10 sec
 	bool mRunning;
 	Client *mInitializeClient;				// If we are sending initial data to a client
 
