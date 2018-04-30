@@ -105,7 +105,7 @@ Server::~Server()
 
 	::shutdown(mSocket, SHUT_RDWR);
 
-#ifdef WINDOWS
+#ifdef _WINDOWS
 	WSACleanup();
 #endif
 }
