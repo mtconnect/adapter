@@ -7,6 +7,10 @@
                         </Description>
       <DataItems>
         <DataItem category="EVENT" id="avail_01" name="avail" type="AVAILABILITY"/>
+        <DataItem type="VARIABLE" category="EVENT" id="macro500" name="Macro500" />
+        <DataItem type="VARIABLE" category="EVENT" id="macro501" name="Macro501" />
+        <DataItem type="VARIABLE" category="EVENT" id="macro502" name="Macro502" />
+        <DataItem type="VARIABLE" category="EVENT" id="macroPos" name="MacroPos" />
       </DataItems>
       <Components>
         <Linear id="x1_01" name="X">
@@ -36,33 +40,6 @@
             <DataItem category="CONDITION" id="z15_01" name="Zservo" type="LOAD"/>
           </DataItems>
         </Linear>
-        <Rotary id="a1_01" name="A">
-          <DataItems>
-            <DataItem category="SAMPLE" id="a11_01" name="Aact" nativeUnits="DEGREE" subType="ACTUAL" type="ANGLE" units="DEGREE"/>
-            <DataItem category="SAMPLE" id="a12_01" name="Aload" nativeUnits="PERCENT" subType="ACTUAL" type="LOAD" units="PERCENT"/>
-            <DataItem category="CONDITION" id="a13_01" name="Atravel" type="POSITION"/>
-            <DataItem category="CONDITION" id="a14_01" name="Aoverheat" type="TEMPERATURE"/>
-            <DataItem category="CONDITION" id="a15_01" name="Aservo" type="LOAD"/>
-            <DataItem category="EVENT" id="a16_01" type="ROTARY_MODE">
-              <Constraints>
-                <Value>INDEX</Value>
-              </Constraints>
-            </DataItem>
-          </DataItems>
-        </Rotary>
-        <Rotary id="c1_01" name="C" nativeName="S">
-          <DataItems>
-            <DataItem category="SAMPLE" id="c11_01" name="S1speed" nativeUnits="REVOLUTION/MINUTE" subType="ACTUAL" type="ROTARY_VELOCITY" units="REVOLUTION/MINUTE"/>
-            <DataItem category="SAMPLE" id="c12_01" name="S1load" nativeUnits="PERCENT" subType="ACTUAL" type="LOAD" units="PERCENT"/>
-            <DataItem category="EVENT" id="c14_01" type="ROTARY_MODE">
-              <Constraints>
-                <Value>SPINDLE</Value>
-              </Constraints>
-            </DataItem>
-            <DataItem category="SAMPLE" id="c15_01" name="SspeedOvr" nativeUnits="PERCENT" subType="OVERRIDE" type="ROTARY_VELOCITY" units="PERCENT"/>
-            <DataItem category="CONDITION" id="c16_01" name="S1servo" type="LOAD"/>
-          </DataItems>
-        </Rotary>
         <Controller id="controller1_01" name="Controller">
           <DataItems>
             <DataItem category="EVENT" id="controller11_01" name="estop" type="EMERGENCY_STOP"/>
@@ -85,10 +62,11 @@
                 <DataItem category="EVENT" id="path24_01" name="program_comment" type="PROGRAM_COMMENT"/>
                 <DataItem category="EVENT" id="path15_01" name="block" type="BLOCK"/>
                 <DataItem category="EVENT" id="path20_01" name="part_count" type="PART_COUNT"/>
+				<DataItem category="EVENT" id="path19_01" name="Fovr" subType="PROGRAMMED" type="PATH_FEEDRATE_OVERRIDE"/>
+				<DataItem category="EVENT" id="path31_01" name="Sovr" type="ROTARY_VELOCITY_OVERRIDE"/>
                 <DataItem category="SAMPLE" id="path17_01" name="path_position" nativeUnits="MILLIMETER_3D" subType="ACTUAL" type="PATH_POSITION" units="MILLIMETER_3D"/>
                 <DataItem category="SAMPLE" id="path18_01" name="path_feedrate" nativeUnits="MILLIMETER/SECOND" type="PATH_FEEDRATE" subType="ACTUAL" units="MILLIMETER/SECOND"/>
                 <DataItem category="SAMPLE" id="path28_01" name="f_command" nativeUnits="MILLIMETER/SECOND" type="PATH_FEEDRATE" subType="COMMANDED" units="MILLIMETER/SECOND"/>
-                <DataItem category="SAMPLE" id="path19_01" name="Fovr" nativeUnits="PERCENT" subType="OVERRIDE" type="PATH_FEEDRATE" units="PERCENT"/>
               </DataItems>
             </Path>
           </Components>
