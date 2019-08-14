@@ -1,5 +1,5 @@
 #include "stream.h"
-#include <iostream>
+#include <ostream>
 #include "exp.h"
 
 #ifndef YAML_PREFETCH_SIZE
