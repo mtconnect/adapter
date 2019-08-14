@@ -62,10 +62,11 @@
                 <DataItem category="EVENT" id="path24_01" name="program_comment" type="PROGRAM_COMMENT"/>
                 <DataItem category="EVENT" id="path15_01" name="block" type="BLOCK"/>
                 <DataItem category="EVENT" id="path20_01" name="part_count" type="PART_COUNT"/>
+				<DataItem category="EVENT" id="path19_01" name="Fovr" subType="PROGRAMMED" type="PATH_FEEDRATE_OVERRIDE"/>
+				<DataItem category="EVENT" id="path31_01" name="Sovr" type="ROTARY_VELOCITY_OVERRIDE"/>
                 <DataItem category="SAMPLE" id="path17_01" name="path_position" nativeUnits="MILLIMETER_3D" subType="ACTUAL" type="PATH_POSITION" units="MILLIMETER_3D"/>
                 <DataItem category="SAMPLE" id="path18_01" name="path_feedrate" nativeUnits="MILLIMETER/SECOND" type="PATH_FEEDRATE" subType="ACTUAL" units="MILLIMETER/SECOND"/>
                 <DataItem category="SAMPLE" id="path28_01" name="f_command" nativeUnits="MILLIMETER/SECOND" type="PATH_FEEDRATE" subType="COMMANDED" units="MILLIMETER/SECOND"/>
-                <DataItem category="SAMPLE" id="path19_01" name="Fovr" nativeUnits="PERCENT" subType="OVERRIDE" type="PATH_FEEDRATE" units="PERCENT"/>
               </DataItems>
             </Path>
           </Components>
