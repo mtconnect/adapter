@@ -7,10 +7,14 @@
                         </Description>
       <DataItems>
         <DataItem category="EVENT" id="avail_01" name="avail" type="AVAILABILITY"/>
-        <DataItem type="VARIABLE" category="EVENT" id="macro500" name="Macro500" />
+        <!-- <DataItem type="VARIABLE" category="EVENT" id="macro500" name="Macro500" />
         <DataItem type="VARIABLE" category="EVENT" id="macro501" name="Macro501" />
         <DataItem type="VARIABLE" category="EVENT" id="macro502" name="Macro502" />
-        <DataItem type="VARIABLE" category="EVENT" id="macroPos" name="MacroPos" />
+        <DataItem type="VARIABLE" category="EVENT" id="macroPos" name="MacroPos" /> -->
+		<DataItem type="FEATURE_PERSISTENT_ID" category="EVENT" id="featureId" name="FeatureId" />
+		<DataItem type="PART_KIND_ID" category="EVENT" id="partKindId" name="PartKindId" subType="UUID" />
+		<!-- <DataItem type="PART_UNIQUE_ID" category="EVENT" id="partUniqueId" name="PartUniqueId" subType="UUID"/> -->
+		<DataItem type="PROCESS_KIND_ID" category="EVENT" id="processKindId" name="ProcessKindId" subType="UUID"/>
       </DataItems>
       <Components>
         <Linear id="x1_01" name="X">
@@ -63,10 +67,14 @@
                 <DataItem category="EVENT" id="path15_01" name="block" type="BLOCK"/>
                 <DataItem category="EVENT" id="path20_01" name="part_count" type="PART_COUNT"/>
 				<DataItem category="EVENT" id="path19_01" name="Fovr" subType="PROGRAMMED" type="PATH_FEEDRATE_OVERRIDE"/>
-				<DataItem category="EVENT" id="path31_01" name="Sovr" type="ROTARY_VELOCITY_OVERRIDE"/>
+				<DataItem category="EVENT" id="path31_01" name="SspeedOvr" type="ROTARY_VELOCITY_OVERRIDE"/>
                 <DataItem category="SAMPLE" id="path17_01" name="path_position" nativeUnits="MILLIMETER_3D" subType="ACTUAL" type="PATH_POSITION" units="MILLIMETER_3D"/>
                 <DataItem category="SAMPLE" id="path18_01" name="path_feedrate" nativeUnits="MILLIMETER/SECOND" type="PATH_FEEDRATE" subType="ACTUAL" units="MILLIMETER/SECOND"/>
                 <DataItem category="SAMPLE" id="path28_01" name="f_command" nativeUnits="MILLIMETER/SECOND" type="PATH_FEEDRATE" subType="COMMANDED" units="MILLIMETER/SECOND"/>
+				<DataItem type="x:PART_COUNT_PASS" id="pc_pass" category="EVENT" name="PartCountPassAct"/>
+				<DataItem type="x:PART_COUNT_WARN" id="pc_warn" category="EVENT" name="PartCountWarnAct"/>
+				<DataItem type="x:PART_COUNT_FAIL" id="pc_fail" category="EVENT" name="PartCountFailAct"/>
+				<DataItem type="x:PART_COUNT_UNKNOWN" id="pc_unknown" category="EVENT" name="PartCountUnknownAct"/>
               </DataItems>
             </Path>
           </Components>
