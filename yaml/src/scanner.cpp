@@ -4,6 +4,7 @@
 #include "exp.h"
 #include <cassert>
 #include <memory>
+#include <ostream>
 
 namespace YAML
 {

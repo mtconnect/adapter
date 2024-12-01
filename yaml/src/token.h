@@ -5,6 +5,7 @@
 
 
 #include "mark.h"
+#include <ostream>
 #include <ios>
 #include <string>
 #include <vector>

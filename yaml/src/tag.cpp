@@ -2,6 +2,7 @@
 #include "token.h"
 #include "parserstate.h"
 #include <cassert>
+#include <ostream>
 
 namespace YAML
 {
